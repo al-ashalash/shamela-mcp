@@ -1,12 +1,12 @@
 {
   "manifest_version": "0.2",
   "name": "shamela",
-  "display_name": "Shamela Library Search",
+  "display_name": "بحث في المكتبة الشاملة",
   "version": "0.0.1",
-  "description": "Search Maktabah al-Shamela 4 from Claude. Requires Shamela 4 installed locally.",
-  "long_description": "Lets Claude search the Arabic Islamic library Maktabah al-Shamela 4 installed on your computer. Returns book pages, book metadata, and author biographies with printed-page references and matched-text context. Reads Shamela's local Lucene index and SQLite catalogs read-only; nothing is sent over the network.",
+  "description": "بحث محلي في المكتبة الشاملة 4 من داخل Claude. يحتاج إلى تثبيت المكتبة على جهازك.",
+  "long_description": "إضافة تتيح لـ Claude البحثَ في المكتبة الشاملة 4 المُثبَّتة على جهازك. تُتيح ثلاث أدوات بحث: في صفحات الكتب المُنزَّلة (المتن والحواشي)، وفي فهرس الكتب، وفي فهرس المؤلفين. تعرض النتائج اسم الكتاب والمؤلف ورقم الصفحة المطبوعة، مع مقتطف من النص يُبرَز فيه موضع التطابق. كل عمليات البحث تتم محليًّا على جهازك ولا يُرسَل أي شيء عبر الشبكة، والقراءة من قاعدة بيانات المكتبة الشاملة قراءةٌ فقط.",
   "author": {
-    "name": "Hamoud Alhoqbani"
+    "name": "فاعل خير"
   },
   "server": {
     "type": "node",
@@ -23,15 +23,15 @@
   "user_config": {
     "shamela_install_folder": {
       "type": "directory",
-      "title": "Shamela installation folder",
-      "description": "The folder where you installed Shamela 4 (contains 'database' and 'app' subfolders). Leave empty to auto-detect.",
+      "title": "مجلد المكتبة الشاملة",
+      "description": "المجلد الذي ثبَّتت فيه المكتبة الشاملة 4 (يحتوي على مجلدين فرعيين: database و app). اترك الحقل فارغًا ليُكتشف المسار تلقائيًّا.",
       "required": false,
       "default": ""
     },
     "jre_path": {
       "type": "file",
-      "title": "Java executable (advanced)",
-      "description": "Path to a Java executable. Leave empty to use the JRE bundled with your Shamela install.",
+      "title": "مسار جافا (إعداد متقدم)",
+      "description": "مسار ملف جافا التنفيذي. اترك الحقل فارغًا لاستخدام جافا المرفقة مع المكتبة الشاملة.",
       "required": false,
       "default": ""
     }
@@ -43,15 +43,15 @@
   "tools": [
     {
       "name": "shamela_search_pages",
-      "description": "Search Maktabah al-Shamela page text for an Arabic phrase. Returns hits with book name, author, printed-page label, and snippet."
+      "description": "البحث في نصوص الصفحات المُنزَّلة من كتب المكتبة الشاملة (المتن والحواشي)."
     },
     {
       "name": "shamela_search_books",
-      "description": "Search Shamela's catalog of books by name, author name, or bibliography text. Works even before any books are downloaded."
+      "description": "البحث في فهرس الكتب بالاسم أو المؤلف أو نص التعريف. يعمل قبل تنزيل أي كتاب."
     },
     {
       "name": "shamela_search_authors",
-      "description": "Search Shamela's catalog of authors by name or biography text. Returns author with death year and snippet from biography."
+      "description": "البحث في فهرس المؤلفين بالاسم أو نص الترجمة. يعمل قبل تنزيل أي كتاب."
     }
   ]
 }

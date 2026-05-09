@@ -64,7 +64,10 @@ export class Helper extends EventEmitter {
     /** Spawn the helper process if not already running. */
     private async start(): Promise<void> {
         if (this.dead) {
-            throw new HelperError("HELPER_DEAD", "Helper crashed too many times; not restarting.");
+            throw new HelperError(
+                "HELPER_DEAD",
+                "تعطَّل الخادم المساعد لجافا أكثر من مرة، ولن يُعاد تشغيله. أعد تشغيل Claude Desktop ليُعاد المحاولة.",
+            );
         }
         if (this.child && !this.child.killed) return;
         if (this.starting) return this.starting;
@@ -178,9 +181,9 @@ export class Helper extends EventEmitter {
         // Reject all pending requests so callers don't hang.
         const err = new HelperError(
             this.dead ? "HELPER_DEAD" : "HELPER_DIED",
-            `Java helper exited (${reason}). ${
-                this.dead ? "Crashed too many times; not restarting." : "Will restart on next request."
-            }`,
+            this.dead
+                ? `توقَّف الخادم المساعد لجافا (${reason}). تعطَّل أكثر من مرة، ولن يُعاد تشغيله.`
+                : `توقَّف الخادم المساعد لجافا (${reason}). سيُعاد تشغيله عند الطلب التالي.`,
         );
         for (const pending of this.pending.values()) {
             pending.reject(err);
@@ -193,7 +196,7 @@ export class Helper extends EventEmitter {
         await this.start();
         const child = this.child;
         if (!child || child.killed) {
-            throw new HelperError("HELPER_DEAD", "Helper is not running.");
+            throw new HelperError("HELPER_DEAD", "الخادم المساعد لجافا متوقِّف.");
         }
 
         const id = randomUUID();
@@ -207,7 +210,12 @@ export class Helper extends EventEmitter {
             });
             const timer = setTimeout(() => {
                 if (this.pending.delete(id)) {
-                    reject(new HelperError("HELPER_TIMEOUT", `Helper did not respond to ${cmd} within ${timeoutMs}ms.`));
+                    reject(
+                        new HelperError(
+                            "HELPER_TIMEOUT",
+                            `لم يستجِب الخادم المساعد للأمر ${cmd} خلال ${timeoutMs} مللي ثانية.`,
+                        ),
+                    );
                 }
             }, timeoutMs);
             // Ensure timer doesn't keep the process alive past server shutdown.

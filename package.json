@@ -2,6 +2,7 @@
   "name": "shamela-mcpb",
   "version": "0.0.1",
   "description": "MCPB (MCP Bundle) for searching a local Maktabah al-Shamela 4 install from Claude Desktop.",
+  "author": "فاعل خير",
   "private": true,
   "type": "module",
   "main": "dist/index.js",

@@ -42,10 +42,10 @@ export class ShamelaNotFoundError extends Error {
     constructor(probed: ProbedPath[]) {
         const lines = probed.map((p) => `  ${p.path}  [${p.source}]  ${p.reason}`).join("\n");
         super(
-            `Could not locate a Shamela 4 install. Checked these paths:\n${lines}\n\n` +
-                `If you've installed Shamela 4, set the "Shamela installation folder" in the ` +
-                `extension's settings (or the SHAMELA_INSTALL_ROOT env var) to your install ` +
-                `directory (the folder that contains 'database' and 'app' subfolders).`,
+            `تعذَّر إيجاد تثبيت المكتبة الشاملة 4. تم البحث في هذه المسارات:\n${lines}\n\n` +
+                `إن كنت قد ثبَّتها فعلًا، فاضبط حقل «مجلد المكتبة الشاملة» في إعدادات الإضافة ` +
+                `(أو متغيِّر البيئة SHAMELA_INSTALL_ROOT) ليُشير إلى مجلد التثبيت ` +
+                `(المجلد الذي يحتوي على المجلدين الفرعيين database و app).`,
         );
         this.probed = probed;
         this.name = "ShamelaNotFoundError";
@@ -59,23 +59,23 @@ export class ShamelaNotFoundError extends Error {
 export function validateInstallRoot(
     candidate: string,
 ): { ok: true; installRoot: string } | { ok: false; reason: string } {
-    if (!candidate) return { ok: false, reason: "empty path" };
+    if (!candidate) return { ok: false, reason: "مسار فارغ" };
 
     let resolved: string;
     try {
         resolved = path.resolve(candidate);
     } catch {
-        return { ok: false, reason: "could not resolve to absolute path" };
+        return { ok: false, reason: "تعذَّر تحويله إلى مسار مطلق" };
     }
 
-    if (!fs.existsSync(resolved)) return { ok: false, reason: "did not exist" };
+    if (!fs.existsSync(resolved)) return { ok: false, reason: "غير موجود" };
     let stat: fs.Stats;
     try {
         stat = fs.statSync(resolved);
     } catch (err) {
-        return { ok: false, reason: `stat failed: ${(err as Error).message}` };
+        return { ok: false, reason: `تعذَّر فحصه: ${(err as Error).message}` };
     }
-    if (!stat.isDirectory()) return { ok: false, reason: "not a directory" };
+    if (!stat.isDirectory()) return { ok: false, reason: "ليس مجلدًا" };
 
     // If the user pointed at .../database, walk up one.
     const base = path.basename(resolved);
@@ -83,8 +83,8 @@ export function validateInstallRoot(
 
     const dbDir = path.join(candidateRoot, "database");
     const appDir = path.join(candidateRoot, "app");
-    if (!fs.existsSync(dbDir)) return { ok: false, reason: "missing 'database' subfolder" };
-    if (!fs.existsSync(appDir)) return { ok: false, reason: "missing 'app' subfolder" };
+    if (!fs.existsSync(dbDir)) return { ok: false, reason: "ينقصه المجلد الفرعي database" };
+    if (!fs.existsSync(appDir)) return { ok: false, reason: "ينقصه المجلد الفرعي app" };
     return { ok: true, installRoot: candidateRoot };
 }
 
@@ -174,7 +174,7 @@ function findInstallRoot(): { installRoot: string; probed: ProbedPath[] } {
     const envRoot = process.env.SHAMELA_INSTALL_ROOT?.trim();
     if (envRoot) {
         const r = validateInstallRoot(envRoot);
-        if (r.ok) return { installRoot: r.installRoot, probed: [{ path: envRoot, source: "env", reason: "OK" }] };
+        if (r.ok) return { installRoot: r.installRoot, probed: [{ path: envRoot, source: "env", reason: "صالح" }] };
         probed.push({ path: envRoot, source: "env", reason: r.reason });
     }
 
@@ -183,7 +183,7 @@ function findInstallRoot(): { installRoot: string; probed: ProbedPath[] } {
         for (const candidate of probeRegistry()) {
             const r = validateInstallRoot(candidate);
             if (r.ok) {
-                probed.push({ path: candidate, source: "registry", reason: "OK" });
+                probed.push({ path: candidate, source: "registry", reason: "صالح" });
                 return { installRoot: r.installRoot, probed };
             }
             probed.push({ path: candidate, source: "registry", reason: r.reason });
@@ -194,7 +194,7 @@ function findInstallRoot(): { installRoot: string; probed: ProbedPath[] } {
     for (const candidate of commonLocations()) {
         const r = validateInstallRoot(candidate);
         if (r.ok) {
-            probed.push({ path: candidate, source: "common", reason: "OK" });
+            probed.push({ path: candidate, source: "common", reason: "صالح" });
             return { installRoot: r.installRoot, probed };
         }
         probed.push({ path: candidate, source: "common", reason: r.reason });
@@ -218,7 +218,7 @@ function resolveJre(installRoot: string): string {
                 for (const c of candidates) if (fs.existsSync(c)) return c;
             }
         }
-        throw new Error(`SHAMELA_JRE = ${envJre} did not yield a usable Java executable.`);
+        throw new Error(`SHAMELA_JRE = ${envJre} لا يُشير إلى ملف جافا تنفيذي صالح.`);
     }
 
     const isWin = process.platform === "win32";
@@ -236,22 +236,22 @@ function resolveJre(installRoot: string): string {
 
     for (const c of candidates) if (fs.existsSync(c)) return c;
     throw new Error(
-        `Could not locate Shamela's bundled JRE under ${path.join(installRoot, "app")}. ` +
-            `Set SHAMELA_JRE to the path of a Java executable (advanced setting).`,
+        `تعذَّر إيجاد جافا المرفقة مع المكتبة الشاملة في ${path.join(installRoot, "app")}. ` +
+            `اضبط متغيِّر SHAMELA_JRE ليُشير إلى ملف جافا تنفيذي (إعداد متقدم).`,
     );
 }
 
 function resolveJars(installRoot: string): string[] {
     const luceneDir = path.join(installRoot, "app", "lucene", "2");
     if (!fs.existsSync(luceneDir)) {
-        throw new Error(`Lucene jar directory missing: ${luceneDir}`);
+        throw new Error(`لم يُعثر على مجلد ملفات Lucene: ${luceneDir}`);
     }
     const out = fs
         .readdirSync(luceneDir)
         .filter((name) => name.toLowerCase().endsWith(".jar"))
         .map((name) => path.join(luceneDir, name));
     if (out.length === 0) {
-        throw new Error(`No .jar files found in ${luceneDir}.`);
+        throw new Error(`لا توجد ملفات .jar داخل ${luceneDir}.`);
     }
     out.sort();
     return out;
