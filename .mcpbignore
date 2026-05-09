@@ -1,0 +1,14 @@
+# Ship only the bundled artifacts and the manifest. Everything else is dev-only.
+.git/
+.gitignore
+.nvmrc
+CLAUDE.md
+node_modules/
+src/
+tests/
+scripts/
+libs-cache/
+package-lock.json
+package.json
+tsconfig.json
+*.mcpb

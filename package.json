@@ -9,7 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build:server": "esbuild src/server/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/index.js --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build:server": "esbuild src/server/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "build:java": "powershell -ExecutionPolicy Bypass -File scripts/build-java.ps1",
     "build": "npm run build:server && npm run build:java",
     "smoke": "tsx tests/smoke.ts",

@@ -9,6 +9,26 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
 
+function Add-JdkToPath {
+    # If javac is already on PATH, nothing to do.
+    if (Get-Command javac -ErrorAction SilentlyContinue) { return }
+    $candidates = @(
+        "C:\Program Files\Eclipse Adoptium",
+        "C:\Program Files\Microsoft\jdk-21*",
+        "C:\Program Files\Java"
+    )
+    foreach ($base in $candidates) {
+        $hits = Get-ChildItem -Path $base -ErrorAction SilentlyContinue -Filter "*jdk*21*" |
+            Where-Object { Test-Path (Join-Path $_.FullName "bin\javac.exe") }
+        if ($hits) {
+            $jdk = $hits[0].FullName
+            $env:Path = (Join-Path $jdk "bin") + ";" + $env:Path
+            Write-Host "Using JDK at $jdk"
+            return
+        }
+    }
+}
+
 function Find-ShamelaInstall {
     if ($env:SHAMELA_INSTALL_ROOT -and (Test-Path $env:SHAMELA_INSTALL_ROOT)) {
         if ((Test-Path (Join-Path $env:SHAMELA_INSTALL_ROOT "database")) -and `
@@ -32,6 +52,7 @@ function Find-ShamelaInstall {
 }
 
 # Verify JDK
+Add-JdkToPath
 try {
     $javacVersion = & javac -version 2>&1
     Write-Host "javac: $javacVersion"
