@@ -1,64 +1,103 @@
 # v1.0 TODO
 
-## Phase 0 — Investigation
+## Phase 0 — Investigation ✅
 
-- [ ] 0.1 Toggle + wildcard implementation → `docs/toggles-implementation.md`
-- [ ] 0.2 Scope filter composition → `docs/scope-implementation.md`
-- [ ] 0.3 Catalog + citation reality check → `docs/catalog-survey.md`
-- [ ] 0.4 Citation format → `docs/citation-format.md`
+- [x] 0.1 Toggle + wildcard implementation → `docs/toggles-implementation.md`
+- [x] 0.2 Scope filter composition → `docs/scope-implementation.md`
+- [x] 0.3 Catalog + citation reality check → `docs/catalog-survey.md`
+- [x] 0.4 Citation format → `docs/citation-format.md`
 
-## Phase 1 — Architecture
+## Phase 1 — Architecture ✅
 
-- [ ] 1.1 Lock tool inventory + decisions → `docs/v1-architecture.md`
-- [ ] 1.2 Lock IPC additions → `docs/ipc-protocol.md`
+- [x] 1.1 Lock tool inventory + decisions → `docs/v1-architecture.md`
+- [x] 1.2 Lock IPC additions → `docs/ipc-protocol.md`
 
-## Phase 2 — Build (in dependency order)
+## Phase 2 — Build
 
-- [ ] 2.1 Migrate v0.0.1 tools to `registerTool` (no behavior change)
-- [ ] 2.2 `src/server/constants.ts` (CHARACTER_LIMIT, DEFAULT_LIMIT, MAX_LIMIT)
-- [ ] 2.3 `src/server/schemas.ts` (PaginationInput, ResponseFormatInput)
-- [ ] 2.4 `src/server/format.ts` (markdown/JSON renderers + truncation)
-- [ ] 2.5 Catalog extensions (`booksByAuthor`, `booksByCategory`, `categoryPath`, `downloadedBookIds`, `CatalogScope`)
-- [ ] 2.6 Citation formatters (`formatShamelaCitation`, `formatShortCitation`, `formatFullCitation`)
-- [ ] 2.7 Tool: `shamela_list_categories`
-- [ ] 2.8 Tool: `shamela_resolve` (helper `resolve` + Node tool)
-- [ ] 2.9 Tool: `shamela_get_book`
-- [ ] 2.10 Tool: `shamela_get_author`
-- [ ] 2.11 Tool: `shamela_get_citation`
-- [ ] 2.12 Tool: `shamela_search_authors` (expanded)
-- [ ] 2.13 Tool: `shamela_search_books` (expanded)
-- [ ] 2.14 `pages.ts` extensions (`getPagesRange`, `getToc`, `getAncestorChain`, `getSection`, `getBookParts`, `getPageServices`)
-- [ ] 2.15 Tool: `shamela_get_page`
-- [ ] 2.16 Tool: `shamela_get_toc`
-- [ ] 2.17 Helper command: `get_pages_batch`
-- [ ] 2.18 Tool: `shamela_get_pages_range`
-- [ ] 2.19 Tool: `shamela_get_book_section`
-- [ ] 2.20 Helper command: `search_titles`; Tool: `shamela_search_titles`
-- [ ] 2.21 Helper command: `search_pages_v2` (scope/options/coverage); Tool: `shamela_search_pages` (expanded)
-- [ ] 2.22 Helper command: `search_quran`; Tool: `shamela_search_quran`
-- [ ] 2.23 Helper command: `get_aya`; Tool: `shamela_get_aya`
-- [ ] 2.24 `src/server/services.ts`; Tool: `shamela_get_tafseer_of_aya`
-- [ ] 2.25 Tool: `shamela_get_books_for_hadith`
-- [ ] 2.26 Tool: `shamela_list_downloaded_books`
-- [ ] 2.27 Tool: `shamela_get_book_parts`
-- [ ] 2.28 Tool: `shamela_get_page_services`
+### 2.1 Foundation modules ✅
 
-## Phase 3 — Tests
+- [x] `src/server/constants.ts`
+- [x] `src/server/errors.ts`
+- [x] `src/server/schemas.ts`
+- [x] `src/server/format.ts`
 
-- [ ] 3.1 Smoke tests (~25 assertions) for all 20 tools → `tests/smoke.ts`
-- [ ] 3.2 All smoke tests pass against Shamela's bundled JRE 21.0.10
+### 2.3 Catalog services ✅
+
+- [x] `src/server/catalog.ts` (rewrite for v1.0; CatalogScope, full records)
+- [x] `src/server/citation.ts`
+- [x] `src/server/quran.ts`
+- [x] `src/server/services.ts`
+
+### 2.4 Pages extensions ✅
+
+- [x] `src/server/pages.ts` (getPageRow, getToc, getPagesRange, getSection, etc.)
+
+### 2.2 registerTool migration
+
+- [ ] Migrate `src/server/index.ts` to `registerTool` (no behavior change)
+- [ ] Verify v0.0.1 smoke test still passes (regression floor)
+
+### 2.5 Java helper extensions
+
+- [ ] Extend `Main.java` dispatch switch with 8 new commands
+- [ ] Extend `IndexCache.java` (already supports adding indexes; ensure `aya`, `title`, `s_book`, `s_author` open lazily)
+- [ ] Implement `Resolve.java` (simplest new command — combined `s_book/` + `s_author/` autocomplete)
+- [ ] Implement `GetAya.java` (lookup by aya_id from `aya/` index)
+- [ ] Implement `SearchQuran.java` (`aya/` index search)
+- [ ] Implement `GetPagesBatch.java` (TermInSetQuery on `id` over `page/` index)
+- [ ] Implement `GetTitlesBatch.java` (subtree expansion on `title/` index)
+- [ ] Extend `SearchPages.java` with scope_book_ids + options + coverage
+- [ ] Implement `SearchTitles.java`
+- [ ] Extend `SearchBooks.java` with scope + options + coverage
+- [ ] Extend `SearchAuthors.java` with options
+- [ ] Add `Coverage.java` aggregator class
+
+### 2.6 Node tool handlers
+
+Catalog-only (no Java needed):
+- [ ] `tools/listCategories.ts`
+- [ ] `tools/listDownloadedBooks.ts`
+- [ ] `tools/getBook.ts`
+- [ ] `tools/getAuthor.ts`
+- [ ] `tools/getCitation.ts`
+- [ ] `tools/getBookParts.ts`
+- [ ] `tools/getPageServices.ts`
+
+Java-dependent:
+- [ ] `tools/resolve.ts`
+- [ ] `tools/searchTitles.ts`
+- [ ] `tools/searchPages.ts` (rewrite with scope/options/coverage)
+- [ ] `tools/searchBooks.ts` (rewrite with scope)
+- [ ] `tools/searchAuthors.ts` (rewrite with options)
+- [ ] `tools/getPage.ts`
+- [ ] `tools/getToc.ts`
+- [ ] `tools/getPagesRange.ts`
+- [ ] `tools/getBookSection.ts`
+- [ ] `tools/searchQuran.ts`
+- [ ] `tools/getAya.ts`
+- [ ] `tools/getTafseerOfAya.ts`
+- [ ] `tools/getBooksForHadith.ts`
+
+Wire-up:
+- [ ] Rewrite `src/server/index.ts` to register all 20 tools via `registerTool`
+- [ ] Each registration: title (Arabic) + description (English LLM-facing) + inputSchema (Zod) + outputSchema (Zod) + annotations (4 fields)
+
+## Phase 3 — Smoke tests
+
+- [ ] `tests/smoke.ts` extended with ~25 assertions (full list locked in plan §"Phase 3")
+- [ ] All assertions pass against Shamela's bundled JRE 21.0.10
 
 ## Phase 4 — Evaluation
 
-- [ ] 4.1 `tests/evaluation.xml` — 10 read-only complex questions (mcp-builder format)
-- [ ] 4.2 `tests/benchmark.ts` — Mode 1 (≤5 calls) + Mode 2 (≤50 calls) narrative benchmarks
-- [ ] 4.3 Both benchmarks pass; results logged to `TEST-RESULTS.md`
+- [ ] `tests/evaluation.xml` — 10 read-only complex questions in mcp-builder XML format
+- [ ] Each question's answer verified by solving with the actual MCP before commit
+- [ ] `tests/benchmark.ts` — Mode 1 (≤5 calls) + Mode 2 (≤50 calls) narrative benchmarks
 
 ## Phase 5 — Polish + ship
 
-- [ ] 5.1 README.md rewrite for v1.0 (Arabic-first, 11 sections, both workflows, 5 example queries)
-- [ ] 5.2 `docs/roadmap-v1.1.md`
-- [ ] 5.3 manifest.json: bump version to 1.0.0, add all 20 tools, update display_name/description
-- [ ] 5.4 Pack `shamela-mcp-1.0.0.mcpb`
-- [ ] 5.5 Self-install test in Claude Desktop; all 20 tools visible; Mode 1 query works
-- [ ] 5.6 Final commit + git tag `1.0.0`
+- [ ] Rewrite `README.md` (Arabic-first, 11 sections)
+- [ ] Write `docs/roadmap-v1.1.md`
+- [ ] Update `manifest.json`: version → 1.0.0, 20 tools, fresh display_name/description/long_description
+- [ ] Run `scripts/pack.ps1` → `shamela-mcp-1.0.0.mcpb`
+- [ ] Self-install test in Claude Desktop; all 20 tools visible; Mode 1 query works end-to-end
+- [ ] Final commit + `git tag 1.0.0` (only after every box above is checked)
