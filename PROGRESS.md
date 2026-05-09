@@ -5,24 +5,25 @@ Last update: 2026-05-10
 
 ## Current phase
 
-Phase 0 — Investigation
+Phase 1 — Architecture lockdown
 
 ## Completed
 
 - [x] Plan approved and saved to `~/.claude/plans/stateless-sauteeing-stardust.md`
-- [x] mcp-builder skill (SKILL.md, mcp_best_practices.md, node_mcp_server.md, evaluation.md) fetched and audited against the plan
-- [x] Status files initialized (this file, plus TODO/DECISIONS/BLOCKERS/TEST-RESULTS)
+- [x] mcp-builder skill fetched and audited against the plan
+- [x] Status files initialized
+- [x] **Phase 0.1**: Toggle + wildcard investigation → `docs/toggles-implementation.md`. Decisions: `morphology` ships, `wildcards` ships, `preserve_*` returns OPTION_NOT_SUPPORTED in v1.0.
+- [x] **Phase 0.2**: Scope filter composition → `docs/scope-implementation.md`. Locked the scope schema; confirmed categories are FLAT (no parent_id, no transitive expansion).
+- [x] **Phase 0.3**: Catalog + citation reality check → `docs/catalog-survey.md`. Live SQL run; confirmed master.db has no edition/publisher/city/editor columns. Corrected book 9942 facts: 23 top-level chapters, 0 parts, 0 service annotations.
+- [x] **Phase 0.4**: Citation format → `docs/citation-format.md`. Locked the three styles (`shamela`/`short`/`full`) with byte-exact test cases.
 
 ## In progress
 
-- Phase 0 investigation work (toggles, scope, catalog, citation format)
+- Phase 1: Architecture lockdown → `docs/v1-architecture.md` and `docs/ipc-protocol.md`.
 
 ## Up next
 
-- Phase 0.1: Toggle and wildcard implementation → `docs/toggles-implementation.md`
-- Phase 0.2: Scope filter composition → `docs/scope-implementation.md`
-- Phase 0.3: Catalog + citation reality check → `docs/catalog-survey.md`
-- Phase 0.4: Citation format → `docs/citation-format.md`
+- Phase 2: Build the 20 tools in dependency order (registerTool migration → catalog/citation/format infra → catalog tools → page tools → search tools → quran/services/extras).
 
 ## Notes
 
