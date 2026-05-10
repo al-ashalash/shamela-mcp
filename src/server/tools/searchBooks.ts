@@ -71,13 +71,34 @@ export async function runSearchBooks(
         if (resolved.book_ids.length === 0) throw emptyScope(resolved.diagnostics);
         scopeBookKeys = resolved.book_ids.map(String);
     }
+    // Bug #2 workaround: SearchBooks.java applies scope only as a post-fetch
+    // filter on `results`, so the helper's `total_hits` / `has_more` /
+    // `next_offset` are pre-scope and wrong. When scope is provided we
+    // overfetch (helper caps at 5000), trust the scope-filtered `results`
+    // array, and re-derive pagination here. Proper fix is in SearchBooks.java —
+    // pass scopeBookKeys to QueryBuilder.build using the `id` field — but that
+    // needs a JDK to rebuild the helper jar.
+    const isScoped = scopeBookKeys !== null;
+    const HELPER_FETCH_CAP = 5000;
     const raw = await helper.request<RawEnvelope>("search_books", {
         query: args.query,
         scope_book_keys: scopeBookKeys,
-        max_results: args.limit,
-        offset: args.offset,
+        max_results: isScoped ? HELPER_FETCH_CAP : args.limit,
+        offset: isScoped ? 0 : args.offset,
         options: args.options ?? {},
     });
+    if (isScoped) {
+        const all = raw.results;
+        const start = args.offset;
+        const end = start + args.limit;
+        const slice = all.slice(start, end);
+        raw.results = slice;
+        raw.total_hits = all.length;
+        raw.returned = slice.length;
+        raw.offset = start;
+        raw.has_more = end < all.length;
+        raw.next_offset = raw.has_more ? end : undefined;
+    }
     const byCat: Record<string, number> = {};
     const byCentury: Record<string, number> = {};
     const items = Object.entries(raw.coverage.by_book_key).sort((a, b) => b[1] - a[1]);
