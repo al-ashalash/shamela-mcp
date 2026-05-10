@@ -148,13 +148,15 @@ MIT — راجع ملف `LICENSE`.
 
 ## للمطورين / For developers
 
-```powershell
+```bash
 npm install                 # one-time
 npm run test                # unit + integration tests (vitest)
 npm run test:unit           # fast — pure functions only, no JVM
 npm run test:integration    # needs a Shamela install + book 9942 downloaded
 npm run test:watch          # watch mode during development
 npm run smoke               # legacy end-to-end smoke check
+npm run pack                # build everything and produce shamela-mcp-<v>.mcpb
+npm run release             # tag + publish a GitHub Release (see CLAUDE.md)
 ```
 
-See [`CLAUDE.md`](./CLAUDE.md) for the testing rules and [`tests/`](./tests/) for the test layout.
+See [`CLAUDE.md`](./CLAUDE.md) for the testing rules, the release workflow, and [`tests/`](./tests/) for the test layout.

@@ -13,12 +13,63 @@ npm run test                # unit + integration suite (vitest)
 npm run smoke               # exercise every tool against the local Shamela install
 npm run benchmark           # Mode 1 + Mode 2 workflow simulations
 npm run pack                # full chain: build:server + build:java + mcpb pack
+npm run release             # cut a release: pre-flight + pack + tag + GitHub Release
+npm run release:dry         # run all pre-flight checks, skip pack/tag/publish
 ```
 
 `build:java` requires JDK 21+ (`javac` + `jar`). It searches PATH, then `JAVA_HOME`,
 then platform defaults: Eclipse Adoptium / Microsoft / Oracle / Corretto on Windows,
 `/usr/libexec/java_home -v 21` on macOS, `/usr/lib/jvm/*` on Linux. Set `JAVA_HOME`
 explicitly if your JDK is in a non-standard location.
+
+## Release workflow
+
+Releases publish a `.mcpb` to GitHub Releases on this repo
+(`alhoqbani/shamela-mcp`). The flow is **manual on the developer machine** —
+CI can't build the helper jar without the user's Shamela install (which we
+can't ship for clean-room reasons).
+
+To cut a release:
+
+1. **Bump the version** in BOTH `manifest.json` and `package.json` per
+   semver (`X.Y.Z`):
+   - **patch** (1.0.0 → 1.0.1): bug fixes only
+   - **minor** (1.0.0 → 1.1.0): new tools or capabilities, backward compatible
+   - **major** (1.0.0 → 2.0.0): breaking changes to tool args/output
+2. `git commit -am "release: vX.Y.Z" && git push origin main`
+3. `npm run release`
+
+`npm run release` runs eight pre-flight checks and refuses to proceed if any
+fails. The most important guarantees:
+
+- Tag `vX.Y.Z` doesn't already exist locally OR on origin (no overwrite).
+- HEAD has commits since the last `v*` tag (no empty re-release).
+- Working tree is clean, on `main`, in sync with origin.
+- `manifest.json.version === package.json.version` (single source of truth).
+- Vitest suite is green.
+- `gh` CLI is installed and authenticated.
+
+After pre-flight: packs the .mcpb, creates an annotated tag, pushes it,
+and publishes a GitHub Release with the .mcpb attached and auto-generated
+notes from commit messages.
+
+**First-time setup** (per machine):
+
+```bash
+winget install GitHub.cli   # Windows
+# brew install gh           # macOS
+# apt install gh            # Linux
+gh auth login               # interactive — opens browser
+```
+
+**To preview the pre-flight without releasing**: `npm run release:dry`.
+
+**Private vs public repos:**
+- This repo (`alhoqbani/shamela-mcp`) is the **public** release surface —
+  source code + `.mcpb` releases.
+- The companion private repo `alhoqbani/shamela-mcp-source` holds
+  reverse-engineering research, decompiled `.py`, snapshots — never
+  shipped, never published.
 
 ## Hard rules
 

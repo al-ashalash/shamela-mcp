@@ -16,6 +16,8 @@
     "smoke": "tsx tests/smoke.ts",
     "benchmark": "tsx tests/benchmark.ts",
     "pack": "node scripts/pack.mjs",
+    "release": "node scripts/release.mjs",
+    "release:dry": "node scripts/release.mjs --dry-run",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
