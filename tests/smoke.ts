@@ -121,7 +121,7 @@ async function main(): Promise<number> {
         );
 
         // ---------------- 7. get_book ----------------
-        const book = runGetBook(catalog, getBookInput.parse({ book_id: 9942, response_format: "json" }));
+        const book = await runGetBook(catalog, pages, getBookInput.parse({ book_id: 9942, response_format: "json" }));
         check(
             "get_book(9942) name",
             book.structuredContent.book_name === "الأصول من علم الأصول",

@@ -306,7 +306,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         async (args) => {
             try {
                 const b = await getBackend();
-                const r = runGetBook(b.catalog, args as Parameters<typeof runGetBook>[1]);
+                const r = await runGetBook(b.catalog, b.pages, args as Parameters<typeof runGetBook>[2]);
                 return r as unknown as ToolResult;
             } catch (e) { return wrapErr(e); }
         },

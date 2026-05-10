@@ -123,6 +123,18 @@ export class PageStore {
         return fs.existsSync(this.bookPath(bookId));
     }
 
+    /**
+     * True iff the per-book DB exists AND has at least one page row. Bug #3:
+     * `master.db.book.major_ondisk > 0` flips before the per-book SQLite is
+     * populated, so the catalog flag alone misreports books as "downloaded"
+     * when content lookups still fail. Use this for any user-facing
+     * `downloaded` field.
+     */
+    async bookHasContent(bookId: number): Promise<boolean> {
+        if (!(await this.hasBook(bookId))) return false;
+        return (await this.pageCount(bookId)) > 0;
+    }
+
     async printedPage(bookId: number, pageId: number): Promise<string | null> {
         const row = await this.getPageRow(bookId, pageId);
         if (!row) return null;

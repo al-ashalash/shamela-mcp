@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
 import { bookNotFound } from "../errors.js";
+import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { renderResponse, type RenderedResponse, header, meta, arabize } from "../format.js";
 
@@ -45,10 +46,11 @@ const TYPE_LABELS: Record<number, string> = {
     6: "صوتي",
 };
 
-export function runGetBook(
+export async function runGetBook(
     catalog: Catalog,
+    pages: PageStore,
     args: z.infer<typeof getBookInput>,
-): RenderedResponse<GetBookOutput> {
+): Promise<RenderedResponse<GetBookOutput>> {
     const rec = catalog.bookRecord(args.book_id);
     if (!rec) throw bookNotFound(args.book_id);
     const authors = catalog.bookAuthors(rec).map((a, idx) => ({
@@ -57,6 +59,10 @@ export function runGetBook(
         death_year: a.death_year,
         role: idx === 0 ? ("main" as const) : ("co" as const),
     }));
+    // Bug #3: master.db.book.major_ondisk can flip true while the per-book
+    // SQLite is still empty (e.g. mid-download or interrupted state).
+    // Honest `downloaded` = catalog flag AND content exists on disk.
+    const downloaded = rec.major_ondisk > 0 && (await pages.bookHasContent(rec.book_id));
     const out: GetBookOutput = {
         book_id: rec.book_id,
         book_name: rec.book_name,
@@ -67,7 +73,7 @@ export function runGetBook(
         book_date: rec.book_date,
         printed: rec.printed,
         available: rec.major_online > 0,
-        downloaded: rec.major_ondisk > 0,
+        downloaded,
         authors,
         pdf_links: rec.pdf_links,
         publication_date: rec.meta_data?.date ?? null,
