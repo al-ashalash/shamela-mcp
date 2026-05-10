@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  shamela-mcp v1.0 evaluation file (mcp-builder Phase 4 format).
+
+  10 read-only, complex, realistic, single-string-answer questions an Islamic
+  studies researcher would actually ask. Every answer is verifiable through
+  Shamela's stable, pre-built indexes (master.db catalog + Lucene book/author/
+  aya/s_book/s_author/) and so does not depend on which books are downloaded
+  on the test machine. All answers were verified by running the actual MCP
+  tools against C:\shamela4 on 2026-05-10.
+
+  Every question requires multiple tool calls (resolve → search → fetch, or
+  list → filter → aggregate). Single-tool lookups are explicitly avoided.
+-->
+<evaluation>
+  <qa_pair>
+    <question>كم عدد الأبواب الرئيسية (المستوى الأول) في كتاب «الأصول من علم الأصول» للشيخ ابن عثيمين؟ أجب بعدد بالأرقام الإنجليزية فقط.</question>
+    <answer>23</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>في أيِّ عام هجري توفِّي مؤلِّف كتاب «الأصول من علم الأصول» (الشيخ ابن عثيمين)؟ أجب بالسنة الهجرية بالأرقام الإنجليزية فقط.</question>
+    <answer>1421</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>ما هو رقم الصفحة المطبوعة (printed_page) المقابل لـ page_id=17 في كتاب «الأصول من علم الأصول» (book_id=9942)؟ أجب بالرقم بالأرقام الإنجليزية فقط.</question>
+    <answer>22</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>كم عدد الكتب في فهرس الشاملة المصنَّفة تحت «العقيدة»؟ أجب بالعدد بالأرقام الإنجليزية فقط.</question>
+    <answer>807</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>كم عدد الكتب في فهرس الشاملة المصنَّفة تحت «أصول الفقه»؟ أجب بالعدد بالأرقام الإنجليزية فقط.</question>
+    <answer>252</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>إلى أيِّ سورة ينتمي aya_id=6236 (آخر آية في القرآن في ترقيم الشاملة المتسلسل)؟ أجب باسم السورة العربي فقط.</question>
+    <answer>الناس</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>كم عدد آيات القرآن الكريم التي تطابق البحث عن كلمة «الحمد» في فهرس آيات الشاملة (aya/) بالرسم الإملائي؟ أجب بالعدد بالأرقام الإنجليزية فقط.</question>
+    <answer>25</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>كم عدد المؤلفين في فهرس مؤلفي الشاملة الذين يطابق البحث عنهم اسم «الشافعي» (في الاسم أو الترجمة)؟ أجب بالعدد بالأرقام الإنجليزية فقط.</question>
+    <answer>206</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>كم عدد الكتب في فهرس الشاملة التي تحتوي على كلمة «الموطأ» في بياناتها (الاسم أو المؤلف أو الوصف الببليوغرافي)؟ أجب بالعدد بالأرقام الإنجليزية فقط.</question>
+    <answer>23</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>كم عدد التصنيفات الرئيسية في فهرس مكتبة الشاملة (master.db.category)؟ أجب بالعدد بالأرقام الإنجليزية فقط.</question>
+    <answer>41</answer>
+  </qa_pair>
+</evaluation>
