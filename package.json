@@ -11,11 +11,11 @@
   },
   "scripts": {
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --target=node20 --format=esm --loader:.wasm=binary --outfile=dist/index.js --banner:js=\"import { createRequire as __cr } from 'module'; import { fileURLToPath as __furl } from 'url'; import { dirname as __dn } from 'path'; const require = __cr(import.meta.url); const __filename = __furl(import.meta.url); const __dirname = __dn(__filename);\"",
-    "build:java": "powershell -ExecutionPolicy Bypass -File scripts/build-java.ps1",
+    "build:java": "node scripts/build-java.mjs",
     "build": "npm run build:server && npm run build:java",
     "smoke": "tsx tests/smoke.ts",
     "benchmark": "tsx tests/benchmark.ts",
-    "pack": "powershell -ExecutionPolicy Bypass -File scripts/pack.ps1",
+    "pack": "node scripts/pack.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

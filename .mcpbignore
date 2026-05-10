@@ -1,14 +1,21 @@
-# Ship only the bundled artifacts and the manifest. Everything else is dev-only.
+# Ship the minimum viable bundle: dist/, helper/, manifest.json, README.md, LICENSE.
+# Everything else is dev-only — test artifacts, source, build scripts, docs.
+
 .git/
+.github/
 .gitignore
+.mcpbignore
 .nvmrc
 CLAUDE.md
-node_modules/
-src/
-tests/
-scripts/
+coverage/
+docs/
 libs-cache/
+node_modules/
 package-lock.json
 package.json
+scripts/
+src/
+tests/
 tsconfig.json
+vitest.config.ts
 *.mcpb

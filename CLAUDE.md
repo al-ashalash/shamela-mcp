@@ -4,14 +4,21 @@ This repo packages a Maktabah al-Shamela 4 search server as an `.mcpb` (MCP Bund
 
 ## Build commands
 
-```powershell
+All scripts are Node-based (no PowerShell) so they run on Windows + macOS + Linux:
+
+```bash
 npm install                 # one time per checkout
 npm run build               # esbuild Node + javac Java helper
 npm run test                # unit + integration suite (vitest)
-npm run smoke               # exercise every tool against C:\shamela4; exits 0 on pass
+npm run smoke               # exercise every tool against the local Shamela install
 npm run benchmark           # Mode 1 + Mode 2 workflow simulations
-.\scripts\pack.ps1          # produces shamela-mcp-<version>.mcpb at repo root
+npm run pack                # full chain: build:server + build:java + mcpb pack
 ```
+
+`build:java` requires JDK 21+ (`javac` + `jar`). It searches PATH, then `JAVA_HOME`,
+then platform defaults: Eclipse Adoptium / Microsoft / Oracle / Corretto on Windows,
+`/usr/libexec/java_home -v 21` on macOS, `/usr/lib/jvm/*` on Linux. Set `JAVA_HOME`
+explicitly if your JDK is in a non-standard location.
 
 ## Hard rules
 
