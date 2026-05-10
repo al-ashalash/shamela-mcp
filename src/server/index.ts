@@ -204,7 +204,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "بحث في عناوين الفصول",
             description:
-                "Search Shamela's title/ Lucene index for chapter and section titles. Same query/scope/options/pagination shape as shamela_search_pages but matches title text rather than page bodies. After finding a matching title, use shamela_get_book_section(book_id, title_id) to read the full section. Examples: shamela_search_titles({query:'باب الصيام'}), shamela_search_titles({query:'تعريف', scope:{book_ids:[9942]}}).",
+                "Search Shamela's title/ Lucene index for chapter and section titles. Same query/scope/options/pagination shape as shamela_search_pages but matches title text rather than page bodies. After finding a matching title, use shamela_get_book_section(book_id, title_id) to read the full section. Examples: shamela_search_titles({query:'باب الصيام'}), shamela_search_titles({query:'تعريف', scope:{book_ids:[<id from shamela_resolve or shamela_list_downloaded_books>]}}).",
             inputSchema: searchTitlesInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -280,7 +280,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "جلب فهرس الكتاب",
             description:
-                "Fetch a downloaded book's table of contents. Two modes: (a) subtree mode (default) — pass parent_id (0 = top level) and depth (1–5) to get a tree of titles; (b) ancestor-chain mode — pass containing_page_id to get the root → leaf chapter chain that contains that page. Returns title_id, title_text, page_id, has_children for each entry. Use the title_id with shamela_get_book_section to read the section. Examples: shamela_get_toc({book_id:9942, depth:1}) returns 23 top-level chapters of book 9942; shamela_get_toc({book_id:9942, containing_page_id:17}) returns the chapter containing page 17.",
+                "Fetch a downloaded book's table of contents. Two modes: (a) subtree mode (default) — pass parent_id (0 = top level) and depth (1–5) to get a tree of titles; (b) ancestor-chain mode — pass containing_page_id to get the root → leaf chapter chain that contains that page. Returns title_id, title_text, page_id, has_children for each entry. Use the title_id with shamela_get_book_section to read the section. Examples: shamela_get_toc({book_id:<id>, depth:1}) lists top-level chapters; shamela_get_toc({book_id:<id>, containing_page_id:17}) returns the chapter containing page 17. Find downloaded book ids via shamela_list_downloaded_books or shamela_resolve.",
             inputSchema: getTocInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -299,7 +299,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "جلب بيانات كتاب",
             description:
-                "Fetch full metadata for a book by book_id. Returns book_name, all authors (main + co), category, book_type (printed/manuscript/journal/thesis/electronic/audio), book_date (Hijri composition year), printed flag, downloaded flag, publication_date (DDMMYYYY Hijri from meta_data), sub_books, and a `notes` array listing citation-grade fields master.db doesn't have (edition/publisher/city/editor — never fabricate these). Examples: shamela_get_book({book_id:9942}) returns metadata for «الأصول من علم الأصول».",
+                "Fetch full metadata for a book by book_id. Returns book_name, all authors (main + co), category, book_type (printed/manuscript/journal/thesis/electronic/audio), book_date (Hijri composition year), printed flag, downloaded flag (true ONLY when both master.db says so AND the per-book SQLite has page rows), publication_date (DDMMYYYY Hijri from meta_data), sub_books, and a `notes` array listing citation-grade fields master.db doesn't have (edition/publisher/city/editor — never fabricate these). Find ids via shamela_resolve('book name') or shamela_list_downloaded_books. Works on any catalog book whether downloaded or not.",
             inputSchema: getBookInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -375,7 +375,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "جلب نطاق صفحات",
             description:
-                "Fetch N (1–20, default 5) consecutive pages from a downloaded book starting at start_page_id. Faster than calling shamela_get_page in a loop. Each page entry has page_id, printed_page, part, body, foot, comment. has_more flag indicates whether more pages exist after the returned range. For full chapters use shamela_get_book_section instead — it knows where the chapter ends. Example: shamela_get_pages_range({book_id:9942, start_page_id:1, count:5}).",
+                "Fetch N (1–20, default 5) consecutive pages from a downloaded book starting at start_page_id. Faster than calling shamela_get_page in a loop. Each page entry has page_id, printed_page, part, body, foot, comment. has_more flag indicates whether more pages exist after the returned range. For full chapters use shamela_get_book_section instead — it knows where the chapter ends. Example: shamela_get_pages_range({book_id:<id>, start_page_id:1, count:5}). Find downloaded book ids via shamela_list_downloaded_books.",
             inputSchema: getPagesRangeInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -394,7 +394,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "جلب باب من كتاب",
             description:
-                "Fetch every page under a chapter title. Resolves the chapter's start/end page range from the per-book SQLite (next-sibling-title boundary), then batch-reads the page contents. Capped at max_pages (default 30, max 100); sets `truncated:true` if the section is longer. Use shamela_get_toc to find title_ids, then this tool to read the matching section. Example: shamela_get_book_section({book_id:9942, title_id:11}) reads the full chapter starting at title 11.",
+                "Fetch every page under a chapter title. Resolves the chapter's start/end page range from the per-book SQLite (next-sibling-title boundary), then batch-reads the page contents. Capped at max_pages (default 30, max 100); sets `truncated:true` if the section is longer. Use shamela_get_toc to find title_ids, then this tool to read the matching section. Example: shamela_get_book_section({book_id:<id>, title_id:<title_id from get_toc>}).",
             inputSchema: getBookSectionInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -413,7 +413,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "صياغة إحالة",
             description:
-                "Format a citation in three styles. style='shamela' (default) replicates Shamela's UI copy-with-citation: «<book>» (<part>/ <page>):\\n«<text>». style='short' is a one-line inline reference: <author>، <book>، ص <page>. style='full' is the long form with author death year and book composition year, plus a `notes[]` array listing missing citation-grade fields (edition/publisher/city/editor — master.db doesn't have these; never fabricate). All numbers in output use Arabic-Indic digits. Examples: shamela_get_citation({book_id:9942, page_id:17, style:'shamela'}), shamela_get_citation({book_id:9942, page_id:17, text:'الكلام تعريفه...', style:'shamela'}).",
+                "Format a citation in three styles. style='shamela' (default) replicates Shamela's UI copy-with-citation: «<book>» (<part>/ <page>):\\n«<text>». style='short' is a one-line inline reference: <author>، <book>، ص <page>. style='full' is the long form with author death year and book composition year, plus a `notes[]` array listing missing citation-grade fields (edition/publisher/city/editor — master.db doesn't have these; never fabricate). All numbers in output use Arabic-Indic digits. Examples: shamela_get_citation({book_id:<id>, page_id:<page_id>, style:'shamela'}), shamela_get_citation({book_id:<id>, page_id:<page_id>, text:'<quoted passage>', style:'shamela'}).",
             inputSchema: getCitationInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -527,7 +527,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "أجزاء الكتاب",
             description:
-                "List the volumes/parts of a multi-volume book. Returns is_multi_volume flag, total_pages, and an array of parts each with part name (e.g. 'ج 1'), page_count, first_page_id, last_page_id. For single-volume books returns is_multi_volume:false and an empty parts array. Useful to know whether a citation needs a part designator. Example: shamela_get_book_parts({book_id:9942}) → single-volume, no parts (is_multi_volume:false).",
+                "List the volumes/parts of a multi-volume book. Returns is_multi_volume flag, total_pages, and an array of parts each with part name (e.g. 'ج 1'), page_count, first_page_id, last_page_id. For single-volume books returns is_multi_volume:false and an empty parts array. Useful to know whether a citation needs a part designator. Example: shamela_get_book_parts({book_id:<id>}). Find downloaded book ids via shamela_list_downloaded_books.",
             inputSchema: getBookPartsInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -546,7 +546,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "إشارات الصفحة",
             description:
-                "Read the per-page services annotations (Qur'anic verses cited, hadith keys, isnād chains) for a specific (book_id, page_id). Returns has_services flag plus three arrays: ayat (cumulative aya_ids), hadeeth (hadith keys), esnad (chain strings). Many books — particularly non-hadith works like our test book 9942 — have no services. Useful to pivot from a search hit to the Qur'anic/hadith content it discusses: pair the returned aya_ids with shamela_get_aya, or hadith keys with shamela_get_books_for_hadith.",
+                "Read the per-page services annotations (Qur'anic verses cited, hadith keys, isnād chains) for a specific (book_id, page_id). Returns has_services flag plus three arrays: ayat (cumulative aya_ids), hadeeth (hadith keys), esnad (chain strings). Many books — particularly non-hadith works — have no services and return has_services:false cleanly. Useful to pivot from a search hit to the Qur'anic/hadith content it discusses: pair the returned aya_ids with shamela_get_aya, or hadith keys with shamela_get_books_for_hadith.",
             inputSchema: getPageServicesInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
