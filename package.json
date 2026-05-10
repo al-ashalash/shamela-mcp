@@ -1,7 +1,7 @@
 {
   "name": "shamela-mcpb",
-  "version": "0.0.1",
-  "description": "MCPB (MCP Bundle) for searching a local Maktabah al-Shamela 4 install from Claude Desktop.",
+  "version": "1.0.0",
+  "description": "MCPB (MCP Bundle) for searching and studying a local Maktabah al-Shamela 4 install from Claude Desktop. 20 read-only tools.",
   "author": "فاعل خير",
   "private": true,
   "type": "module",
@@ -14,6 +14,8 @@
     "build:java": "powershell -ExecutionPolicy Bypass -File scripts/build-java.ps1",
     "build": "npm run build:server && npm run build:java",
     "smoke": "tsx tests/smoke.ts",
+    "smoke:v1": "tsx tests/smoke-v1.ts",
+    "benchmark": "tsx tests/benchmark.ts",
     "pack": "powershell -ExecutionPolicy Bypass -File scripts/pack.ps1"
   },
   "dependencies": {

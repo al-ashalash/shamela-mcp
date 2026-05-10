@@ -80,6 +80,30 @@ Cover image fetch (`cover.db`) was not selected — UX polish only, no research 
 
 ---
 
+## D-008: Coverage book_key derived from id, not stored separately
+
+**What:** `SearchPagesV2.java` and `SearchTitles.java` derive the book key from the stored `id` field rather than calling `doc.get("book_key")`.
+
+**Alternatives considered:**
+- Add `book_key` as a stored field at index time (would require re-indexing — not on the table; Shamela's indexes are pre-built and we don't want to mutate them).
+- Store the book_id as a separate stored field on each doc.
+
+**Why:** `book_key` is indexed (which is why scope filtering via TermInSetQuery works correctly) but Shamela's index builder didn't add it as a stored field. The `id` field IS stored as `<book_id>-<page_id>` (or `<book_id>-<title_id>`), so the bookKey is just `id.substring(0, dash)`. Free, no extra index work, no re-indexing.
+
+---
+
+## D-009: Don't tag 1.0.0 from CI; user verifies install first
+
+**What:** The autonomous build does NOT run `git tag 1.0.0` on its own. The tag is the user's manual verification gate after `Settings → Extensions → Install Extension` succeeds in Claude Desktop.
+
+**Alternatives considered:**
+- Tag automatically after smoke + benchmark pass.
+- Tag with an `-rc1` suffix and let the user promote.
+
+**Why:** The user's locked decision was "do not tag to 1.0.0 until we are done with developing v1.0.0 with **full testing**". Smoke + benchmark verify the code path; the install test verifies the GUI bundle path (manifest schema, .mcpbignore correctness, Claude Desktop discovery). The latter cannot be driven from the CLI. The user runs it in 60 seconds, then tags.
+
+---
+
 ## D-007: Status files committed (not gitignored)
 
 **What:** `PROGRESS.md`, `TODO.md`, `DECISIONS.md`, `BLOCKERS.md`, `TEST-RESULTS.md` are committed to the repo so the user can review the build's audit trail in `git log`.
