@@ -4,6 +4,9 @@ helper/
 libs-cache/
 *.mcpb
 
+# Test artifacts
+coverage/
+
 # Local Java compileOnly stash — copies of Shamela's bundled jars (NOT redistributed)
 src/java/libs/
 

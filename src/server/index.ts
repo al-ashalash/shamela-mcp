@@ -10,6 +10,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
 import { Catalog } from "./catalog.js";
@@ -114,7 +115,7 @@ function logInfo(msg: string): void {
     process.stderr.write(`[shamela-mcp] ${msg}\n`);
 }
 
-interface Backend {
+export interface Backend {
     helper: Helper;
     catalog: Catalog;
     pages: PageStore;
@@ -146,31 +147,33 @@ function wrapErr(err: unknown): ToolResult {
     };
 }
 
-async function main(): Promise<void> {
-    let backend: Backend | null = null;
+/** Build the long-lived backend (paths, catalog, page/service stores, JVM helper). */
+export async function createBackend(): Promise<Backend> {
+    const paths = await resolveAll();
+    logInfo(`install root: ${paths.installRoot}`);
+    logInfo(`jre:          ${paths.jre}`);
+    logInfo(`jars:         ${paths.jars.length} files`);
+    logInfo(`helper jar:   ${paths.helperJar}`);
 
-    const getBackend = async (): Promise<Backend> => {
-        if (backend) return backend;
-        const paths = await resolveAll();
-        logInfo(`install root: ${paths.installRoot}`);
-        logInfo(`jre:          ${paths.jre}`);
-        logInfo(`jars:         ${paths.jars.length} files`);
-        logInfo(`helper jar:   ${paths.helperJar}`);
+    const masterDb = (await import("node:path")).join(paths.database, "master.db");
+    const catalog = await Catalog.load(masterDb, SQL_WASM_BINARY);
+    logInfo(
+        `catalog:      ${catalog.bookCount()} books, ${catalog.authorCount()} authors, ${catalog.categoryCount()} categories`,
+    );
+    const pages = new PageStore(paths.database, SQL_WASM_BINARY);
+    const services = new ServiceStore(paths.database, SQL_WASM_BINARY);
 
-        const masterDb = (await import("node:path")).join(paths.database, "master.db");
-        const catalog = await Catalog.load(masterDb, SQL_WASM_BINARY);
-        logInfo(
-            `catalog:      ${catalog.bookCount()} books, ${catalog.authorCount()} authors, ${catalog.categoryCount()} categories`,
-        );
-        const pages = new PageStore(paths.database, SQL_WASM_BINARY);
-        const services = new ServiceStore(paths.database, SQL_WASM_BINARY);
+    const h = new Helper({ paths });
+    await h.ready(20_000);
+    return { helper: h, catalog, pages, services };
+}
 
-        const h = new Helper({ paths });
-        await h.ready(20_000);
-        backend = { helper: h, catalog, pages, services };
-        return backend;
-    };
-
+/**
+ * Build the MCP server with all 20 tools registered. The `getBackend` callback
+ * lets callers wire either an already-constructed backend (tests) or a lazy
+ * initializer (the stdio entry point).
+ */
+export function createServer(getBackend: () => Promise<Backend>): McpServer {
     const server = new McpServer(
         { name: "shamela", version: VERSION },
         { capabilities: { tools: {} } },
@@ -556,6 +559,19 @@ async function main(): Promise<void> {
         },
     );
 
+    void z;
+    return server;
+}
+
+/** Stdio entry point — used when this file is invoked directly. */
+async function main(): Promise<void> {
+    let backend: Backend | null = null;
+    const getBackend = async (): Promise<Backend> => {
+        if (backend) return backend;
+        backend = await createBackend();
+        return backend;
+    };
+    const server = createServer(getBackend);
     const transport = new StdioServerTransport();
     await server.connect(transport);
     logInfo(`shamela-mcp v${VERSION} ready (20 tools registered)`);
@@ -567,13 +583,24 @@ async function main(): Promise<void> {
     };
     process.on("SIGTERM", shutdown);
     process.on("SIGINT", shutdown);
-    void z;
 }
 
-main().catch((err) => {
-    process.stderr.write(`[shamela-mcp] fatal: ${formatErrorMessage(err)}\n`);
-    process.exit(1);
-});
+// Only run main() when this module is the process entry point (tsx, node dist/index.js).
+// Importing it from a test must not auto-start the server.
+const isEntry = ((): boolean => {
+    if (!process.argv[1]) return false;
+    try {
+        return import.meta.url === pathToFileURL(process.argv[1]).href;
+    } catch {
+        return false;
+    }
+})();
+if (isEntry) {
+    main().catch((err) => {
+        process.stderr.write(`[shamela-mcp] fatal: ${formatErrorMessage(err)}\n`);
+        process.exit(1);
+    });
+}
 
 // Type re-exports for the smoke test.
 export type {

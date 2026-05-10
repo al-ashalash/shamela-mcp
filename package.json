@@ -15,7 +15,12 @@
     "build": "npm run build:server && npm run build:java",
     "smoke": "tsx tests/smoke.ts",
     "benchmark": "tsx tests/benchmark.ts",
-    "pack": "powershell -ExecutionPolicy Bypass -File scripts/pack.ps1"
+    "pack": "powershell -ExecutionPolicy Bypass -File scripts/pack.ps1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",
@@ -25,8 +30,10 @@
   "devDependencies": {
     "@types/node": "^20.19.0",
     "@types/sql.js": "^1.4.11",
+    "@vitest/coverage-v8": "^4.1.5",
     "esbuild": "^0.24.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.5"
   }
 }
