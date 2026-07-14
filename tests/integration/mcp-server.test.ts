@@ -48,6 +48,8 @@ const EXPECTED_TOOL_NAMES = [
     "shamela_search_boolean",
     "shamela_root_stats",
     "shamela_books_by_period",
+    "shamela_list_tafsirs_for_aya",
+    "shamela_get_tafseer_texts",
 ] as const;
 
 describe("MCP server end-to-end (InMemoryTransport)", () => {
@@ -70,7 +72,7 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
         await client.close();
     });
 
-    it("lists all 27 expected tools", async () => {
+    it("lists all 29 expected tools", async () => {
         const result = await client.listTools();
         const names = new Set(result.tools.map((t) => t.name));
         for (const expected of EXPECTED_TOOL_NAMES) {
@@ -393,6 +395,97 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
                 const sc = r.structuredContent as { total: number };
                 expect(typeof sc.total).toBe("number");
             }
+        });
+
+        it("shamela_list_tafsirs_for_aya (never errors for a valid aya; tri-state statuses)", async () => {
+            const r = (await client.callTool({
+                name: "shamela_list_tafsirs_for_aya",
+                arguments: { surah: 2, aya: 255, response_format: "json" },
+            })) as CallResult;
+            expect(r.isError, errText(r)).toBeFalsy();
+            const sc = r.structuredContent as {
+                aya_id: number;
+                totals: {
+                    indexed_covers: number;
+                    indexed_no_entry_for_this_aya: number;
+                    not_indexed_coverage_unknown: number;
+                };
+                note: string;
+                books: Array<{ book_id: number; status: string; page_id: number | null }>;
+            };
+            expect(sc.aya_id).toBe(262); // 2:255 = ayat al-kursi
+            expect(typeof sc.totals.indexed_covers).toBe("number");
+            expect(typeof sc.totals.indexed_no_entry_for_this_aya).toBe("number");
+            expect(typeof sc.totals.not_indexed_coverage_unknown).toBe("number");
+            expect(sc.note.length).toBeGreaterThan(0);
+            const allowed = new Set([
+                "indexed_covers",
+                "indexed_no_entry_for_this_aya",
+                "not_indexed_coverage_unknown",
+            ]);
+            for (const b of sc.books) {
+                expect(allowed.has(b.status), `unexpected status ${b.status}`).toBe(true);
+                if (b.status === "indexed_covers") expect(b.page_id).not.toBeNull();
+                else expect(b.page_id).toBeNull();
+            }
+        });
+
+        it("shamela_get_tafseer_texts (structure + honest statuses; no text without an index entry)", async () => {
+            const r = (await client.callTool({
+                name: "shamela_get_tafseer_texts",
+                arguments: { surah: 2, aya: 255, max_sources: 2, response_format: "json" },
+            })) as CallResult;
+            expect(r.isError, errText(r)).toBeFalsy();
+            const sc = r.structuredContent as {
+                aya_id: number;
+                total_indexed: number;
+                fetched: number;
+                note: string;
+                sources: Array<{
+                    book_id: number;
+                    book_name: string;
+                    status: string;
+                    text: string;
+                    page_id: number | null;
+                }>;
+            };
+            expect(sc.aya_id).toBe(262);
+            expect(typeof sc.total_indexed).toBe("number");
+            expect(sc.fetched).toBeLessThanOrEqual(2);
+            expect(sc.note.length).toBeGreaterThan(0);
+            for (const s of sc.sources) {
+                if (s.status === "ok") {
+                    // Text is only ever attached to an indexed, downloaded source.
+                    expect(s.page_id).not.toBeNull();
+                    expect(s.text.length).toBeGreaterThan(0);
+                } else {
+                    expect(s.text).toBe("");
+                }
+            }
+            // The fixture library may lack tafseer.db index entries entirely —
+            // an empty sources list with total_indexed=0 is a clean outcome.
+            if (sc.total_indexed === 0) expect(sc.sources).toHaveLength(0);
+        });
+
+        it("shamela_get_tafseer_texts (requested unindexed book gets a status row, never text)", async () => {
+            const r = (await client.callTool({
+                name: "shamela_get_tafseer_texts",
+                arguments: {
+                    surah: 2,
+                    aya: 255,
+                    book_ids: [FIXTURE_BOOK_ID], // usul work, not a tafsir in the index
+                    response_format: "json",
+                },
+            })) as CallResult;
+            expect(r.isError, errText(r)).toBeFalsy();
+            const sc = r.structuredContent as {
+                sources: Array<{ book_id: number; status: string; text: string; note: string | null }>;
+            };
+            const row = sc.sources.find((s) => s.book_id === FIXTURE_BOOK_ID);
+            expect(row).toBeDefined();
+            expect(["not_indexed", "no_entry_for_this_aya"]).toContain(row!.status);
+            expect(row!.text).toBe("");
+            expect(row!.note?.length ?? 0).toBeGreaterThan(0);
         });
 
         it("shamela_get_books_for_hadith (success or SERVICE_KEY_NOT_FOUND)", async () => {
