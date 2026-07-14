@@ -6,8 +6,8 @@
  * The default Lucene analyzer strips all of these from BOTH the index and the
  * query, so `shamela_search_pages` rejects preserve_* with OPTION_NOT_SUPPORTED
  * (see errors.ts::optionNotSupported and Main.java's rejectPreservation). This
- * tool implements proposal #2 with the SAME two-stage strategy the phrase tool
- * proved (proposal #1), needing no Java change:
+ * tool uses the SAME two-stage strategy the phrase tool proved
+ * (see searchPhrase.ts), needing no Java change:
  *
  *   1. Ask the helper's normalized AND-search (`search_pages`) for candidate
  *      pages where all query words co-occur — fast and wide (the analyzer folds

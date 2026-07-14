@@ -132,8 +132,8 @@ function logInfo(msg: string): void {
 }
 
 /**
- * Server-level guidance surfaced to the model (anti-hallucination governance —
- * proposal #8). The client shows this to the LLM to shape how it uses the tools.
+ * Server-level guidance surfaced to the model (anti-hallucination governance).
+ * The client shows this to the LLM to shape how it uses the tools.
  */
 const SERVER_INSTRUCTIONS = `أنت متصل بمكتبة المستخدم المحلية من «المكتبة الشاملة» للقراءة فقط. التزم بما يلي:
 - لا تنسب نصًّا إلى كتابٍ إلا إذا جاء فعلًا من نتيجة أداة؛ ولا تُكمِل النصوص أو الأسانيد من معرفتك العامة.
@@ -781,7 +781,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
     server.registerResource(
         "status",
         "shamela://status",
-        { title: "حالة خادم الشاملة", description: "فحص ذاتي: النسخة والعدّادات وقابلية القراءة (المقترح 13).", mimeType: "application/json" },
+        { title: "حالة خادم الشاملة", description: "فحص ذاتي: النسخة والعدّادات وقابلية القراءة.", mimeType: "application/json" },
         async (uri) => {
             const b = await getBackend();
             const r = await runHealth(b.catalog, b.pages, healthInput.parse({ response_format: "json" }));
@@ -826,11 +826,26 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
 
 /** Stdio entry point — used when this file is invoked directly. */
 async function main(): Promise<void> {
-    let backend: Backend | null = null;
-    const getBackend = async (): Promise<Backend> => {
-        if (backend) return backend;
-        backend = await createBackend();
-        return backend;
+    // Cache the PROMISE, not the resolved value: the warm-up below and any tool
+    // call arriving during the ~12 s JVM cold start must share ONE initialization.
+    // Caching the value instead would let both observe `null` and each spawn a
+    // full backend (two JVMs, one leaked at shutdown, first call still slow).
+    let backendPromise: Promise<Backend> | null = null;
+    let backendRef: Backend | null = null; // resolved reference for shutdown()
+    const getBackend = (): Promise<Backend> => {
+        if (!backendPromise) {
+            backendPromise = createBackend().then(
+                (b) => {
+                    backendRef = b;
+                    return b;
+                },
+                (e) => {
+                    backendPromise = null; // failed init must not poison later calls
+                    throw e;
+                },
+            );
+        }
+        return backendPromise;
     };
     const server = createServer(getBackend);
     const transport = new StdioServerTransport();
@@ -846,9 +861,9 @@ async function main(): Promise<void> {
         .catch((e) => logInfo(`warm-up deferred to first call: ${formatErrorMessage(e)}`));
 
     const shutdown = () => {
-        backend?.helper.close();
-        backend?.pages.close();
-        backend?.services.close();
+        backendRef?.helper.close();
+        backendRef?.pages.close();
+        backendRef?.services.close();
     };
     process.on("SIGTERM", shutdown);
     process.on("SIGINT", shutdown);

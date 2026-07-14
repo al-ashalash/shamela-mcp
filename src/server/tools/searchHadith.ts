@@ -23,7 +23,9 @@ import { arabize, header, renderResponse, type RenderedResponse } from "../forma
 export const searchHadithInputShape = {
     query: z.string().min(1).describe("The hadith text (or a distinctive part of it). AND-combines words across matn + footnotes."),
     max_pages_scanned: z.number().int().min(1).max(50).default(20).describe("How many matching pages to scan for hadith service keys."),
-    ...PaginationInput,
+    // Only `limit` — no offset: the tool scans a single window of
+    // max_pages_scanned pages, so there is no further page to offset into.
+    limit: PaginationInput.limit,
     ...ResponseFormatInput,
 };
 export const searchHadithInput = z.object(searchHadithInputShape).strict();

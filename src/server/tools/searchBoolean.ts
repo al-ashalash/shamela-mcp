@@ -28,8 +28,8 @@
  * The tool STRONGLY encourages `scope`; for a large library, an unscoped
  * boolean search is unreliable and the notes flag that too.
  *
- * This is the Node-only prototype of proposal #1 (advanced/boolean search),
- * built on the same candidate-window pattern as `shamela_search_phrase`.
+ * Node-only implementation built on the same candidate-window pattern as
+ * `shamela_search_phrase`; a native Lucene BooleanQuery can later remove the caps.
  */
 
 import { z } from "zod";
@@ -178,8 +178,10 @@ export async function runSearchBoolean(
     // Per-term window cap. Same spirit as search_phrase: scale with the page
     // budget but bounded so a single term can't drown the candidate window.
     // A wider cap here than the requested `limit` because the intersection can
-    // discard most of each term's hits before pagination.
-    const perTermCap = Math.min(Math.max(args.limit * 8, 60), 200);
+    // discard most of each term's hits before pagination. Hard ceiling is 100:
+    // the Java helper clamps max_results to 100 per call (SearchPages.java),
+    // so asking for more would silently return a 100-hit window anyway.
+    const perTermCap = Math.min(Math.max(args.limit * 8, 60), 100);
 
     // Run every term (all roles) as its own AND-sub-search, in parallel.
     const specs: Array<{ term: string; role: SubSearch["role"] }> = [

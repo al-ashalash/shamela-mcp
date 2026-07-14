@@ -7,7 +7,7 @@ import { OptionsInputShape, PaginationInput, ResponseFormatInput } from "../sche
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
 
 export const searchQuranInputShape = {
-    query: z.string().min(1).describe("Arabic phrase. Searches against the Egyptian إملائي (writing-style) text of all 6,236 verses."),
+    query: z.string().min(1).describe("Arabic phrase. Searches against the Egyptian إملائي (writing-style) text of all 6,236 verses. Single-word queries also match prefixed forms (e.g. «الصبر» matches «بالصبر»); their results are ordered by mushaf position (aya_id), not relevance."),
     options: z
         .object({
             wildcards: OptionsInputShape.wildcards,
@@ -53,6 +53,9 @@ export interface SearchQuranOutput {
     next_offset?: number;
     query: string;
     normalized_tokens: string[];
+    /** Expanded (prefix-variant) searches only: false when a variant's result
+     *  set could not be fully paged, so total_hits is a lower bound. */
+    total_hits_complete?: boolean;
     results: QuranHit[];
 }
 
@@ -83,25 +86,45 @@ export async function runSearchQuran(
     let out: SearchQuranOutput;
     if (canExpand) {
         const variants = expandPrefixVariants(tokens[0]!);
-        const envelopes = await Promise.all(
-            variants.map((v) =>
-                helper
-                    .request<RawEnvelope>("search_quran", {
+        // The helper clamps max_results to 100 per call, so a single window
+        // would under-report frequent words (e.g. «الله» occurs in 2,000+ ayat).
+        // Page each variant to exhaustion — bounded by the corpus itself
+        // (6,236 ayat → at most 63 pages per variant, far fewer in practice).
+        const PAGE_SIZE = 100;
+        const MAX_PAGES = 63;
+        const fetchVariant = async (v: string): Promise<{ hits: RawHit[]; complete: boolean }> => {
+            const hits: RawHit[] = [];
+            let offset = 0;
+            for (let i = 0; i < MAX_PAGES; i++) {
+                let env: RawEnvelope;
+                try {
+                    env = await helper.request<RawEnvelope>("search_quran", {
                         query: v,
-                        max_results: 100,
-                        offset: 0,
-                        options: {},
-                    })
-                    .catch(() => null),
-            ),
-        );
+                        max_results: PAGE_SIZE,
+                        offset,
+                        options: args.options ?? {},
+                    });
+                } catch {
+                    // A failed variant must not fail the whole query, but its
+                    // contribution is unknown — flag the union as incomplete.
+                    return { hits, complete: false };
+                }
+                hits.push(...env.results);
+                if (!env.has_more || env.results.length === 0) return { hits, complete: true };
+                offset = env.next_offset ?? offset + PAGE_SIZE;
+            }
+            return { hits, complete: false };
+        };
+        const fetched = await Promise.all(variants.map(fetchVariant));
+        const complete = fetched.every((f) => f.complete);
         const merged = new Map<number, RawHit>();
-        for (const env of envelopes) {
-            if (!env) continue;
-            for (const h of env.results) {
+        for (const f of fetched) {
+            for (const h of f.hits) {
                 if (!merged.has(h.aya_id)) merged.set(h.aya_id, h);
             }
         }
+        // Union of variants has no meaningful relevance score, so expanded
+        // results are ordered by aya_id (mushaf order) — stable for pagination.
         const sortedIds = Array.from(merged.keys()).sort((a, b) => a - b);
         const total = sortedIds.length;
         const pageIds = sortedIds.slice(args.offset, args.offset + args.limit);
@@ -116,6 +139,7 @@ export async function runSearchQuran(
             ...(hasMore ? { next_offset: nextOffset } : {}),
             query: args.query,
             normalized_tokens: variants,
+            total_hits_complete: complete,
             results,
         };
     } else {
@@ -140,6 +164,9 @@ export async function runSearchQuran(
     return renderResponse(out, args.response_format, (data) => {
         const lines = [header(1, `نتائج البحث في القرآن: «${data.query}»`)];
         lines.push(`**${arabize(data.total_hits)}** آية موافقة، عرض ${arabize(data.returned)}.`);
+        if (data.total_hits_complete === false) {
+            lines.push("_العدد الإجمالي حدٌّ أدنى: تعذَّر استيفاء نتائج بعض صيغ الكلمة._");
+        }
         lines.push("");
         for (const r of data.results) {
             lines.push(`## ${r.surah_name} ${arabize(r.surah)}:${arabize(r.aya)}`);

@@ -9,8 +9,8 @@
  *      actually adjacent (phrase) or within `distance` words (near), checked in
  *      Node against the same normalization used everywhere else.
  *
- * This is the Node-only prototype of proposal #1 (advanced search) layered on
- * proposal #2's two-stage verification pattern.
+ * A native Lucene PhraseQuery/SpanNearQuery implementation can later replace
+ * this Node-only two-stage verification without changing the tool's contract.
  */
 
 import { z } from "zod";

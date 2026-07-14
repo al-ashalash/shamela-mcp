@@ -129,7 +129,7 @@ export function runBooksByPeriod(
     const hasDied = args.died_from !== undefined || args.died_to !== undefined;
     if (!hasComposed && !hasDied) {
         throw badArg(
-            "حدِّد نطاقًا زمنيًّا واحدًا على الأقل: composed_from/composed_to (سنة التأليف) أو died_from/died_to (سنة وفاة المؤلف). هذه الأداة تفصل سنة التأليف عن سنة الوفاة (المقترح ٩).",
+            "حدِّد نطاقًا زمنيًّا واحدًا على الأقل: composed_from/composed_to (سنة التأليف) أو died_from/died_to (سنة وفاة المؤلف). هذه الأداة تفصل سنة التأليف عن سنة الوفاة.",
         );
     }
 

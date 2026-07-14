@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { resolveJre } from "../../src/server/paths.js";
+import { resolveJars, resolveJre } from "../../src/server/paths.js";
 
 function makeJavaStub(dir: string): string {
     fs.mkdirSync(dir, { recursive: true });
@@ -71,5 +71,92 @@ describe("resolveJre — macOS bundled JRE discovery", () => {
         } finally {
             fs.rmSync(overrideDir, { recursive: true, force: true });
         }
+    });
+});
+
+describe("resolveJre — legacy jre/1 version folder (older installs, issue #4)", () => {
+    let tmpRoot: string;
+    let savedEnvJre: string | undefined;
+
+    beforeEach(() => {
+        tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "shamela-paths-"));
+        savedEnvJre = process.env.SHAMELA_JRE;
+        delete process.env.SHAMELA_JRE;
+    });
+
+    afterEach(() => {
+        if (savedEnvJre === undefined) delete process.env.SHAMELA_JRE;
+        else process.env.SHAMELA_JRE = savedEnvJre;
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+    });
+
+    function makeJavaExeStub(dir: string): string {
+        fs.mkdirSync(dir, { recursive: true });
+        const javaPath = path.join(dir, "java.exe");
+        fs.writeFileSync(javaPath, "");
+        return javaPath;
+    }
+
+    it("falls back to app/win/64/jre/1 when jre/2 is absent (Windows)", () => {
+        const expected = makeJavaExeStub(
+            path.join(tmpRoot, "app", "win", "64", "jre", "1", "bin"),
+        );
+        expect(resolveJre(tmpRoot, "win32")).toBe(expected);
+    });
+
+    it("prefers jre/2 over jre/1 when both exist (Windows)", () => {
+        const v2 = makeJavaExeStub(path.join(tmpRoot, "app", "win", "64", "jre", "2", "bin"));
+        makeJavaExeStub(path.join(tmpRoot, "app", "win", "64", "jre", "1", "bin"));
+        expect(resolveJre(tmpRoot, "win32")).toBe(v2);
+    });
+
+    it("falls back to app/mac/arm64/jre/1 when jre/2 is absent (macOS)", () => {
+        const expected = makeJavaStub(
+            path.join(tmpRoot, "app", "mac", "arm64", "jre", "1", "bin"),
+        );
+        expect(resolveJre(tmpRoot, "darwin")).toBe(expected);
+    });
+
+    it("lists both jre/2 and jre/1 candidates in the not-found error", () => {
+        expect(() => resolveJre(tmpRoot, "win32")).toThrow(/jre[\\/]2.*jre[\\/]1/s);
+    });
+});
+
+describe("resolveJars — lucene version folder fallback (issue #4)", () => {
+    let tmpRoot: string;
+
+    beforeEach(() => {
+        tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "shamela-paths-"));
+    });
+
+    afterEach(() => {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+    });
+
+    function makeJar(dir: string, name: string): string {
+        fs.mkdirSync(dir, { recursive: true });
+        const jarPath = path.join(dir, name);
+        fs.writeFileSync(jarPath, "");
+        return jarPath;
+    }
+
+    it("finds jars under app/lucene/2", () => {
+        const jar = makeJar(path.join(tmpRoot, "app", "lucene", "2"), "lucene-core.jar");
+        expect(resolveJars(tmpRoot)).toEqual([jar]);
+    });
+
+    it("falls back to app/lucene/1 when lucene/2 is absent", () => {
+        const jar = makeJar(path.join(tmpRoot, "app", "lucene", "1"), "lucene-core.jar");
+        expect(resolveJars(tmpRoot)).toEqual([jar]);
+    });
+
+    it("prefers lucene/2 over lucene/1 when both exist", () => {
+        const v2 = makeJar(path.join(tmpRoot, "app", "lucene", "2"), "lucene-core.jar");
+        makeJar(path.join(tmpRoot, "app", "lucene", "1"), "lucene-core.jar");
+        expect(resolveJars(tmpRoot)).toEqual([v2]);
+    });
+
+    it("lists both probed lucene paths in the not-found error", () => {
+        expect(() => resolveJars(tmpRoot)).toThrow(/lucene[\\/]2.*lucene[\\/]1/s);
     });
 });

@@ -224,23 +224,29 @@ export function resolveJre(
         throw new Error(`SHAMELA_JRE = ${envJre} لا يُشير إلى ملف جافا تنفيذي صالح.`);
     }
 
+    // Newer Shamela installs keep the bundled JRE under a version folder named
+    // "2"; older installs use "1" (issue #4 — the wrong folder makes the helper
+    // exit with code 1). Probe "2" first, then "1", for every platform layout.
+    const JRE_VERSION_DIRS = ["2", "1"];
     const candidates: string[] = [];
-    if (platform === "win32") {
-        candidates.push(
-            path.join(installRoot, "app", "win", "64", "jre", "2", "bin", "java.exe"),
-            path.join(installRoot, "app", "win", "32", "jre", "2", "bin", "java.exe"),
-        );
-    } else if (platform === "darwin") {
-        // Mac Shamela ships the bundled JRE under the CPU architecture name
-        // (arm64 on Apple Silicon, x86_64 on Intel), not the Windows-style
-        // 32/64 split. Probe the legacy "64" path last for any older install.
-        candidates.push(
-            path.join(installRoot, "app", "mac", "arm64", "jre", "2", "bin", "java"),
-            path.join(installRoot, "app", "mac", "x86_64", "jre", "2", "bin", "java"),
-            path.join(installRoot, "app", "mac", "64", "jre", "2", "bin", "java"),
-        );
-    } else {
-        candidates.push(path.join(installRoot, "app", "linux", "64", "jre", "2", "bin", "java"));
+    for (const v of JRE_VERSION_DIRS) {
+        if (platform === "win32") {
+            candidates.push(
+                path.join(installRoot, "app", "win", "64", "jre", v, "bin", "java.exe"),
+                path.join(installRoot, "app", "win", "32", "jre", v, "bin", "java.exe"),
+            );
+        } else if (platform === "darwin") {
+            // Mac Shamela ships the bundled JRE under the CPU architecture name
+            // (arm64 on Apple Silicon, x86_64 on Intel), not the Windows-style
+            // 32/64 split. Probe the legacy "64" path last for any older install.
+            candidates.push(
+                path.join(installRoot, "app", "mac", "arm64", "jre", v, "bin", "java"),
+                path.join(installRoot, "app", "mac", "x86_64", "jre", v, "bin", "java"),
+                path.join(installRoot, "app", "mac", "64", "jre", v, "bin", "java"),
+            );
+        } else {
+            candidates.push(path.join(installRoot, "app", "linux", "64", "jre", v, "bin", "java"));
+        }
     }
 
     for (const c of candidates) if (fs.existsSync(c)) return c;
@@ -251,10 +257,21 @@ export function resolveJre(
     );
 }
 
-function resolveJars(installRoot: string): string[] {
-    const luceneDir = path.join(installRoot, "app", "lucene", "2");
-    if (!fs.existsSync(luceneDir)) {
-        throw new Error(`لم يُعثر على مجلد ملفات Lucene: ${luceneDir}`);
+export function resolveJars(installRoot: string): string[] {
+    // Same version-folder split as the bundled JRE (issue #4): newer installs
+    // use app/lucene/2, older ones app/lucene/1. Probe both, prefer "2".
+    const probed: string[] = [];
+    let luceneDir: string | null = null;
+    for (const v of ["2", "1"]) {
+        const candidate = path.join(installRoot, "app", "lucene", v);
+        probed.push(candidate);
+        if (fs.existsSync(candidate)) {
+            luceneDir = candidate;
+            break;
+        }
+    }
+    if (!luceneDir) {
+        throw new Error(`لم يُعثر على مجلد ملفات Lucene. بُحث في: ${probed.join(", ")}`);
     }
     const out = fs
         .readdirSync(luceneDir)
