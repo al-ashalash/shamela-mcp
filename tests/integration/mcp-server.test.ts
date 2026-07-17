@@ -157,6 +157,55 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
         }
     });
 
+    describe("prompt argument completions (completion/complete)", () => {
+        it("compare_madhahib.madhahib offers the four-madhhab set", async () => {
+            const r = await client.complete({
+                ref: { type: "ref/prompt", name: "compare_madhahib" },
+                argument: { name: "madhahib", value: "" },
+            });
+            expect(r.completion.values).toEqual([
+                "الأربعة",
+                "الحنفي",
+                "المالكي",
+                "الشافعي",
+                "الحنبلي",
+            ]);
+        });
+
+        it("khittat_bahth.jamia lists all 8 universities and filters by prefix", async () => {
+            const all = await client.complete({
+                ref: { type: "ref/prompt", name: "khittat_bahth" },
+                argument: { name: "jamia", value: "" },
+            });
+            expect(all.completion.values).toHaveLength(8);
+
+            const filtered = await client.complete({
+                ref: { type: "ref/prompt", name: "khittat_bahth" },
+                argument: { name: "jamia", value: "جامعة الملك" },
+            });
+            expect(filtered.completion.values).toEqual([
+                "جامعة الملك سعود",
+                "جامعة الملك عبد العزيز",
+                "جامعة الملك خالد",
+            ]);
+        });
+
+        it("optional arguments are declared optional and default when omitted", async () => {
+            const listed = await client.listPrompts();
+            const compare = listed.prompts.find((p) => p.name === "compare_madhahib")!;
+            const madhahibArg = compare.arguments?.find((a) => a.name === "madhahib");
+            expect(madhahibArg).toBeDefined();
+            expect(madhahibArg!.required ?? false).toBe(false);
+
+            const rendered = await client.getPrompt({
+                name: "compare_madhahib",
+                arguments: { masala: "مسألة-اختبارية" },
+            });
+            const text = (rendered.messages[0]!.content as { type: "text"; text: string }).text;
+            expect(text).toContain("والنطاق المطلوب من المذاهب: الأربعة");
+        });
+    });
+
     it("shamela_search_pages('الكلام', book=9942) returns 9 hits via the protocol", async () => {
         const result = await client.callTool({
             name: "shamela_search_pages",

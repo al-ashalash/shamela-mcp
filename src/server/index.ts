@@ -8,6 +8,7 @@
  * MCP `isError: true` content.
  */
 
+import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
@@ -843,6 +844,36 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
     // Single source of truth: each template below must stay byte-identical
     // (with `${arg}` placeholders) to its `text` entry in manifest.json —
     // the integration suite asserts this to prevent the two copies drifting.
+
+    /** Static completion lists for optional prompt arguments. */
+    const MADHAHIB_COMPLETIONS = ["الأربعة", "الحنفي", "المالكي", "الشافعي", "الحنبلي"] as const;
+    const JAMIA_COMPLETIONS = [
+        "جامعة الملك سعود",
+        "جامعة أم القرى",
+        "جامعة الإمام محمد بن سعود الإسلامية",
+        "الجامعة الإسلامية بالمدينة المنورة",
+        "جامعة القصيم",
+        "جامعة الملك عبد العزيز",
+        "جامعة طيبة",
+        "جامعة الملك خالد",
+    ] as const;
+
+    /**
+     * Optional prompt argument with static prefix-filtered completions.
+     * The SDK (1.29) checks the completable marker in two different places
+     * with different unwrapping rules: capability registration unwraps
+     * ZodOptional to the inner type, while the completion/complete handler
+     * inspects the field itself — so the marker must sit on BOTH layers.
+     */
+    function completableOptional(
+        values: readonly string[],
+        description: string,
+    ): z.ZodOptional<z.ZodString> {
+        const complete = (value?: string): string[] =>
+            values.filter((v) => v.startsWith(value ?? ""));
+        const inner = completable(z.string().describe(description), complete);
+        return completable(inner.optional().describe(description), complete);
+    }
     server.registerPrompt(
         "study_masala",
         { title: "دراسة مسألة فقهية", description: "دراسة مسألة فقهية تبدأ بتصوير المسألة ثم البحث في مظانّها.", argsSchema: { masala: z.string().describe("المسألة الفقهية المراد دراستها. مثال: حكم سجود السهو لمن شك في عدد الركعات") } },
@@ -853,10 +884,10 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
     );
     server.registerPrompt(
         "compare_madhahib",
-        { title: "مقارنة المذاهب", description: "مقارنة أقوال المذاهب الفقهية في مسألة بالبحث المتوازي في كتب كل مذهب.", argsSchema: { masala: z.string().describe("المسألة المراد مقارنة المذاهب فيها. مثال: نقض الوضوء بمس المرأة") } },
-        ({ masala }) => ({
+        { title: "مقارنة المذاهب", description: "مقارنة أقوال المذاهب الفقهية في مسألة بالبحث المتوازي في كتب كل مذهب.", argsSchema: { masala: z.string().describe("المسألة المراد مقارنة المذاهب فيها. مثال: نقض الوضوء بمس المرأة"), madhahib: completableOptional(MADHAHIB_COMPLETIONS, "نطاق المقارنة: الأربعة (الافتراضي) أو مذهب بعينه. مثال: الحنبلي") } },
+        ({ masala, madhahib }) => ({
             messages: [{ role: "user", content: { type: "text", text:
-                `قارن أقوال المذاهب الفقهية في: «${masala}». ابحث بحثًا متوازيًا في تصنيفات المذاهب الأربعة كلها (تعرفها من shamela_list_categories)، وانقل عن كل مذهب من كتبه هو لا من كتب خصومه، مستعينًا بـ shamela_search_phrase وshamela_search_boolean مقيّدَين بالتصنيف. اقرأ الموضع بسياقه (shamela_get_page) وانقل القول بنصه مميّزًا المتن من الحاشية مع إحالة shamela_get_citation، ثم اجمع المقارنة في جدول: المذهب | القول | الدليل | المصدر. ولا تنسب قولًا بلا أداةٍ تثبته؛ وإن غاب مذهبٌ فصرّح بأن كتبه قد لا تكون منزّلة ولا يُعدّ ذلك نفيًا لقوله.` } }],
+                `قارن أقوال المذاهب الفقهية في: «${masala}»، والنطاق المطلوب من المذاهب: ${madhahib ?? "الأربعة"}. ابحث بحثًا متوازيًا في تصنيفات المذاهب المطلوبة كلها (تعرفها من shamela_list_categories)، وانقل عن كل مذهب من كتبه هو لا من كتب خصومه، مستعينًا بـ shamela_search_phrase وshamela_search_boolean مقيّدَين بالتصنيف. اقرأ الموضع بسياقه (shamela_get_page) وانقل القول بنصه مميّزًا المتن من الحاشية مع إحالة shamela_get_citation، ثم اجمع المقارنة في جدول: المذهب | القول | الدليل | المصدر. ولا تنسب قولًا بلا أداةٍ تثبته؛ وإن غاب مذهبٌ فصرّح بأن كتبه قد لا تكون منزّلة ولا يُعدّ ذلك نفيًا لقوله.` } }],
         }),
     );
     server.registerPrompt(
@@ -885,10 +916,10 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
     );
     server.registerPrompt(
         "khittat_bahth",
-        { title: "خطة بحث", description: "إعداد خطة بحث موجزة تبدأ بالتحقق من عدم سبق الدراسة.", argsSchema: { mawdu: z.string().describe("موضوع البحث المقترح. مثال: أحكام الاستصناع وتطبيقاته المعاصرة") } },
-        ({ mawdu }) => ({
+        { title: "خطة بحث", description: "إعداد خطة بحث موجزة تبدأ بالتحقق من عدم سبق الدراسة.", argsSchema: { mawdu: z.string().describe("موضوع البحث المقترح. مثال: أحكام الاستصناع وتطبيقاته المعاصرة"), jamia: completableOptional(JAMIA_COMPLETIONS, "الجامعة المقدَّم إليها البحث (اختياري). مثال: جامعة القصيم") } },
+        ({ mawdu, jamia }) => ({
             messages: [{ role: "user", content: { type: "text", text:
-                `أعدّ خطة بحث لموضوع: «${mawdu}». تحقق أولًا من عدم سبق دراسته: ابحث بصيغ الموضوع المختلفة في فهرس الكتب بـ shamela_search_books وفي عناوين الأبواب بـ shamela_search_titles، واذكر ما وجدته من دراسات قريبة وبيّن موضع الجدة. ثم احصر مظانّ الموضوع بالتصنيفات (shamela_list_categories) وعيّن أبرز مصادره الأولية مع بيان حال تنزيلها (shamela_search_books مقيّدًا بالتصنيف). ثم اقترح عناصر الخطة موجزةً: العنوان، المشكلة، الأهمية، الدراسات السابقة، المنهج، التقسيم، قائمة المصادر — علمًا بأن تفصيل عناصر الجامعات ومعاييرها سيتوفر في مهارة قادمة.` } }],
+                `أعدّ خطة بحث لموضوع: «${mawdu}»، والجامعة المقصودة: ${jamia ?? "غير محددة"} (إن ذُكرت جامعة بعينها فنبّه إلى أن ضوابطها التفصيلية ستتوفر في مهارة مستقلة). تحقق أولًا من عدم سبق دراسته: ابحث بصيغ الموضوع المختلفة في فهرس الكتب بـ shamela_search_books وفي عناوين الأبواب بـ shamela_search_titles، واذكر ما وجدته من دراسات قريبة وبيّن موضع الجدة. ثم احصر مظانّ الموضوع بالتصنيفات (shamela_list_categories) وعيّن أبرز مصادره الأولية مع بيان حال تنزيلها (shamela_search_books مقيّدًا بالتصنيف). ثم اقترح عناصر الخطة موجزةً: العنوان، المشكلة، الأهمية، الدراسات السابقة، المنهج، التقسيم، قائمة المصادر — علمًا بأن تفصيل عناصر الجامعات ومعاييرها سيتوفر في مهارة قادمة.` } }],
         }),
     );
 
