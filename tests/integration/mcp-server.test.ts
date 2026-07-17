@@ -60,9 +60,8 @@ const EXPECTED_PROMPT_NAMES = [
     "compare_madhahib",
     "trace_hadith",
     "tafsir_aya_muqaran",
-    "tawthiq_nisba",
-    "tatabbu_mustalah",
-    "tarjamat_alim",
+    "nazila_muasira",
+    "khittat_bahth",
 ] as const;
 
 describe("MCP server end-to-end (InMemoryTransport)", () => {
@@ -102,7 +101,7 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
         }
     });
 
-    it("lists all 7 expected prompts", async () => {
+    it("lists all 6 expected prompts", async () => {
         const result = await client.listPrompts();
         const names = new Set(result.prompts.map((p) => p.name));
         for (const expected of EXPECTED_PROMPT_NAMES) {
@@ -135,20 +134,25 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             expect(registered, `prompt ${entry.name} registered`).toBeDefined();
             expect(registered!.description).toBe(entry.description);
 
-            // Rendering the prompt with a sentinel argument must reproduce the
-            // manifest template with its `${arg}` placeholder substituted.
-            expect(entry.arguments).toHaveLength(1);
-            const argName = entry.arguments[0]!;
-            const sentinel = "قيمة-اختبارية";
+            // Rendering the prompt with sentinel arguments must reproduce the
+            // manifest template with ALL of its `${arg}` placeholders
+            // substituted (required and optional alike).
+            expect(entry.arguments.length).toBeGreaterThanOrEqual(1);
+            const sentinels = Object.fromEntries(
+                entry.arguments.map((argName) => [argName, `قيمة-${argName}`]),
+            );
             const rendered = await client.getPrompt({
                 name: entry.name,
-                arguments: { [argName]: sentinel },
+                arguments: sentinels,
             });
             expect(rendered.messages).toHaveLength(1);
             const msg = rendered.messages[0]!;
             expect(msg.role).toBe("user");
             expect(msg.content.type).toBe("text");
-            const expected = entry.text.replaceAll("${" + argName + "}", sentinel);
+            let expected = entry.text;
+            for (const [argName, sentinel] of Object.entries(sentinels)) {
+                expected = expected.replaceAll("${" + argName + "}", sentinel);
+            }
             expect((msg.content as { type: "text"; text: string }).text).toBe(expected);
         }
     });
