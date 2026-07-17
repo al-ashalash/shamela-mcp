@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
+import { buildGuideText } from "../../src/server/guide.js";
 import { createServer, type Backend } from "../../src/server/index.js";
 import { FIXTURE_BOOK_ID, getBackend, getCatalog } from "../fixtures/shared.js";
 
@@ -217,6 +218,37 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             const khittaText = (khitta.messages[0]!.content as { type: "text"; text: string })
                 .text;
             expect(khittaText).toContain("والجامعة المقصودة: غير محددة");
+        });
+    });
+
+    describe("shamela://guide resource (in-app user guide)", () => {
+        it("resources/list includes shamela://guide", async () => {
+            const result = await client.listResources();
+            const uris = result.resources.map((r) => r.uri);
+            expect(uris).toContain("shamela://guide");
+        });
+
+        it("reading shamela://guide returns non-empty Arabic markdown", async () => {
+            const result = await client.readResource({ uri: "shamela://guide" });
+            expect(result.contents).toHaveLength(1);
+            const entry = result.contents[0]! as { uri: string; mimeType?: string; text?: string };
+            expect(entry.mimeType).toBe("text/markdown");
+            const text = entry.text ?? "";
+            expect(text.length).toBeGreaterThan(1000);
+            // Arabic script present (the guide is user-facing Arabic).
+            expect(/[؀-ۿ]/.test(text)).toBe(true);
+            // Served text matches the pure function (single source of truth).
+            expect(text).toBe(buildGuideText());
+        });
+
+        it("drift guard: the guide names all 29 tools and all 6 prompts", () => {
+            const text = buildGuideText();
+            for (const toolName of EXPECTED_TOOL_NAMES) {
+                expect(text, `guide must mention tool ${toolName}`).toContain(toolName);
+            }
+            for (const promptName of EXPECTED_PROMPT_NAMES) {
+                expect(text, `guide must mention prompt ${promptName}`).toContain(promptName);
+            }
         });
     });
 
