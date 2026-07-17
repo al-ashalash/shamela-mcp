@@ -203,6 +203,20 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             });
             const text = (rendered.messages[0]!.content as { type: "text"; text: string }).text;
             expect(text).toContain("والنطاق المطلوب من المذاهب: الأربعة");
+
+            const jamiaArg = listed.prompts
+                .find((p) => p.name === "khittat_bahth")!
+                .arguments?.find((a) => a.name === "jamia");
+            expect(jamiaArg).toBeDefined();
+            expect(jamiaArg!.required ?? false).toBe(false);
+
+            const khitta = await client.getPrompt({
+                name: "khittat_bahth",
+                arguments: { mawdu: "موضوع-اختباري" },
+            });
+            const khittaText = (khitta.messages[0]!.content as { type: "text"; text: string })
+                .text;
+            expect(khittaText).toContain("والجامعة المقصودة: غير محددة");
         });
     });
 

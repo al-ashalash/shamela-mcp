@@ -841,9 +841,12 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
     );
 
     // ----------- Prompts (guided study workflows) -----------
-    // Single source of truth: each template below must stay byte-identical
-    // (with `${arg}` placeholders) to its `text` entry in manifest.json —
-    // the integration suite asserts this to prevent the two copies drifting.
+    // Single source of truth: each template below must match its `text` entry
+    // in manifest.json byte-for-byte, except that optional arguments carry a
+    // `?? "default"` fallback here (`${madhahib ?? "الأربعة"}` in code vs
+    // `${madhahib}` in the manifest). The integration suite renders every
+    // prompt with sentinel arguments and compares against the manifest text,
+    // and asserts each omitted-arg default, to prevent the copies drifting.
 
     /** Static completion lists for optional prompt arguments. */
     const MADHAHIB_COMPLETIONS = ["الأربعة", "الحنفي", "المالكي", "الشافعي", "الحنبلي"] as const;
