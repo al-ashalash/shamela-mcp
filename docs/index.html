@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>بحث ودراسة في المكتبة الشاملة — إضافة Claude</title>
-<meta name="description" content="إضافة مجانية مفتوحة المصدر تصل تطبيق Claude بمكتبتك من «الشاملة 4» على جهازك: تسأل بلغتك فيبحث في كتبك المنزَّلة ويجيب بعزوٍ دقيق. دليل الأدوات، والتثبيت، والاستخدام.">
+<title>بحث ودراسة في المكتبة الشاملة — إضافة Claude Desktop (سطح المكتب)</title>
+<meta name="description" content="إضافة مجانية مفتوحة المصدر لتطبيق Claude Desktop (نسخة سطح المكتب) تصل كلود بمكتبتك من «الشاملة 4» على جهازك: تسأل بلغتك فيبحث في كتبك المنزَّلة ويجيب بعزوٍ دقيق. دليل الأدوات، والتثبيت، والاستخدام.">
 <style>
   :root{
     --bg:#F0EDE4; --surface:#FBFAF6; --surface2:#F4F0E7; --border:#E4DFD2;
@@ -82,6 +82,12 @@
   .btn.ghost{background:var(--surface);border:1px solid var(--border);color:var(--ink)}
   .btn.ghost:hover{background:var(--surface2)}
   .vnote{margin-top:14px;font-size:14.5px;color:var(--muted)}
+  .metabar{margin-top:34px;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  .metabar .mi{background:var(--surface);padding:15px 20px}
+  .metabar .mk{font-size:12.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:3px;text-transform:uppercase}
+  .metabar .mv{font-size:16px;font-weight:700;line-height:1.35}
+  @media(max-width:640px){.metabar{grid-template-columns:1fr 1fr}}
 
   .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:34px;align-items:center}
   @media(max-width:860px){.hero-grid{grid-template-columns:1fr;gap:26px}}
@@ -195,8 +201,8 @@
     <div>
       <span class="badge">
         <svg width="18" height="18" viewBox="0 0 40 40" aria-hidden="true"><g stroke="var(--coral)" stroke-width="3.6" stroke-linecap="round"><line x1="20" y1="5" x2="20" y2="35"/><line x1="5" y1="20" x2="35" y2="20"/><line x1="9" y1="9" x2="31" y2="31"/><line x1="31" y1="9" x2="9" y2="31"/></g></svg>
-        <span class="ar">إضافة لتطبيق <b class="lat">Claude</b> · مجانية ومفتوحة المصدر</span>
-        <span class="en">An extension for <b class="lat">Claude</b> · free &amp; open source</span>
+        <span class="ar">إضافة لتطبيق <b class="lat">Claude Desktop</b> (سطح المكتب) · مجانية ومفتوحة المصدر</span>
+        <span class="en">An extension for <b class="lat">Claude Desktop</b> · free &amp; open source</span>
       </span>
       <h1>
         <span class="ar">بحث ودراسة في <span class="em">المكتبة الشاملة</span></span>
@@ -213,8 +219,8 @@
           <span class="ar">المستودع على GitHub</span><span class="en">View on GitHub</span></a>
       </div>
       <p class="vnote">
-        <span class="ar">الإصدار <b class="lat">1.2.0</b> · تعمل على <b class="lat">Claude Desktop</b> مع تطبيق المكتبة الشاملة ٤</span>
-        <span class="en">Version <b class="lat">1.2.0</b> · runs on <b class="lat">Claude Desktop</b> with the Shamela 4 app</span>
+        <span class="ar">تعمل مع تطبيق المكتبة الشاملة ٤ المثبَّت على جهازك.</span>
+        <span class="en">Works with the Shamela 4 app installed on your device.</span>
       </p>
     </div>
 
@@ -235,6 +241,17 @@
             <span class="en">Precise citation: book · volume · page</span></span></div>
       </div>
     </div>
+  </div>
+
+  <div class="metabar">
+    <div class="mi"><div class="mk"><span class="ar">التطبيق</span><span class="en">App</span></div>
+      <div class="mv lat">Claude Desktop <span class="ar" style="font-family:var(--arab);font-weight:600">· سطح المكتب</span></div></div>
+    <div class="mi"><div class="mk"><span class="ar">الإصدار</span><span class="en">Version</span></div>
+      <div class="mv"><span class="lat">1.2.0</span> <span class="ar">— يوليو ٢٠٢٦</span><span class="en">— Jul 2026</span></div></div>
+    <div class="mi"><div class="mk"><span class="ar">الترخيص</span><span class="en">License</span></div>
+      <div class="mv"><span class="ar">مفتوح المصدر · مجّاني</span><span class="en">Open source · free</span></div></div>
+    <div class="mi"><div class="mk"><span class="ar">صاحب المشروع</span><span class="en">Owner</span></div>
+      <div class="mv"><span class="ar">حمود الحقباني</span><span class="en">Hamoud Al-Hoqbani</span></div></div>
   </div>
 </div>
 
