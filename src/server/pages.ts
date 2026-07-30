@@ -91,9 +91,29 @@ export class PageStore {
         return this.SQL;
     }
 
-    private bookPath(bookId: number): string {
+    /**
+     * Resolve the on-disk path of a per-book SQLite file, or null when the
+     * book is not downloaded.
+     *
+     * Shamela buckets books by `id % 1000`, but the folder NAME differs
+     * between installs: current Shamela 4 builds zero-pad it to three digits
+     * (`book/009/9.db`) while older layouts don't (`book/9/9.db`). The two
+     * spellings only differ when the bucket is < 100 — which is exactly why
+     * only books with `id % 1000 < 100` were misreported as «منزَّل لكن بلا
+     * صفحات مقروءة»: Lucene (written by Shamela itself) had the text, while
+     * we probed the unpadded path, found no file, and silently treated the
+     * book as empty. Probe the padded spelling first (current layout), then
+     * the unpadded one (legacy).
+     */
+    private bookPath(bookId: number): string | null {
         const bucket = bookId % 1000;
-        return path.join(this.databaseRoot, "book", String(bucket), `${bookId}.db`);
+        const spellings =
+            bucket < 100 ? [String(bucket).padStart(3, "0"), String(bucket)] : [String(bucket)];
+        for (const dir of spellings) {
+            const p = path.join(this.databaseRoot, "book", dir, `${bookId}.db`);
+            if (fs.existsSync(p)) return p;
+        }
+        return null;
     }
 
     private async getDb(bookId: number): Promise<Database | null> {
@@ -104,7 +124,7 @@ export class PageStore {
             return cached;
         }
         const p = this.bookPath(bookId);
-        if (!fs.existsSync(p)) return null;
+        if (p === null) return null;
         const SQL = await this.ensureInit();
         let db: Database;
         try {
@@ -130,7 +150,7 @@ export class PageStore {
 
     /** True if the per-book DB exists on disk (book is downloaded). */
     async hasBook(bookId: number): Promise<boolean> {
-        return fs.existsSync(this.bookPath(bookId));
+        return this.bookPath(bookId) !== null;
     }
 
     /**
