@@ -27,6 +27,13 @@ export interface ShamelaPaths {
     jre: string;
     jars: string[];
     helperJar: string;
+    /**
+     * Which generation of Shamela's bundled search engine this install ships:
+     * "2" is the current one, "1" an older build. The helper is compiled
+     * against the current generation's Java, so on "1" it cannot even load —
+     * knowing this before launching turns a bare exit code into an explanation.
+     */
+    engineGeneration: "1" | "2" | "unknown";
 }
 
 export interface ProbedPath {
@@ -257,6 +264,17 @@ export function resolveJre(
     );
 }
 
+/**
+ * Which bundled-engine generation an install carries, decided by the Lucene
+ * folder Shamela ships it in. Returns "unknown" when neither is present.
+ */
+export function resolveEngineGeneration(installRoot: string): "1" | "2" | "unknown" {
+    for (const v of ["2", "1"] as const) {
+        if (fs.existsSync(path.join(installRoot, "app", "lucene", v))) return v;
+    }
+    return "unknown";
+}
+
 export function resolveJars(installRoot: string): string[] {
     // Same version-folder split as the bundled JRE (issue #4): newer installs
     // use app/lucene/2, older ones app/lucene/1. Probe both, prefer "2".
@@ -312,5 +330,6 @@ export async function resolveAll(): Promise<ShamelaPaths> {
     const jre = resolveJre(installRoot);
     const jars = resolveJars(installRoot);
     const helperJar = resolveHelperJar();
-    return { installRoot, database, jre, jars, helperJar };
+    const engineGeneration = resolveEngineGeneration(installRoot);
+    return { installRoot, database, jre, jars, helperJar, engineGeneration };
 }

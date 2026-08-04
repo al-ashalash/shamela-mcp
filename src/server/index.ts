@@ -22,6 +22,7 @@ import { errorCode, formatErrorMessage } from "./errors.js";
 import { buildGuideText } from "./guide.js";
 import { Helper } from "./helper.js";
 import { PageStore } from "./pages.js";
+import { engineTooOld } from "./errors.js";
 import { resolveAll, type ShamelaPaths } from "./paths.js";
 import { ServiceStore } from "./services.js";
 
@@ -206,6 +207,24 @@ function wrapErr(err: unknown): ToolResult {
     };
 }
 
+/**
+ * How long to wait for the Java helper's first response.
+ *
+ * The default covers a cold JVM start on ordinary hardware, but the reports of
+ * first-call timeouts all came from slower machines, so it is adjustable
+ * without rebuilding: set SHAMELA_READY_TIMEOUT_MS.
+ */
+export function readyTimeoutMs(): number {
+    const raw = process.env.SHAMELA_READY_TIMEOUT_MS?.trim();
+    if (!raw) return 20_000;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 1_000) {
+        logInfo(`ignoring SHAMELA_READY_TIMEOUT_MS=${raw} (want a number of milliseconds, at least 1000)`);
+        return 20_000;
+    }
+    return Math.min(parsed, 300_000);
+}
+
 /** Build the long-lived backend (paths, catalog, page/service stores, JVM helper). */
 export async function createBackend(): Promise<Backend> {
     const paths = await resolveAll();
@@ -222,8 +241,18 @@ export async function createBackend(): Promise<Backend> {
     const pages = new PageStore(paths.database, SQL_WASM_BINARY);
     const services = new ServiceStore(paths.database, SQL_WASM_BINARY);
 
+    // Check the engine generation BEFORE launching Java. The helper is compiled
+    // against the Java that current Shamela builds ship, so on an older install
+    // the JVM refuses to load it and exits with a bare code 1 — which reads as
+    // "the extension crashed" and sends people hunting in the wrong place.
+    if (paths.engineGeneration === "1") {
+        logInfo(`engine:       generation 1 — too old for this helper`);
+        throw engineTooOld(paths.installRoot);
+    }
+    logInfo(`engine:       generation ${paths.engineGeneration}`);
+
     const h = new Helper({ paths });
-    await h.ready(20_000);
+    await h.ready(readyTimeoutMs());
     return { helper: h, catalog, pages, services, paths };
 }
 
