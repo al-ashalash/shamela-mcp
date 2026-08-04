@@ -93,8 +93,11 @@ export async function runGetBook(
         role: idx === 0 ? ("main" as const) : ("co" as const),
     }));
     // #12: master.db.book.major_ondisk can flip true while the per-book SQLite
-    // is empty (electronic/image books, or a mid/interrupted download). Tri-state.
-    const hasContent = rec.major_ondisk > 0 && (await pages.bookHasContent(rec.book_id));
+    // is either MISSING (interrupted download, moved library folder) or PRESENT
+    // BUT EMPTY (an image/scan-only title). They are different user problems and
+    // must not share one message, so resolve the file's existence separately.
+    const fileOnDisk = rec.major_ondisk > 0 && (await pages.hasBook(rec.book_id));
+    const hasContent = fileOnDisk && (await pages.pageCount(rec.book_id)) > 0;
     const content_status: ContentStatus =
         rec.major_ondisk <= 0 ? "not_downloaded" : hasContent ? "readable" : "downloaded_no_pages";
 
@@ -130,7 +133,11 @@ export async function runGetBook(
 
     const notes: string[] = [];
     if (content_status === "downloaded_no_pages")
-        notes.push("flagged downloaded but has NO readable pages (electronic/image book, or an interrupted download) — do not quote from it");
+        notes.push(
+            fileOnDisk
+                ? "the book file is on disk but carries no text pages (an image/scan-only title) — do not quote from it"
+                : "the catalog flags this book as downloaded but its file is not on disk (interrupted download, or the library folder was moved) — do not quote from it",
+        );
     if (!editor) notes.push("muḥaqqiq (editor) not found in the front-matter; may need the printed source");
     if (!publisher) notes.push("publisher not found in the front-matter / not in master.db");
     if (!edition) notes.push("edition descriptor not present in the Shamela name suffix");

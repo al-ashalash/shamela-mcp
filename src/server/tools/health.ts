@@ -46,19 +46,32 @@ export async function runHealth(
         : Array.from({ length: SPOT_SAMPLE }, (_, i) => all[Math.floor((i * (all.length - 1)) / (SPOT_SAMPLE - 1))]!)
               .filter((v, i, arr) => arr.indexOf(v) === i);
     if (sampleIds.length) {
+        // A book can miss its pages for two unrelated reasons — the file is absent
+        // (interrupted download / moved library folder) or the file is there but
+        // holds no text (image/scan-only title). Keep them apart in the advice.
         const unreadable: number[] = [];
+        const fileMissing: number[] = [];
         for (const id of sampleIds) {
-            if (!(await pages.bookHasContent(id))) unreadable.push(id);
+            if (await pages.bookHasContent(id)) continue;
+            unreadable.push(id);
+            if (!(await pages.hasBook(id))) fileMissing.push(id);
         }
         spot = { sampled: sampleIds.length, readable: sampleIds.length - unreadable.length, unreadable_book_ids: unreadable };
         if (spot.readable === 0)
             notes.push(
                 "NONE of the sampled downloaded books have readable pages — the Shamela database path may be wrong, or downloads are incomplete",
             );
-        else if (unreadable.length)
-            notes.push(
-                `some downloaded books have no readable pages (ids: ${unreadable.join(", ")}) — individual content issue (electronic/image books), not a server problem; do not quote from them`,
-            );
+        else if (unreadable.length) {
+            const emptyFile = unreadable.filter((id) => !fileMissing.includes(id));
+            if (fileMissing.length)
+                notes.push(
+                    `flagged as downloaded but with no file on disk (ids: ${fileMissing.join(", ")}) — an interrupted download or a moved library folder, not a server fault; do not quote from them`,
+                );
+            if (emptyFile.length)
+                notes.push(
+                    `downloaded but carrying no text pages (ids: ${emptyFile.join(", ")}) — image/scan-only titles, not a server fault; do not quote from them`,
+                );
+        }
     } else {
         notes.push("no downloaded books found — page searches will return nothing until books are downloaded in Shamela");
     }
