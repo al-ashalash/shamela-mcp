@@ -37,7 +37,7 @@ public final class SearchQuran {
             int offset,
             boolean wildcards
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery);
+        List<String> tokens = Normalize.normalizeQuery(rawQuery, Normalize.Variant.AYA);
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("query", rawQuery == null ? "" : rawQuery);
         envelope.put("normalized_tokens", tokens);
@@ -87,7 +87,7 @@ public final class SearchQuran {
             Map<String, Object> hit = new LinkedHashMap<>();
             hit.put("aya_id", ayaId);
             hit.put("body", body);
-            hit.put("snippet_body", body.isEmpty() ? "" : Snippet.make(body, tokens));
+            hit.put("snippet_body", body.isEmpty() ? "" : Snippet.make(body, tokens, Normalize.Variant.AYA));
             results.add(hit);
         }
 
