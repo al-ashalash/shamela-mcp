@@ -72,6 +72,18 @@ export const ScopeInputShape = {
         .max(2000)
         .optional()
         .describe("Hijri year, inclusive upper bound. Pair with period_from."),
+    period_basis: z
+        .enum(["composed", "died", "either"])
+        .optional()
+        .describe(
+            "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+        ),
+    madhhab: z
+        .array(z.enum(["hanafi", "maliki", "shafii", "hanbali"]))
+        .optional()
+        .describe(
+            "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+        ),
     downloaded_only: z
         .boolean()
         .default(false)

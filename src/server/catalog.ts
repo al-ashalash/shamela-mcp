@@ -80,6 +80,8 @@ export interface ScopeInputData {
     category_ids?: number[];
     period_from?: number;
     period_to?: number;
+    period_basis?: "composed" | "died" | "either";
+    madhhab?: Array<"hanafi" | "maliki" | "shafii" | "hanbali">;
     downloaded_only?: boolean;
 }
 
@@ -87,6 +89,18 @@ export interface ScopeResolution {
     book_ids: number[];
     diagnostics: Array<{ source: string; contributed: number }>;
 }
+
+/**
+ * Shamela files each school's fiqh under its own flat category. These are the
+ * ids on the shipped catalogue; the general-fiqh, fatwa and usul categories are
+ * deliberately NOT in this map — a comparison should not silently absorb them.
+ */
+export const MADHHAB_CATEGORY: Record<"hanafi" | "maliki" | "shafii" | "hanbali", number> = {
+    hanafi: 14,
+    maliki: 15,
+    shafii: 16,
+    hanbali: 17,
+};
 
 // --- Catalog ----------------------------------------------------------------
 
@@ -526,24 +540,41 @@ export class CatalogScope {
                 diagnostics.push({ source: "category_ids", contributed: set.size });
                 intersect(set);
             }
+            if (scope.madhhab && scope.madhhab.length) {
+                const set = new Set<number>();
+                for (const school of scope.madhhab) {
+                    for (const b of this.catalog.booksInCategory(MADHHAB_CATEGORY[school])) set.add(b);
+                }
+                diagnostics.push({ source: `madhhab[${scope.madhhab.join(",")}]`, contributed: set.size });
+                intersect(set);
+            }
             if (scope.period_from !== undefined || scope.period_to !== undefined) {
                 const from = scope.period_from ?? 1;
                 const to = scope.period_to ?? 9999;
+                // A book's composition year and its author's death year are
+                // different facts, and answering "what was written in this
+                // century" with the union of both quietly includes books
+                // composed outside it. Default stays the union for
+                // compatibility; callers who care can say which they mean.
+                const basis = scope.period_basis ?? "either";
                 const set = new Set<number>();
-                for (const b of this.catalog.allBooks()) {
-                    if (b.book_date !== null && b.book_date >= from && b.book_date <= to) {
-                        set.add(b.book_id);
+                if (basis !== "died") {
+                    for (const b of this.catalog.allBooks()) {
+                        if (b.book_date !== null && b.book_date >= from && b.book_date <= to) {
+                            set.add(b.book_id);
+                        }
                     }
                 }
-                // Union with books authored by anyone whose death year is in range.
-                const authorIds: number[] = [];
-                for (const a of this.catalog["authors"].values() as IterableIterator<AuthorRecord>) {
-                    if (a.death_year !== null && a.death_year >= from && a.death_year <= to) {
-                        authorIds.push(a.author_id);
+                if (basis !== "composed") {
+                    const authorIds: number[] = [];
+                    for (const a of this.catalog["authors"].values() as IterableIterator<AuthorRecord>) {
+                        if (a.death_year !== null && a.death_year >= from && a.death_year <= to) {
+                            authorIds.push(a.author_id);
+                        }
                     }
+                    for (const b of this.catalog.booksByAuthors(authorIds)) set.add(b);
                 }
-                for (const b of this.catalog.booksByAuthors(authorIds)) set.add(b);
-                diagnostics.push({ source: `period[${from}..${to}]`, contributed: set.size });
+                diagnostics.push({ source: `period[${from}..${to}] by ${basis}`, contributed: set.size });
                 intersect(set);
             }
             if (scope.downloaded_only) {
