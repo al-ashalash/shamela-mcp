@@ -2,20 +2,20 @@ import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
 import { MULTIPAGE_CHAR_BUDGET } from "../constants.js";
-import { bookNotDownloaded, bookNotFound, titleNotFound } from "../errors.js";
+import { titleNotFound } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { trimPagesByBudget } from "../longtext.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { requireDownloadedBook } from "../gate.js";
 
 export const getBookSectionInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
     title_id: z.number().int().positive().describe("The title id of the chapter / section to fetch (use shamela_get_toc to find IDs)."),
     max_pages: z.number().int().min(1).max(100).default(30).describe("Cap on pages to read (1–100, default 30). Sections longer than this are truncated with a flag."),
     keep_html: z.boolean().default(false).describe("Preserve inline HTML markers."),
-    ...ResponseFormatInput,
-};
+    ...ResponseFormatInput };
 export const getBookSectionInput = z.object(getBookSectionInputShape).strict();
 
 export interface SectionPage {
@@ -51,9 +51,7 @@ export async function runGetBookSection(
     pages: PageStore,
     args: z.infer<typeof getBookSectionInput>,
 ): Promise<RenderedResponse<GetBookSectionOutput>> {
-    const rec = catalog.bookRecord(args.book_id);
-    if (!rec) throw bookNotFound(args.book_id);
-    if (rec.major_ondisk === 0) throw bookNotDownloaded(args.book_id, rec.book_name);
+    const rec = requireDownloadedBook(catalog, args.book_id);
 
     const section = await pages.getSection(args.book_id, args.title_id);
     if (!section) throw titleNotFound(args.book_id, args.title_id);
@@ -85,8 +83,7 @@ export async function runGetBookSection(
                 part: r.part,
                 body: stripIfHtml(c.body),
                 foot: stripIfHtml(c.foot),
-                comment: stripIfHtml(c.comment),
-            };
+                comment: stripIfHtml(c.comment) };
         }),
     );
 
@@ -114,8 +111,7 @@ export async function runGetBookSection(
         truncated,
         next_start_page_id: moreInSection ? lastId + 1 : null,
         _display: display,
-        pages: pagesOut,
-    };
+        pages: pagesOut };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [
             header(1, `${data.book_name} — ${data.title_text || "(بدون عنوان)"}`),

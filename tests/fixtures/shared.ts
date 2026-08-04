@@ -47,7 +47,7 @@ export async function getCatalog(): Promise<Catalog> {
     if (cachedCatalog) return cachedCatalog;
     const paths = await getPaths();
     const wasm = getSqlWasm();
-    cachedCatalog = await Catalog.load(path.join(paths.database, "master.db"), wasm);
+    cachedCatalog = await Catalog.load(path.join(paths.database, "master.db"), wasm, { databaseRoot: paths.database });
     return cachedCatalog;
 }
 
@@ -79,13 +79,15 @@ export async function getHelper(): Promise<Helper> {
 /** Build a Backend object that the MCP integration test can wire into createServer. */
 export async function getBackend(): Promise<Backend> {
     if (cachedBackend) return cachedBackend;
-    cachedBackend = {
+    const backend: Backend = {
         helper: await getHelper(),
         catalog: await getCatalog(),
         pages: await getPageStore(),
         services: await getServiceStore(),
+        paths: await getPaths(),
     };
-    return cachedBackend;
+    cachedBackend = backend;
+    return backend;
 }
 
 // --- Canonical fixture book -------------------------------------------------

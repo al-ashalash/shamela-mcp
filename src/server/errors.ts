@@ -11,6 +11,7 @@ export type ErrorCode =
     | "SHAMELA_NOT_FOUND"
     | "BOOK_NOT_FOUND"
     | "BOOK_NOT_DOWNLOADED"
+    | "BOOK_INDEX_PENDING"
     | "BOOK_NOT_AVAILABLE"
     | "AUTHOR_NOT_FOUND"
     | "CATEGORY_NOT_FOUND"
@@ -46,7 +47,24 @@ export function bookNotDownloaded(bookId: number, bookName?: string): ShamelaErr
     const name = bookName ? `«${bookName}» (${bookId})` : `رقم ${bookId}`;
     return new ShamelaError(
         "BOOK_NOT_DOWNLOADED",
-        `الكتاب ${name} غير منزَّل محليًّا. نزِّله من تطبيق المكتبة الشاملة أولًا، ثم أعد تشغيل Claude Desktop.`,
+        `الكتاب ${name} غير منزَّل محليًّا. نزِّله من تطبيق المكتبة الشاملة أولًا.`,
+    );
+}
+
+/**
+ * The book is on disk, but the search engine has not read its index yet.
+ *
+ * The helper opens Shamela's Lucene indexes when it starts, so a book that was
+ * downloaded during this conversation is in the catalog and on disk while its
+ * text is not yet reachable. Saying so plainly is the whole point: the previous
+ * behaviour returned an empty page body, which reads as "this book is empty".
+ */
+export function bookIndexPending(bookId: number, bookName?: string): ShamelaError {
+    const name = bookName ? `«${bookName}» (${bookId})` : `رقم ${bookId}`;
+    return new ShamelaError(
+        "BOOK_INDEX_PENDING",
+        `الكتاب ${name} نُزِّل أثناء هذه الجلسة، ومحرِّك البحث يقرأ فهارسه عند بدايتها. ` +
+            `أعد تشغيل تطبيق كلود لقراءة نصِّه؛ وبياناته وفهرسه متاحة الآن.`,
     );
 }
 

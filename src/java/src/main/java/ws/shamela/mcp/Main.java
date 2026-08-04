@@ -158,6 +158,18 @@ public final class Main {
             Object argsObj = req.get("args");
             Map<String, Object> args = argsObj instanceof Map ? (Map<String, Object>) argsObj : new LinkedHashMap<>();
             Object data = switch (cmd) {
+                case "reopen" -> {
+                    // Shamela wrote to the indexes while we were running (the
+                    // user downloaded a book). Readers only see the segments
+                    // they opened with, so pick up what has been committed.
+                    java.util.List<String> changed = indexCache.reopen();
+                    yield Json.obj(
+                            "reopened", changed,
+                            "page_docs", safeNumDocs(indexCache, "page"),
+                            "book_docs", safeNumDocs(indexCache, "book"),
+                            "author_docs", safeNumDocs(indexCache, "author")
+                    );
+                }
                 case "ping" -> Json.obj(
                         "pong", Boolean.TRUE,
                         "java_version", System.getProperty("java.version"),

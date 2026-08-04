@@ -87,7 +87,7 @@ async function main(): Promise<number> {
     const sqlWasm = new Uint8Array(fs.readFileSync(sqlWasmPath));
 
     const helper = new Helper({ paths });
-    const catalog = await Catalog.load(path.join(paths.database, "master.db"), sqlWasm);
+    const catalog = await Catalog.load(path.join(paths.database, "master.db"), sqlWasm, { databaseRoot: paths.database });
     const pages = new PageStore(paths.database, sqlWasm);
     const services = new ServiceStore(paths.database, sqlWasm);
 

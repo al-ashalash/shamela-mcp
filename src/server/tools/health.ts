@@ -15,7 +15,16 @@ export interface HealthOutput {
     catalog_books: number;
     catalog_authors: number;
     categories: number;
+    /** Books whose file is actually present on disk — the authority. */
     downloaded_books: number;
+    /** Books master.db flags as downloaded; differs from the above when the two disagree. */
+    flagged_books: number;
+    /** Flagged but with no file: an interrupted download or a moved library folder. */
+    flagged_file_missing: number;
+    /** Book files with no catalog row. Diagnostic only; never listed as books. */
+    orphan_files: number;
+    /** True when the book folder could not be read and the flags were used instead. */
+    disk_scan_fell_back: boolean;
     /** Spot-check over a small sample of downloaded books: how many are actually readable? */
     readable_spot_check: { sampled: number; readable: number; unreadable_book_ids: number[] } | null;
     notes: string[];
@@ -35,6 +44,10 @@ export async function runHealth(
     args: z.infer<typeof healthInput>,
 ): Promise<RenderedResponse<HealthOutput>> {
     const downloaded = catalog.downloadedBookIds();
+    // Computed over the whole library from sets already in memory — no disk
+    // access — so this is an exact count, not something a sample might miss.
+    const flaggedMissing = catalog.flaggedFileMissingIds();
+    const orphans = catalog.orphanFileIds();
     const notes: string[] = [];
     let spot: HealthOutput["readable_spot_check"] = null;
 
@@ -46,35 +59,33 @@ export async function runHealth(
         : Array.from({ length: SPOT_SAMPLE }, (_, i) => all[Math.floor((i * (all.length - 1)) / (SPOT_SAMPLE - 1))]!)
               .filter((v, i, arr) => arr.indexOf(v) === i);
     if (sampleIds.length) {
-        // A book can miss its pages for two unrelated reasons — the file is absent
-        // (interrupted download / moved library folder) or the file is there but
-        // holds no text (image/scan-only title). Keep them apart in the advice.
+        // Every id here has a file on disk, so anything unreadable is a
+        // page-less (image/scan-only) title. Books flagged without a file are
+        // counted separately and exactly, above.
         const unreadable: number[] = [];
-        const fileMissing: number[] = [];
         for (const id of sampleIds) {
-            if (await pages.bookHasContent(id)) continue;
-            unreadable.push(id);
-            if (!(await pages.hasBook(id))) fileMissing.push(id);
+            if (!(await pages.bookHasContent(id))) unreadable.push(id);
         }
         spot = { sampled: sampleIds.length, readable: sampleIds.length - unreadable.length, unreadable_book_ids: unreadable };
         if (spot.readable === 0)
             notes.push(
                 "NONE of the sampled downloaded books have readable pages — the Shamela database path may be wrong, or downloads are incomplete",
             );
-        else if (unreadable.length) {
-            const emptyFile = unreadable.filter((id) => !fileMissing.includes(id));
-            if (fileMissing.length)
-                notes.push(
-                    `flagged as downloaded but with no file on disk (ids: ${fileMissing.join(", ")}) — an interrupted download or a moved library folder, not a server fault; do not quote from them`,
-                );
-            if (emptyFile.length)
-                notes.push(
-                    `downloaded but carrying no text pages (ids: ${emptyFile.join(", ")}) — image/scan-only titles, not a server fault; do not quote from them`,
-                );
-        }
+        else if (unreadable.length)
+            notes.push(
+                `downloaded but carrying no text pages (ids: ${unreadable.join(", ")}) — image/scan-only titles, not a server fault; do not quote from them`,
+            );
     } else {
         notes.push("no downloaded books found — page searches will return nothing until books are downloaded in Shamela");
     }
+    if (flaggedMissing.length)
+        notes.push(
+            `${flaggedMissing.length} book(s) are flagged as downloaded but have no file on disk — interrupted downloads, or the library folder moved; they are excluded from the counts above`,
+        );
+    if (catalog.diskScanFellBack())
+        notes.push(
+            "the book folder could not be read, so these counts come from master.db's flags rather than the files themselves — check the Shamela path",
+        );
     notes.push("the Java search engine warms up lazily; run a small search to exercise it end-to-end");
 
     const status: HealthOutput["status"] =
@@ -87,6 +98,10 @@ export async function runHealth(
         catalog_authors: catalog.authorCount(),
         categories: catalog.categoryCount(),
         downloaded_books: downloaded.size,
+        flagged_books: catalog.flaggedBookCount(),
+        flagged_file_missing: flaggedMissing.length,
+        orphan_files: orphans.length,
+        disk_scan_fell_back: catalog.diskScanFellBack(),
         readable_spot_check: spot,
         notes,
     };
@@ -95,8 +110,16 @@ export async function runHealth(
             header(1, `فحص خادم الشاملة — ${data.status === "ok" ? "سليم ✅" : "متعثر ⚠️"}`),
             `- **نسخة الخادم**: ${data.server_version}`,
             `- **كتب الفهرس**: ${arabize(data.catalog_books)} — **المؤلفون**: ${arabize(data.catalog_authors)} — **التصنيفات**: ${arabize(data.categories)}`,
-            `- **الكتب المنزَّلة**: ${arabize(data.downloaded_books)}`,
+            `- **الكتب المنزَّلة**: ${arabize(data.downloaded_books)} (ملفاتها موجودة على القرص)`,
         ];
+        if (data.flagged_file_missing)
+            lines.push(
+                `- **معلَّمة في الفهرس بلا ملف**: ${arabize(data.flagged_file_missing)} — تنزيل مبتور أو مجلد مكتبة مُنقَل`,
+            );
+        if (data.orphan_files)
+            lines.push(`- **ملفات كتب خارج الفهرس**: ${arabize(data.orphan_files)}`);
+        if (data.disk_scan_fell_back)
+            lines.push("- ⚠️ **تعذَّرت قراءة مجلد الكتب**؛ الأعداد أعلاه من علامات الفهرس لا من الملفات");
         if (data.readable_spot_check)
             lines.push(
                 `- **عيّنة قابلية القراءة**: ${arabize(data.readable_spot_check.readable)} من ${arabize(data.readable_spot_check.sampled)} مقروءة${data.readable_spot_check.unreadable_book_ids.length ? ` (غير المقروءة: ${data.readable_spot_check.unreadable_book_ids.join("، ")})` : ""}`,

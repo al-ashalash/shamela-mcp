@@ -71,9 +71,46 @@ export interface PageServices {
     raw?: unknown;
 }
 
+/**
+ * Resolve the on-disk path of a per-book SQLite file, or null when the book is
+ * not on disk.
+ *
+ * Shamela buckets books by `id % 1000`, but the folder NAME differs between
+ * installs: current Shamela 4 builds zero-pad it to three digits
+ * (`book/009/9.db`) while older layouts don't (`book/9/9.db`). The two
+ * spellings only differ when the bucket is < 100 — which is exactly why only
+ * books with `id % 1000 < 100` were misreported as «منزَّل لكن بلا صفحات
+ * مقروءة»: Lucene (written by Shamela itself) had the text, while we probed the
+ * unpadded path, found no file, and silently treated the book as empty. Probe
+ * the padded spelling first (current layout), then the unpadded one (legacy).
+ *
+ * Exported because whether a book is downloaded is now decided by the file's
+ * existence, so the catalog resolves paths too — and one spelling rule shared
+ * between them is the point.
+ */
+export function resolveBookPath(databaseRoot: string, bookId: number): string | null {
+    const bucket = bookId % 1000;
+    const spellings =
+        bucket < 100 ? [String(bucket).padStart(3, "0"), String(bucket)] : [String(bucket)];
+    for (const dir of spellings) {
+        const p = path.join(databaseRoot, "book", dir, `${bookId}.db`);
+        if (fs.existsSync(p)) return p;
+    }
+    return null;
+}
+
 export class PageStore {
     private SQL: SqlJsStatic | null = null;
     private readonly databases = new Map<number, Database>();
+    /**
+     * Bumped by invalidate(). Cached handles hold a byte-image of the file, so a
+     * book Shamela re-downloaded mid-session would keep serving the old text
+     * until LRU eviction. Handles from an older generation are dropped on next
+     * use rather than closed en masse — closing 50 handles at once frees wasm
+     * memory a request already inside ensureInit/readFileSync may wake up on.
+     */
+    private generation = 0;
+    private readonly handleGeneration = new Map<number, number>();
 
     constructor(
         private readonly databaseRoot: string,
@@ -106,22 +143,34 @@ export class PageStore {
      * the unpadded one (legacy).
      */
     private bookPath(bookId: number): string | null {
-        const bucket = bookId % 1000;
-        const spellings =
-            bucket < 100 ? [String(bucket).padStart(3, "0"), String(bucket)] : [String(bucket)];
-        for (const dir of spellings) {
-            const p = path.join(this.databaseRoot, "book", dir, `${bookId}.db`);
-            if (fs.existsSync(p)) return p;
-        }
-        return null;
+        return resolveBookPath(this.databaseRoot, bookId);
+    }
+
+    /**
+     * Drop cached book handles so the next read re-opens from disk. Called when
+     * the catalog is reloaded, i.e. when Shamela has changed the library under
+     * us.
+     */
+    invalidate(): void {
+        this.generation++;
     }
 
     private async getDb(bookId: number): Promise<Database | null> {
         const cached = this.databases.get(bookId);
         if (cached) {
+            if ((this.handleGeneration.get(bookId) ?? 0) === this.generation) {
+                this.databases.delete(bookId);
+                this.databases.set(bookId, cached);
+                return cached;
+            }
+            // Stale generation: drop it and fall through to a fresh read.
             this.databases.delete(bookId);
-            this.databases.set(bookId, cached);
-            return cached;
+            this.handleGeneration.delete(bookId);
+            try {
+                cached.close();
+            } catch {
+                /* ignore */
+            }
         }
         const p = this.bookPath(bookId);
         if (p === null) return null;
@@ -133,11 +182,13 @@ export class PageStore {
             return null;
         }
         this.databases.set(bookId, db);
+        this.handleGeneration.set(bookId, this.generation);
         if (this.databases.size > PER_BOOK_CACHE_LIMIT) {
             const oldestKey = this.databases.keys().next().value;
             if (oldestKey !== undefined) {
                 const oldest = this.databases.get(oldestKey);
                 this.databases.delete(oldestKey);
+                this.handleGeneration.delete(oldestKey);
                 try {
                     oldest?.close();
                 } catch {

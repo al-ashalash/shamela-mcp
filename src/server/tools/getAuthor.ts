@@ -45,7 +45,7 @@ export function runGetAuthor(
                   book_id: id,
                   book_name: b?.book_name ?? `(unknown ${id})`,
                   book_date: b?.book_date ?? null,
-                  downloaded: b ? b.major_ondisk > 0 : false,
+                  downloaded: b ? catalog.isDownloaded(b.book_id) : false,
               };
           })
         : [];

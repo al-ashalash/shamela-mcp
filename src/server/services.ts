@@ -26,6 +26,14 @@ export interface ServiceHit {
 export class ServiceStore {
     private SQL: SqlJsStatic | null = null;
     private readonly databases = new Map<ServiceName, Database>();
+    /**
+     * Service handles are held for the process lifetime with no eviction, so a
+     * download that rewrites e.g. tafseer.db would otherwise be invisible for
+     * the rest of the session. Generation-stamped like the page store: stale
+     * handles are dropped on next use, not closed in a batch.
+     */
+    private generation = 0;
+    private readonly handleGeneration = new Map<ServiceName, number>();
 
     constructor(
         private readonly databaseRoot: string,
@@ -47,15 +55,30 @@ export class ServiceStore {
         return path.join(this.databaseRoot, "service", `${name}.db`);
     }
 
+    /** Drop cached service handles; the next read re-opens from disk. */
+    invalidate(): void {
+        this.generation++;
+    }
+
     private async getDb(name: ServiceName): Promise<Database | null> {
         const cached = this.databases.get(name);
-        if (cached) return cached;
+        if (cached) {
+            if ((this.handleGeneration.get(name) ?? 0) === this.generation) return cached;
+            this.databases.delete(name);
+            this.handleGeneration.delete(name);
+            try {
+                cached.close();
+            } catch {
+                /* ignore */
+            }
+        }
         const p = this.servicePath(name);
         if (!fs.existsSync(p)) return null;
         const SQL = await this.ensureInit();
         try {
             const db = new SQL.Database(new Uint8Array(fs.readFileSync(p)));
             this.databases.set(name, db);
+            this.handleGeneration.set(name, this.generation);
             return db;
         } catch {
             return null;

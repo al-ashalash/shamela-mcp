@@ -20,8 +20,19 @@ export interface AuthorEntry {
     role: "main" | "co";
 }
 
-/** Distinguishes the catalog flag from real readable content (#12). */
-export type ContentStatus = "readable" | "downloaded_no_pages" | "not_downloaded";
+/**
+ * What can actually be done with this book, which the catalog flag alone cannot
+ * say (#12). The file's presence decides; the flag only explains a mismatch.
+ */
+export type ContentStatus =
+    /** File on disk with text pages. */
+    | "readable"
+    /** File on disk but page-less — an image/scan-only title. */
+    | "downloaded_no_pages"
+    /** Catalog says downloaded, file is not there — interrupted download or moved folder. */
+    | "flagged_file_missing"
+    /** Neither flag nor file. */
+    | "not_downloaded";
 
 export interface GetBookOutput {
     book_id: number;
@@ -96,10 +107,15 @@ export async function runGetBook(
     // is either MISSING (interrupted download, moved library folder) or PRESENT
     // BUT EMPTY (an image/scan-only title). They are different user problems and
     // must not share one message, so resolve the file's existence separately.
-    const fileOnDisk = rec.major_ondisk > 0 && (await pages.hasBook(rec.book_id));
+    const fileOnDisk = catalog.isDownloaded(rec.book_id) || catalog.confirmOnDisk(rec.book_id);
     const hasContent = fileOnDisk && (await pages.pageCount(rec.book_id)) > 0;
-    const content_status: ContentStatus =
-        rec.major_ondisk <= 0 ? "not_downloaded" : hasContent ? "readable" : "downloaded_no_pages";
+    const content_status: ContentStatus = fileOnDisk
+        ? hasContent
+            ? "readable"
+            : "downloaded_no_pages"
+        : catalog.isFlaggedOnDisk(rec.book_id)
+          ? "flagged_file_missing"
+          : "not_downloaded";
 
     // #25: edition / muḥaqqiq / publisher. Shamela encodes these in the
     // name suffix after « - » by a fixed convention: «ت <editor>» = taḥqīq
@@ -134,9 +150,15 @@ export async function runGetBook(
     const notes: string[] = [];
     if (content_status === "downloaded_no_pages")
         notes.push(
-            fileOnDisk
-                ? "the book file is on disk but carries no text pages (an image/scan-only title) — do not quote from it"
-                : "the catalog flags this book as downloaded but its file is not on disk (interrupted download, or the library folder was moved) — do not quote from it",
+            "the book file is on disk but carries no text pages (an image/scan-only title) — do not quote from it",
+        );
+    if (content_status === "flagged_file_missing")
+        notes.push(
+            "the catalog flags this book as downloaded but its file is not on disk (interrupted download, or the library folder was moved) — do not quote from it",
+        );
+    if (catalog.isSessionDiscovered(rec.book_id))
+        notes.push(
+            "downloaded during this session: catalog data is available, but its text is not readable until Claude Desktop restarts",
         );
     if (!editor) notes.push("muḥaqqiq (editor) not found in the front-matter; may need the printed source");
     if (!publisher) notes.push("publisher not found in the front-matter / not in master.db");
@@ -185,8 +207,10 @@ export async function runGetBook(
             data.content_status === "readable"
                 ? "نعم (نصّه مقروء)"
                 : data.content_status === "downloaded_no_pages"
-                  ? "مفهرس كمنزَّل لكن **بلا صفحات مقروءة** (لا يُنقَل عنه)"
-                  : "لا";
+                  ? "ملفه موجود لكن **بلا صفحات مقروءة** (لا يُنقَل عنه)"
+                  : data.content_status === "flagged_file_missing"
+                    ? "مفهرس كمنزَّل لكن **ملفه غير موجود على القرص** (لا يُنقَل عنه)"
+                    : "لا";
         lines.push(`- **منزَّل محليًّا**: ${csLabel}`);
         if (data.edition) lines.push(`- **الطبعة/الناشر (من اسم الشاملة)**: ${data.edition}`);
         if (data.editor) lines.push(`- **المحقق**: ${data.editor}`);

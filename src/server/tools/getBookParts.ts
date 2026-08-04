@@ -1,15 +1,14 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { bookNotDownloaded, bookNotFound } from "../errors.js";
 import type { BookPart, PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { requireDownloadedBook } from "../gate.js";
 
 export const getBookPartsInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
-    ...ResponseFormatInput,
-};
+    ...ResponseFormatInput };
 export const getBookPartsInput = z.object(getBookPartsInputShape).strict();
 
 export interface GetBookPartsOutput {
@@ -25,9 +24,9 @@ export async function runGetBookParts(
     pages: PageStore,
     args: z.infer<typeof getBookPartsInput>,
 ): Promise<RenderedResponse<GetBookPartsOutput>> {
-    const book = catalog.bookRecord(args.book_id);
-    if (!book) throw bookNotFound(args.book_id);
-    if (book.major_ondisk === 0) throw bookNotDownloaded(args.book_id, book.book_name);
+    // Served from the per-book SQLite file, so a book downloaded during
+    // this session works right away — no Lucene reader involved.
+    const book = requireDownloadedBook(catalog, args.book_id, { needsTextIndex: false });
     const parts = await pages.getBookParts(args.book_id);
     const total = await pages.pageCount(args.book_id);
     const out: GetBookPartsOutput = {
@@ -35,8 +34,7 @@ export async function runGetBookParts(
         book_name: book.book_name,
         is_multi_volume: parts.length > 0,
         total_pages: total,
-        parts,
-    };
+        parts };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [header(1, `أجزاء «${data.book_name}»`)];
         lines.push(`- **مجلَّد متعدِّد الأجزاء؟** ${data.is_multi_volume ? "نعم" : "لا"}`);
