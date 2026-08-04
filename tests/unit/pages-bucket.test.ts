@@ -1,5 +1,5 @@
 /**
- * Regression test for the zero-padded bucket-folder bug (#42).
+ * Regression test for the zero-padded bucket-folder bug.
  *
  * Shamela stores per-book SQLite files under `database/book/<id % 1000>/<id>.db`,
  * but current Shamela 4 builds zero-pad the bucket folder to three digits
@@ -31,6 +31,12 @@ const PADDED_ID = 9; // bucket 9  → modern layout  book/009/9.db
 const LEGACY_ID = 7; // bucket 7  → legacy layout  book/7/7.db
 const HIGH_ID = 10_942; // bucket 942 → identical in both spellings
 const MISSING_ID = 555; // downloaded nowhere
+const BUCKET0_PADDED_ID = 5_000; // bucket 0   → modern layout  book/000/5000.db
+const BUCKET0_LEGACY_ID = 6_000; // bucket 0   → legacy layout  book/0/6000.db
+const BUCKET99_ID = 3_099; // bucket 99  → last bucket that still needs padding
+const BUCKET100_ID = 12_100; // bucket 100 → first bucket that needs none
+const BUCKET999_ID = 1_999; // bucket 999 → top of the range, single spelling
+const MISSING_LOW_ID = 7_000; // bucket 0, absent under BOTH spellings
 
 let tempRoot: string;
 let pages: PageStore;
@@ -66,6 +72,14 @@ beforeAll(async () => {
     await writeBookDb(path.join(tempRoot, "book", "7"), LEGACY_ID, 5, 12);
     // Bucket >= 100: both spellings coincide.
     await writeBookDb(path.join(tempRoot, "book", "942"), HIGH_ID, 3, 9);
+    // Bucket 0 is the padStart(3) edge: "0" must become "000" — not "00", not "".
+    await writeBookDb(path.join(tempRoot, "book", "000"), BUCKET0_PADDED_ID, 11, 1);
+    await writeBookDb(path.join(tempRoot, "book", "0"), BUCKET0_LEGACY_ID, 12, 2);
+    // 99 / 100 straddle the padding boundary in both directions.
+    await writeBookDb(path.join(tempRoot, "book", "099"), BUCKET99_ID, 13, 3);
+    await writeBookDb(path.join(tempRoot, "book", "100"), BUCKET100_ID, 14, 4);
+    // 999: the highest bucket — still one spelling only.
+    await writeBookDb(path.join(tempRoot, "book", "999"), BUCKET999_ID, 15, 5);
     pages = new PageStore(tempRoot, getSqlWasm());
 });
 
@@ -78,7 +92,7 @@ afterAll(() => {
     }
 });
 
-describe("PageStore bucket-folder resolution (#42)", () => {
+describe("PageStore bucket-folder resolution", () => {
     it("reads a book stored under a zero-padded bucket (book/009/9.db)", async () => {
         expect(await pages.hasBook(PADDED_ID)).toBe(true);
         const row = await pages.getPageRow(PADDED_ID, 63);
@@ -99,6 +113,45 @@ describe("PageStore bucket-folder resolution (#42)", () => {
     it("reads a bucket >= 100 where both spellings coincide (book/942/10942.db)", async () => {
         expect(await pages.hasBook(HIGH_ID)).toBe(true);
         expect(await pages.bookHasContent(HIGH_ID)).toBe(true);
+    });
+
+    it("reads bucket 0 under the padded spelling (book/000/5000.db)", async () => {
+        // The padStart(3) edge: an unpadded "0" is a folder Shamela never writes.
+        expect(await pages.hasBook(BUCKET0_PADDED_ID)).toBe(true);
+        const row = await pages.getPageRow(BUCKET0_PADDED_ID, 11);
+        expect(row).not.toBeNull();
+        expect(row!.page_id).toBe(11);
+        expect(await pages.bookHasContent(BUCKET0_PADDED_ID)).toBe(true);
+    });
+
+    it("still reads bucket 0 under the legacy spelling (book/0/6000.db)", async () => {
+        expect(await pages.hasBook(BUCKET0_LEGACY_ID)).toBe(true);
+        expect(await pages.bookHasContent(BUCKET0_LEGACY_ID)).toBe(true);
+    });
+
+    it("reads bucket 99 — the last bucket that needs padding (book/099/3099.db)", async () => {
+        expect(await pages.hasBook(BUCKET99_ID)).toBe(true);
+        const row = await pages.getPageRow(BUCKET99_ID, 13);
+        expect(row).not.toBeNull();
+        expect(row!.page_id).toBe(13);
+        expect(await pages.bookHasContent(BUCKET99_ID)).toBe(true);
+    });
+
+    it("reads bucket 100 — the first bucket that needs none (book/100/12100.db)", async () => {
+        expect(await pages.hasBook(BUCKET100_ID)).toBe(true);
+        expect(await pages.bookHasContent(BUCKET100_ID)).toBe(true);
+    });
+
+    it("reads bucket 999 — the top of the range (book/999/1999.db)", async () => {
+        expect(await pages.hasBook(BUCKET999_ID)).toBe(true);
+        expect(await pages.bookHasContent(BUCKET999_ID)).toBe(true);
+    });
+
+    it("reports a low-bucket book absent under BOTH spellings as not downloaded", async () => {
+        // The only path that walks the whole spelling list and falls through to null.
+        expect(await pages.hasBook(MISSING_LOW_ID)).toBe(false);
+        expect(await pages.bookHasContent(MISSING_LOW_ID)).toBe(false);
+        expect(await pages.getPageRow(MISSING_LOW_ID, 1)).toBeNull();
     });
 
     it("still reports a truly missing book as not downloaded", async () => {
