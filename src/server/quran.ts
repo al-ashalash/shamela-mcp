@@ -4,6 +4,7 @@
  * enrich search_quran results with surah names.
  */
 
+import { normalizeArabic } from "./arabic.js";
 import { QURAN_AYA_COUNT } from "./constants.js";
 
 export interface SurahInfo {
@@ -99,4 +100,88 @@ export function surahName(surah: number): string | null {
 
 export function listSurahs(): SurahInfo[] {
     return SURAH_INFO.slice();
+}
+
+/** Ayat in a surah, or null for an out-of-range number. */
+export function ayatInSurah(surah: number): number | null {
+    if (!Number.isInteger(surah) || surah < 1 || surah > 114) return null;
+    return AYAT_PER_SURAH[surah - 1]!;
+}
+
+/**
+ * Names a surah is filed under in real Shamela books, beyond its standard one.
+ *
+ * Tafsir authors title their chapters by whatever the surah is commonly called —
+ * al-Tawbah as «براءة», Fatir as «الملائكة», al-Qalam as «ن» — and a matcher
+ * that only knows the standard names silently skips those chapters. Every entry
+ * here was observed in an actual library, not assembled from a reference.
+ */
+const SURAH_NAME_SYNONYMS: ReadonlyArray<readonly [number, readonly string[]]> = [
+    [1, ["ام القران", "فاتحه الكتاب"]],
+    [9, ["براءه"]],
+    [17, ["بني اسراييل", "سبحان"]],
+    [35, ["الملايكه"]],
+    [37, ["والصافات"]],
+    [38, ["داود"]],
+    [53, ["والنجم"]],
+    [54, ["اقتربت الساعه", "اقتربت"]],
+    [61, ["الحواريين"]],
+    [63, ["المنافقين"]],
+    [67, ["تبارك"]],
+    [68, ["ن", "ن والقلم"]],
+    [75, ["القيمه"]],
+    [76, ["الدهر", "هل اتي"]],
+    [81, ["اذا الشمس كورت"]],
+    [92, ["والليل"]],
+    [94, ["الانشراح", "الم نشرح"]],
+    [98, ["لم يكن"]],
+    [100, ["والعاديات"]],
+    [103, ["والعصر"]],
+    [105, ["الم تر"]],
+    [107, ["ارايت"]],
+    [111, ["تبت", "ابي لهب", "اللهب"]],
+];
+
+/** Normalized surface form → surah number. Built once. */
+const SURAH_BY_NAME: ReadonlyMap<string, number> = (() => {
+    const m = new Map<string, number>();
+    const add = (name: string, surah: number): void => {
+        const key = normalizeArabic(name).trim();
+        if (key && !m.has(key)) m.set(key, surah);
+    };
+    SURAH_NAMES.forEach((n, i) => {
+        add(n, i + 1);
+        // Some books wrap short names in parentheses: «سورة (ص)», «سورة (ن)».
+        add(`(${n})`, i + 1);
+    });
+    for (const [surah, names] of SURAH_NAME_SYNONYMS) {
+        for (const n of names) {
+            add(n, surah);
+            add(`(${n})`, surah);
+        }
+    }
+    return m;
+})();
+
+/**
+ * Read a surah number out of a chapter title, or null when it is not one.
+ *
+ * Strips the wrappers Shamela's books put around the name — «تفسير سورة …»,
+ * al-Tabari's «القول في تفسير السورة التي يذكر فيها …», a leading ordinal —
+ * then looks the remainder up among the standard names and the observed
+ * synonyms. The result is treated as a hint elsewhere, never as proof: one
+ * library files al-Kawthar under the title «سورة التكوير», so position in the
+ * book decides and the name only corroborates.
+ */
+export function surahFromTitleName(text: string): number | null {
+    if (!text) return null;
+    let t = normalizeArabic(text).trim();
+    t = t.replace(/^[\d٠-٩]+\s*[-–—:]?\s*/, ""); // a leading ordinal
+    t = t.replace(/^القول\s+في\s+(تفسير|تاويل)\s+السوره\s+التي\s+يذكر\s+فيها\s*/, "");
+    t = t.replace(/^(تفسير|شرح)\s+/, "");
+    t = t.replace(/^سوره\s*/, "");
+    t = t.replace(/\s*[-–—:].*$/, ""); // trailing "- قوله تعالى…" and the like
+    t = t.trim();
+    if (!t) return null;
+    return SURAH_BY_NAME.get(t) ?? null;
 }

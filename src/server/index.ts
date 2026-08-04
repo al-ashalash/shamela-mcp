@@ -122,6 +122,7 @@ import {
     type SearchHadithOutput,
 } from "./tools/searchHadith.js";
 import { healthInput, healthInputShape, runHealth, type HealthOutput } from "./tools/health.js";
+import { AyaIndexStore } from "./ayaIndex/store.js";
 import { OUTPUT_SCHEMAS } from "./outputSchemas.js";
 import { runSuggestDownload, suggestDownloadInputShape } from "./tools/suggestDownload.js";
 import { searchExactInputShape, runSearchExact, type SearchExactOutput } from "./tools/searchExact.js";
@@ -184,6 +185,8 @@ export interface Backend {
     catalog: Catalog;
     pages: PageStore;
     services: ServiceStore;
+    /** Verse→page indexes built from each tafsir's own chapter titles. */
+    ayaIndex: AyaIndexStore;
     /** Needed to re-read master.db when the library changes mid-session. */
     paths: ShamelaPaths;
 }
@@ -259,7 +262,8 @@ export async function createBackend(): Promise<Backend> {
 
     const h = new Helper({ paths });
     await h.ready(readyTimeoutMs());
-    return { helper: h, catalog, pages, services, paths };
+    const ayaIndex = new AyaIndexStore(paths.database, pages);
+    return { helper: h, catalog, pages, services, ayaIndex, paths };
 }
 
 /**
@@ -727,7 +731,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         async (args) => {
             try {
                 const b = await getBackend();
-                const r = await runHealth(b.catalog, b.pages, b.helper, args as Parameters<typeof runHealth>[3]);
+                const r = await runHealth(b.catalog, b.pages, b.helper, b.ayaIndex, args as Parameters<typeof runHealth>[4]);
                 return r as unknown as ToolResult;
             } catch (e) { return wrapErr(e); }
         },
@@ -827,7 +831,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         async (args) => {
             try {
                 const b = await getBackend();
-                const r = await runListTafsirsForAya(b.catalog, b.services, b.pages, args as Parameters<typeof runListTafsirsForAya>[3]);
+                const r = await runListTafsirsForAya(b.catalog, b.services, b.pages, b.helper, b.ayaIndex, args as Parameters<typeof runListTafsirsForAya>[5]);
                 return r as unknown as ToolResult;
             } catch (e) { return wrapErr(e); }
         },
@@ -951,7 +955,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         { title: "حالة خادم الشاملة", description: "فحص ذاتي: النسخة والعدّادات وقابلية القراءة.", mimeType: "application/json" },
         async (uri) => {
             const b = await getBackend();
-            const r = await runHealth(b.catalog, b.pages, b.helper, healthInput.parse({ response_format: "json" }));
+            const r = await runHealth(b.catalog, b.pages, b.helper, b.ayaIndex, healthInput.parse({ response_format: "json" }));
             return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(r.structuredContent, null, 2) }] };
         },
     );
@@ -1020,6 +1024,7 @@ async function main(): Promise<void> {
         // just rewritten, so they go with the old catalog.
         b.pages.invalidate();
         b.services.invalidate();
+        b.ayaIndex.invalidate();
 
         // The page text itself comes from Shamela's Lucene indexes, which the
         // helper opened when it started. Ask it to pick up what Shamela has

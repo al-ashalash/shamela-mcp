@@ -10,6 +10,7 @@ import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 
+import { AyaIndexStore } from "../../src/server/ayaIndex/store.js";
 import { Catalog } from "../../src/server/catalog.js";
 import { Helper } from "../../src/server/helper.js";
 import { PageStore } from "../../src/server/pages.js";
@@ -84,6 +85,7 @@ export async function getBackend(): Promise<Backend> {
         catalog: await getCatalog(),
         pages: await getPageStore(),
         services: await getServiceStore(),
+        ayaIndex: new AyaIndexStore((await getPaths()).database, await getPageStore()),
         paths: await getPaths(),
     };
     cachedBackend = backend;

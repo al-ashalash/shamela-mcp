@@ -29,7 +29,10 @@ export interface GetTafseerOfAyaOutput {
     surah: number;
     surah_name: string;
     aya: number;
+    /** Distinct books, not index rows. */
     total: number;
+    /** Rows behind that count; one book can span pages. */
+    index_rows: number;
     returned: number;
     /** Honest coverage caveat: this index is curated and may omit downloaded tafsirs. */
     coverage_note: string;
@@ -56,6 +59,10 @@ export async function runGetTafseerOfAya(
 
     const hits = await services.getBooksForKey("tafseer", resolvedId);
     if (hits.length === 0) throw serviceKeyNotFound("tafseer", resolvedId);
+    // A book can appear several times for one verse — the table has a row per
+    // page, and one commentary can run across pages. Counting rows and calling
+    // them books reported thirteen commentaries where there were five.
+    const distinctBooks = new Set(hits.map((h) => h.book_id)).size;
 
     const filtered = args.downloaded_only ? hits.filter((h) => catalog.isDownloaded(h.book_id)) : hits;
     const results: TafseerHit[] = filtered.map((h) => {
@@ -73,7 +80,8 @@ export async function runGetTafseerOfAya(
         surah: sa.surah,
         surah_name: sa.surah_name,
         aya: sa.aya,
-        total: hits.length,
+        total: distinctBooks,
+        index_rows: hits.length,
         returned: results.length,
         coverage_note: COVERAGE_NOTE,
         results,
@@ -81,7 +89,7 @@ export async function runGetTafseerOfAya(
     return renderResponse(out, args.response_format, (data) => {
         const lines = [
             header(1, `تفاسير الآية ${data.surah_name} ${arabize(data.surah)}:${arabize(data.aya)}`),
-            `**${arabize(data.total)}** كتاب يعلِّق على هذه الآية، منها ${arabize(data.returned)} في النطاق الحالي.`,
+            `**${arabize(data.total)}** كتابًا يعلِّق على هذه الآية في فهرس الشاملة، منها ${arabize(data.returned)} في النطاق الحالي.`,
             "",
             `> *${data.coverage_note}*`,
             "",

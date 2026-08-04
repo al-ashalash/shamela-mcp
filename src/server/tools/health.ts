@@ -42,6 +42,20 @@ export interface HealthOutput {
         probe_hits: number | null;
         error: string | null;
     } | null;
+    /**
+     * Verse indexes built from tafsir books' own chapter titles. `books_low`
+     * is the number that were built and then judged untrustworthy — those
+     * never return a page, so a high count here explains missing locations.
+     */
+    aya_index: {
+        cache_dir: string;
+        books_indexed: number;
+        books_high: number;
+        books_medium: number;
+        books_low: number;
+        total_entries: number;
+        last_build_ms: number | null;
+    } | null;
     notes: string[];
 }
 
@@ -64,6 +78,7 @@ export async function runHealth(
     catalog: Catalog,
     pages: PageStore,
     helper: Helper | null,
+    ayaIndex: { stats(): HealthOutput["aya_index"] } | null,
     args: z.infer<typeof healthInput>,
 ): Promise<RenderedResponse<HealthOutput>> {
     const downloaded = catalog.downloadedBookIds();
@@ -176,6 +191,7 @@ export async function runHealth(
         disk_scan_fell_back: catalog.diskScanFellBack(),
         readable_spot_check: spot,
         search_index: searchIndex,
+        aya_index: ayaIndex?.stats() ?? null,
         notes,
     };
     return renderResponse(out, args.response_format, (data) => {
