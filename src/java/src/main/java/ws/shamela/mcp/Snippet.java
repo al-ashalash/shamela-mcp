@@ -25,8 +25,17 @@ public final class Snippet {
      * Returns "" when there's no match or no usable text.
      */
     public static String make(String text, List<String> normalizedTokens) {
+        return make(text, normalizedTokens, Normalize.Variant.PAGE);
+    }
+
+    /**
+     * As above, normalizing the haystack with the table of the index the tokens
+     * came from. Passing PAGE for an aya hit leaves the snippet empty, because
+     * the aya table folds «ائ» to «اا» and the page table does not.
+     */
+    public static String make(String text, List<String> normalizedTokens, Normalize.Variant variant) {
         if (text == null || text.isEmpty() || normalizedTokens == null || normalizedTokens.isEmpty()) return "";
-        NormalizedHaystack hay = Normalize.normalizeHaystack(text);
+        NormalizedHaystack hay = Normalize.normalizeHaystack(text, variant);
         String norm = hay.normalized();
         int[] map = hay.indexMap();
 
@@ -73,7 +82,7 @@ public final class Snippet {
         // Whitespace collapse can shift coordinates; in practice the ratio of
         // collapsed:original whitespace is small, but to keep <mark> tags
         // accurate we re-wrap by re-finding tokens in the cleaned text.
-        String marked = applyMarksByRefind(cleaned, normalizedTokens);
+        String marked = applyMarksByRefind(cleaned, normalizedTokens, variant);
 
         String prefix = origWinStart > 0 ? "…" : "";
         String suffix = origWinEnd < text.length() ? "…" : "";
@@ -123,8 +132,8 @@ public final class Snippet {
      * corresponding original substrings in &lt;mark&gt;. This is correct even
      * when the cleaned text has been whitespace-collapsed.
      */
-    private static String applyMarksByRefind(String cleaned, List<String> normalizedTokens) {
-        NormalizedHaystack hay = Normalize.normalizeHaystack(cleaned);
+    private static String applyMarksByRefind(String cleaned, List<String> normalizedTokens, Normalize.Variant variant) {
+        NormalizedHaystack hay = Normalize.normalizeHaystack(cleaned, variant);
         String norm = hay.normalized();
         int[] map = hay.indexMap();
 
