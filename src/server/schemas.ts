@@ -54,7 +54,7 @@ export const ScopeInputShape = {
         .array(z.number().int().positive())
         .optional()
         .describe(
-            "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs.",
+            "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
         ),
     period_from: z
         .number()
@@ -119,7 +119,7 @@ export const OptionsInputShape = {
         .array(z.enum(["body", "foot", "comment"]))
         .default(["body", "foot"])
         .describe(
-            "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. To search chapter titles use the separate `shamela_search_titles` tool.",
+            "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. Narrowing to ['foot'] alone targets the editor's apparatus — where printed hadith referencing and source citations live — and keeps the matn out of the results. To search chapter titles use the separate `shamela_search_titles` tool.",
         ),
 };
 
