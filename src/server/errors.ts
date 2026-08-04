@@ -12,6 +12,8 @@ export type ErrorCode =
     | "BOOK_NOT_FOUND"
     | "BOOK_NOT_DOWNLOADED"
     | "BOOK_INDEX_PENDING"
+    | "ENGINE_TOO_OLD"
+    | "INDEX_NOT_READY"
     | "BOOK_NOT_AVAILABLE"
     | "AUTHOR_NOT_FOUND"
     | "CATEGORY_NOT_FOUND"
@@ -149,4 +151,38 @@ export function errorCode(err: unknown): ErrorCode {
         return map[err.code] ?? "INTERNAL";
     }
     return "INTERNAL";
+}
+
+/**
+ * The installed Shamela is older than the search engine this extension needs.
+ *
+ * The helper is compiled against the Java that current Shamela builds ship, so
+ * on an older install the JVM refuses to load it and the process exits with a
+ * bare code 1 — which used to surface as "the helper died", sending users to
+ * look for a fault in the extension. The cause is the Shamela app's version and
+ * the fix is to update it, so say that.
+ */
+export function engineTooOld(installRoot: string): ShamelaError {
+    return new ShamelaError(
+        "ENGINE_TOO_OLD",
+        `نسخة برنامج «المكتبة الشاملة» المثبَّتة في ${installRoot} أقدم من أن تُشغِّل محرك البحث الذي تحتاجه الإضافة. ` +
+            `حدِّث برنامج المكتبة الشاملة إلى أحدث إصدار، ثم أعد تشغيل تطبيق كلود. ` +
+            `(الإضافة تستعمل محرك البحث المرفق مع البرنامج نفسه، ولا تحمل نسخة خاصة بها.)`,
+    );
+}
+
+/**
+ * The helper started but could not open Shamela's search indexes.
+ *
+ * Java reports this on its startup line and then exits; that line used to be
+ * dropped because it carries no request id, leaving only a generic "helper
+ * died".
+ */
+export function indexNotReady(detail: string): ShamelaError {
+    return new ShamelaError(
+        "INDEX_NOT_READY",
+        `تعذَّر فتح فهارس البحث الخاصة بالمكتبة الشاملة. ` +
+            `تأكَّد أن البرنامج ليس في أثناء تنزيل كتاب أو إعادة بناء فهرس، ثم أعد المحاولة. ` +
+            `التفصيل التقني: ${detail}`,
+    );
 }

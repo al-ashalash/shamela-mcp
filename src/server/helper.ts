@@ -53,6 +53,8 @@ export class Helper extends EventEmitter {
     private buffer = "";
     private pending = new Map<string, PendingRequest>();
     private crashCount = 0;
+    /** Last startup failure Java reported before exiting, if any. */
+    private startupFailure: string | null = null;
     private dead = false;
     private starting: Promise<void> | null = null;
 
@@ -103,7 +105,17 @@ export class Helper extends EventEmitter {
 
                 const sink = this.config.stderrSink ?? process.stderr;
                 child.stderr.setEncoding("utf8");
-                child.stderr.on("data", (chunk: string) => sink.write(`[helper stderr] ${chunk}`));
+                child.stderr.on("data", (chunk: string) => {
+                    sink.write(`[helper stderr] ${chunk}`);
+                    // A JVM too old to load our classes says so here and then
+                    // exits with a bare code 1. Catch the sentence so the exit
+                    // can be explained rather than merely reported.
+                    if (chunk.includes("UnsupportedClassVersionError")) {
+                        this.startupFailure =
+                            "نسخة جافا المرفقة مع برنامج المكتبة الشاملة أقدم من أن تُشغِّل محرك البحث. " +
+                            "حدِّث برنامج المكتبة الشاملة ثم أعد تشغيل تطبيق كلود.";
+                    }
+                });
 
                 child.once("error", (err) => {
                     reject(err);
@@ -149,6 +161,22 @@ export class Helper extends EventEmitter {
             process.stderr.write(`[helper stdout-malformed] ${line}\n`);
             return;
         }
+        // Java announces its own startup on two id-less lines. They used to be
+        // dropped here with everything else that carries no pending request,
+        // which is why a failure to open Shamela's indexes surfaced only as a
+        // bare "the helper died": the line that said what actually went wrong
+        // was thrown away a moment before the process exited.
+        if (parsed.id === "startup" || parsed.id === "ready") {
+            if (parsed.ok === false) {
+                this.startupFailure = parsed.error?.message ?? "unknown startup failure";
+                process.stderr.write(`[helper startup] ${this.startupFailure}
+`);
+            } else {
+                this.startupFailure = null;
+            }
+            return;
+        }
+
         const pending = this.pending.get(parsed.id);
         if (!pending) {
             // Unknown id — likely a delayed response after timeout. Drop.
@@ -178,13 +206,18 @@ export class Helper extends EventEmitter {
             }
         }
 
-        // Reject all pending requests so callers don't hang.
-        const err = new HelperError(
-            this.dead ? "HELPER_DEAD" : "HELPER_DIED",
-            this.dead
-                ? `توقَّف الخادم المساعد لجافا (${reason}). تعطَّل أكثر من مرة، ولن يُعاد تشغيله.`
-                : `توقَّف الخادم المساعد لجافا (${reason}). سيُعاد تشغيله عند الطلب التالي.`,
-        );
+        // Reject all pending requests so callers don't hang. If Java told us why
+        // it was quitting, pass that on instead of the generic message — the
+        // difference between "something broke" and "your indexes could not be
+        // opened" is the difference between a usable report and a shrug.
+        const err = this.startupFailure
+            ? new HelperError("INDEX_NOT_READY", this.startupFailure)
+            : new HelperError(
+                  this.dead ? "HELPER_DEAD" : "HELPER_DIED",
+                  this.dead
+                      ? `توقَّف الخادم المساعد لجافا (${reason}). تعطَّل أكثر من مرة، ولن يُعاد تشغيله.`
+                      : `توقَّف الخادم المساعد لجافا (${reason}). سيُعاد تشغيله عند الطلب التالي.`,
+              );
         for (const pending of this.pending.values()) {
             pending.reject(err);
         }
