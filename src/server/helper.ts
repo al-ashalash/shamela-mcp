@@ -266,12 +266,26 @@ export class Helper extends EventEmitter {
     }
 
     /** Ping the helper; resolves with the helper's metadata. */
-    ping(timeoutMs = 10_000): Promise<{ pong: true; java_version: string }> {
+    ping(timeoutMs = 10_000): Promise<{
+        pong: true;
+        java_version: string;
+        /** Documents in Shamela's Lucene indexes; absent on older helper builds. */
+        page_docs?: number;
+        book_docs?: number;
+        author_docs?: number;
+    }> {
         return this.request<{ pong: true; java_version: string }>("ping", {}, timeoutMs);
     }
 
     /** Wait until the helper has answered a ping. */
-    async ready(timeoutMs = 15_000): Promise<{ pong: true; java_version: string }> {
+    async ready(timeoutMs = 15_000): Promise<{
+        pong: true;
+        java_version: string;
+        /** Documents in Shamela's Lucene indexes; absent on older helper builds. */
+        page_docs?: number;
+        book_docs?: number;
+        author_docs?: number;
+    }> {
         return this.ping(timeoutMs);
     }
 
