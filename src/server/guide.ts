@@ -7,7 +7,7 @@
  * Ordinary users install the .mcpb and never visit the repository, so the
  * extension itself carries the user guide. Pure text assembly (no backend),
  * exported as functions so the integration suite can drift-guard it: the
- * returned text must name all 30 tools.
+ * returned text must name every registered tool.
  *
  * Content rules: every tool line is grounded in its actual
  * manifest.json description — no invented capabilities.
@@ -29,7 +29,7 @@ const GUIDE_INTRO = `# دليل استخدام إضافة «بحث ودراسة 
 
 لا تحتاج إلى حفظ أسماء الأدوات؛ اكتب طلبك بالعربية كما تخاطب باحثًا، وكلود يختار الأداة المناسبة. الأمثلة الآتية طلبات طبيعية تكتبها كما هي.`;
 
-const GUIDE_TOOLS = `## الأدوات الثلاثون
+const GUIDE_TOOLS = `## أدوات الإضافة
 
 ### أولًا: البحث في الكتب
 
@@ -110,7 +110,9 @@ const GUIDE_TOOLS = `## الأدوات الثلاثون
 - **\`shamela_health\`** — فحص ذاتي: نسخة الخادم، وعدد كتب الفهرس والمنزَّل منها، وتحقق سريع من قابلية القراءة. استعمله أولًا إذا بدت الأدوات معطَّلة أو فارغة.
   مثال: «افحص إضافة الشاملة وتأكد أنها تعمل.»
 - **\`shamela_guide\`** — عرض دليل استخدام الإضافة (هذا الدليل) من داخل المحادثة، كاملًا أو قسمًا منه: الأدوات أو النصائح.
-  مثال: «ماذا تستطيع إضافة الشاملة أن تفعل؟»`;
+  مثال: «ماذا تستطيع إضافة الشاملة أن تفعل؟»
+- **\`shamela_suggest_download\`** — البحث عن كتاب في فهرس الشاملة الكامل (منزَّلًا كان أو غير منزَّل) وبيان حاله: منزَّل عندك، أو متاح للتنزيل برقمه ورابط صفحته، أو في الفهرس دون إتاحة فتبحث عنه في مصادر أخرى. تنفع إذا أحال كتابٌ منزَّل إلى كتابٍ لا تجده.
+  مثال: «الكتاب الذي أحال إليه المحقق غير موجود عندي — هل هو متاح في الشاملة؟»`;
 
 const GUIDE_TIPS = `## نصائح الباحث
 

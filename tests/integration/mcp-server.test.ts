@@ -55,6 +55,7 @@ const EXPECTED_TOOL_NAMES = [
     "shamela_list_tafsirs_for_aya",
     "shamela_get_tafseer_texts",
     "shamela_guide",
+    "shamela_suggest_download",
 ] as const;
 
 
@@ -78,7 +79,7 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
         await client.close();
     });
 
-    it("lists all 30 expected tools", async () => {
+    it("lists every expected tool", async () => {
         const result = await client.listTools();
         const names = new Set(result.tools.map((t) => t.name));
         for (const expected of EXPECTED_TOOL_NAMES) {
