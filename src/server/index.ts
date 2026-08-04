@@ -1,7 +1,7 @@
 /**
  * shamela-mcp — MCP server entry point.
  *
- * Spins up a Java helper subprocess on first tool call, exposes 30 tools
+ * Spins up a Java helper subprocess on first tool call, exposes the tool set
  * via `registerTool`, returns dual content (markdown text + structuredContent).
  * All tool handlers wrap their backing implementations in a shared error
  * envelope that maps ShamelaError / HelperError / ShamelaNotFoundError to
@@ -122,6 +122,7 @@ import {
     type SearchHadithOutput,
 } from "./tools/searchHadith.js";
 import { healthInput, healthInputShape, runHealth, type HealthOutput } from "./tools/health.js";
+import { runSuggestDownload, suggestDownloadInputShape } from "./tools/suggestDownload.js";
 import { searchExactInputShape, runSearchExact, type SearchExactOutput } from "./tools/searchExact.js";
 import { searchBooleanInputShape, runSearchBoolean, type SearchBooleanOutput } from "./tools/searchBoolean.js";
 import { rootStatsInputShape, runRootStats, type RootStatsOutput } from "./tools/rootStats.js";
@@ -261,7 +262,7 @@ export async function createBackend(): Promise<Backend> {
 }
 
 /**
- * Build the MCP server with all 30 tools registered. The `getBackend` callback
+ * Build the MCP server with every tool registered. The `getBackend` callback
  * lets callers wire either an already-constructed backend (tests) or a lazy
  * initializer (the stdio entry point).
  */
@@ -828,13 +829,32 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "دليل استخدام الإضافة",
             description:
-                "The extension's built-in Arabic user guide (user-facing markdown). Returns the full guide, or one section via the optional `section`: 'الكل' (default — the full guide), 'الأدوات' (all 30 tools with natural-request examples), 'النصائح' (researcher tips). An unrecognized section value falls back to the full guide with a note. Serves the user when they ask what the extension can do or how to use it. Pure text — needs no library access and never fails, so it also works when the Shamela install itself is missing. Examples: shamela_guide({}), shamela_guide({section:'الأدوات'}).",
+                "The extension's built-in Arabic user guide (user-facing markdown). Returns the full guide, or one section via the optional `section`: 'الكل' (default — the full guide), 'الأدوات' (every tool with natural-request examples), 'النصائح' (researcher tips). An unrecognized section value falls back to the full guide with a note. Serves the user when they ask what the extension can do or how to use it. Pure text — needs no library access and never fails, so it also works when the Shamela install itself is missing. Examples: shamela_guide({}), shamela_guide({section:'الأدوات'}).",
             inputSchema: guideInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
         async (args) => {
             try {
                 const r = runGuide(args as Parameters<typeof runGuide>[0]);
+                return r as unknown as ToolResult;
+            } catch (e) { return wrapErr(e); }
+        },
+    );
+
+    // ----------- 31. shamela_suggest_download -----------
+    server.registerTool(
+        "shamela_suggest_download",
+        {
+            title: "إرشاد لتنزيل كتاب غير موجود",
+            description:
+                "Look a book up in Shamela's FULL catalogue — downloaded or not — and say what can be done about it: already on this machine, offered for download (with its id and its shamela.ws page), or in the catalogue but not offered, in which case the user must look elsewhere. Use it whenever research needs a book that searches cannot find: a work cited by a downloaded book, a source named in an editor's footnote, or a title the user asked for. An empty search result does not say whether a book is missing from the library or missing from Shamela; this does. Downloads nothing and contacts no server — the Shamela app performs the download, and the extension picks the book up within seconds, so the same conversation can continue. Examples: shamela_suggest_download({query:'مغني المحتاج'}), shamela_suggest_download({book_ids:[6658]}).",
+            inputSchema: suggestDownloadInputShape,
+            annotations: COMMON_ANNOTATIONS,
+        },
+        async (args) => {
+            try {
+                const b = await getBackend();
+                const r = runSuggestDownload(b.catalog, args as Parameters<typeof runSuggestDownload>[1]);
                 return r as unknown as ToolResult;
             } catch (e) { return wrapErr(e); }
         },
@@ -907,6 +927,25 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
     return server;
 }
 
+/**
+ * Count what was actually registered, rather than trusting a number typed into
+ * a log line. The hand-written count had already drifted once, and a startup
+ * line that misreports the tool set is the least useful place to be wrong.
+ */
+function countRegistered(server: McpServer): { tools: number; resources: number } {
+    const bag = server as unknown as {
+        _registeredTools?: Record<string, unknown>;
+        _registeredResources?: Record<string, unknown>;
+        _registeredResourceTemplates?: Record<string, unknown>;
+    };
+    return {
+        tools: Object.keys(bag._registeredTools ?? {}).length,
+        resources:
+            Object.keys(bag._registeredResources ?? {}).length +
+            Object.keys(bag._registeredResourceTemplates ?? {}).length,
+    };
+}
+
 /** Stdio entry point — used when this file is invoked directly. */
 async function main(): Promise<void> {
     // Cache the PROMISE, not the resolved value: the warm-up below and any tool
@@ -971,7 +1010,9 @@ async function main(): Promise<void> {
     const server = createServer(getBackend);
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    logInfo(`shamela-mcp v${VERSION} ready (30 tools + 5 resources registered)`);
+    logInfo(
+        `shamela-mcp v${VERSION} ready (${countRegistered(server).tools} tools + ${countRegistered(server).resources} resources registered)`,
+    );
 
     // Cold-start fix (#14): warm the JVM + indexes right after the MCP
     // handshake (not on first tool call). Non-blocking — the handshake already
