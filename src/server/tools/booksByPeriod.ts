@@ -21,6 +21,7 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
+import type { PageStore } from "../pages.js";
 import { badArg } from "../errors.js";
 import { ResponseFormatInput, PaginationInput } from "../schemas.js";
 import { renderResponse, type RenderedResponse, header, arabize } from "../format.js";
@@ -94,6 +95,13 @@ export interface BooksByPeriodRow {
     category: string | null;
     /** The per-book file is present on this machine. */
     downloaded: boolean;
+    /**
+     * Whether the book can actually be read, which `downloaded` alone does not
+     * say: a file can be present and hold no text (an image/scan-only title).
+     * Resolved for the returned page only — opening every matched book's file
+     * would make a catalogue browse pay for content it was not asked about.
+     */
+    content_status: "readable" | "downloaded_no_pages" | "not_downloaded";
 }
 
 export interface BooksByPeriodOutput {
@@ -121,10 +129,11 @@ export interface BooksByPeriodOutput {
  * as DISTINCT AND-combined constraints. Catalog-only and synchronous.
  * Throws BAD_ARG if none of the four temporal bounds is provided.
  */
-export function runBooksByPeriod(
+export async function runBooksByPeriod(
     catalog: Catalog,
+    pages: PageStore,
     args: z.infer<typeof booksByPeriodInput>,
-): RenderedResponse<BooksByPeriodOutput> {
+): Promise<RenderedResponse<BooksByPeriodOutput>> {
     const hasComposed = args.composed_from !== undefined || args.composed_to !== undefined;
     const hasDied = args.died_from !== undefined || args.died_to !== undefined;
     if (!hasComposed && !hasDied) {
@@ -174,12 +183,18 @@ export function runBooksByPeriod(
             category_id: b.book_category,
             category: catalog.categoryPath(b.book_category)[0] ?? null,
             downloaded,
+            content_status: "not_downloaded", // resolved for the returned page below
         });
     }
 
     matched.sort((x, y) => x.book_id - y.book_id);
 
     const slice = matched.slice(args.offset, args.offset + args.limit);
+    // Only the rows actually being returned pay for a page-count lookup.
+    for (const row of slice) {
+        if (!row.downloaded) continue;
+        row.content_status = (await pages.pageCount(row.book_id)) > 0 ? "readable" : "downloaded_no_pages";
+    }
     const hasMore = args.offset + slice.length < matched.length;
     const out: BooksByPeriodOutput = {
         total: matched.length,

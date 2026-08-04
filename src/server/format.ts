@@ -28,11 +28,54 @@ export interface RenderedResponse<T> {
  * @param renderMarkdown  Function that formats the payload as markdown.
  *                        Called only when format === "markdown".
  */
+/**
+ * One shape for "how much of the answer is this?", added to every payload that
+ * carries counts.
+ *
+ * Tools grew their own names for the same two numbers — total_hits/returned in
+ * search, total/returned in the listings — and a caller reading one field name
+ * across tools would silently read nothing from half of them. Rather than
+ * rename fields and break every existing consumer, the canonical pair is ADDED
+ * alongside whatever a tool already reports, together with an explicit flag for
+ * whether the returned slice is the whole result set.
+ */
+export interface ResultCounts {
+    /** Everything that matched, not just this page. */
+    total_count: number;
+    /** How many items are in this response. */
+    returned_count: number;
+    /** False when there is more beyond this slice — the honest reading of a partial answer. */
+    complete: boolean;
+}
+
+/** Read whichever names a payload happens to use, without assuming any. */
+function deriveCounts(payload: Record<string, unknown>): ResultCounts | null {
+    const total =
+        typeof payload.total_hits === "number"
+            ? payload.total_hits
+            : typeof payload.total === "number"
+              ? payload.total
+              : null;
+    if (total === null) return null;
+    const returned =
+        typeof payload.returned === "number"
+            ? payload.returned
+            : Array.isArray(payload.results)
+              ? payload.results.length
+              : null;
+    if (returned === null) return null;
+    const offset = typeof payload.offset === "number" ? payload.offset : 0;
+    const hasMore = typeof payload.has_more === "boolean" ? payload.has_more : offset + returned < total;
+    return { total_count: total, returned_count: returned, complete: !hasMore && offset === 0 };
+}
+
 export function renderResponse<T extends object>(
-    payload: T,
+    payload_: T,
     format: "markdown" | "json",
     renderMarkdown: (data: T) => string,
 ): RenderedResponse<T> {
+    const counts = deriveCounts(payload_ as Record<string, unknown>);
+    const payload = (counts ? { ...payload_, ...counts } : payload_) as T;
     const text = format === "json" ? JSON.stringify(payload, null, 2) : renderMarkdown(payload);
     const truncated = enforceCharLimit(text);
     if (truncated.text === text) {
