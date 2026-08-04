@@ -212,6 +212,9 @@ npm run test:watch          # watch mode during development
 npm run smoke               # legacy end-to-end smoke check
 npm run pack                # build everything and produce shamela-mcp-<v>.mcpb
 npm run release             # tag + publish a GitHub Release (see CLAUDE.md)
+npm run check:versions      # the version agrees across all six places it is written
+npm run check:landing       # every language on the landing page carries the same blocks
+npm run verify:mcpb         # unpack a built bundle and inspect what is actually in it
 ```
 
-See [`CLAUDE.md`](./CLAUDE.md) for the testing rules, the release workflow, and [`tests/`](./tests/) for the test layout.
+See [`CLAUDE.md`](./CLAUDE.md) for the testing rules and the release workflow, [`docs/decisions.md`](./docs/decisions.md) for the architectural decisions and what each one cost, and [`tests/`](./tests/) for the test layout.
