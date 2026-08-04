@@ -7,6 +7,7 @@ import { trimPagesByBudget } from "../longtext.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { formatShortCitation } from "../citation.js";
 import { requireDownloadedBook } from "../gate.js";
 
 export const getPagesRangeInputShape = {
@@ -24,9 +25,13 @@ export interface RangePage {
     body: string;
     foot: string;
     comment: string;
+    /** Reference for this page, so a quote lifted from a range keeps its source. */
+    citation: string;
 }
 
 export interface GetPagesRangeOutput {
+    /** True when page numbers are Shamela's automatic count, not the print's. */
+    citation_auto_numbered?: boolean;
     book_id: number;
     book_name: string;
     author_name: string | null;
@@ -61,6 +66,7 @@ export async function runGetPagesRange(
 
     const stripIfHtml = (s: string) => (args.keep_html ? s : s.replace(HTML_TAG_RE, "").replace(/\r/g, "\n"));
 
+    const mainAuthor = catalog.bookAuthors(rec)[0] ?? null;
     const allPages: RangePage[] = await Promise.all(
         rows.map(async (r) => {
             const c = contentMap.get(r.page_id) ?? { body: "", foot: "", comment: "" };
@@ -71,7 +77,14 @@ export async function runGetPagesRange(
                 part: r.part,
                 body: stripIfHtml(c.body),
                 foot: stripIfHtml(c.foot),
-                comment: stripIfHtml(c.comment) };
+                comment: stripIfHtml(c.comment),
+                // Per page, not per range: a quote lifted from the middle of a
+                // range must carry its own page, not the range's first.
+                citation: formatShortCitation(rec, mainAuthor, {
+                    page_id: r.page_id,
+                    part: r.part,
+                    page: printed !== null ? Number(printed) : null,
+                }) };
         }),
     );
 
@@ -93,6 +106,7 @@ export async function runGetPagesRange(
         has_more: hasMore,
         next_start_page_id: hasMore ? lastId + 1 : null,
         _display: display,
+        citation_auto_numbered: rec.printed !== 1,
         pages: pagesOut };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [header(1, `${data.book_name} — صفحات ${arabize(data.start_page_id)}+`)];
