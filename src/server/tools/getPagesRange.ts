@@ -2,20 +2,19 @@ import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
 import { MULTIPAGE_CHAR_BUDGET } from "../constants.js";
-import { bookNotDownloaded, bookNotFound } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { trimPagesByBudget } from "../longtext.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { requireDownloadedBook } from "../gate.js";
 
 export const getPagesRangeInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
     start_page_id: z.number().int().positive().describe("First page_id (inclusive)."),
     count: z.number().int().min(1).max(20).default(5).describe("How many consecutive pages to fetch (1–20, default 5). Use shamela_get_book_section for full chapter reads."),
     keep_html: z.boolean().default(false).describe("Preserve inline HTML markers."),
-    ...ResponseFormatInput,
-};
+    ...ResponseFormatInput };
 export const getPagesRangeInput = z.object(getPagesRangeInputShape).strict();
 
 export interface RangePage {
@@ -48,9 +47,7 @@ export async function runGetPagesRange(
     pages: PageStore,
     args: z.infer<typeof getPagesRangeInput>,
 ): Promise<RenderedResponse<GetPagesRangeOutput>> {
-    const rec = catalog.bookRecord(args.book_id);
-    if (!rec) throw bookNotFound(args.book_id);
-    if (rec.major_ondisk === 0) throw bookNotDownloaded(args.book_id, rec.book_name);
+    const rec = requireDownloadedBook(catalog, args.book_id);
 
     const rows = await pages.getPagesRange(args.book_id, args.start_page_id, args.count);
     const pageIds = rows.map((r) => r.page_id);
@@ -74,8 +71,7 @@ export async function runGetPagesRange(
                 part: r.part,
                 body: stripIfHtml(c.body),
                 foot: stripIfHtml(c.foot),
-                comment: stripIfHtml(c.comment),
-            };
+                comment: stripIfHtml(c.comment) };
         }),
     );
 
@@ -97,8 +93,7 @@ export async function runGetPagesRange(
         has_more: hasMore,
         next_start_page_id: hasMore ? lastId + 1 : null,
         _display: display,
-        pages: pagesOut,
-    };
+        pages: pagesOut };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [header(1, `${data.book_name} — صفحات ${arabize(data.start_page_id)}+`)];
         if (data.author_name) lines.push(`*${data.author_name}*`);

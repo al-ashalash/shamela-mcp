@@ -13,13 +13,16 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
+import * as path from "node:path";
+
 import { Catalog } from "./catalog.js";
+import { CatalogFreshness } from "./freshness.js";
 import { VERSION } from "./constants.js";
 import { errorCode, formatErrorMessage } from "./errors.js";
 import { buildGuideText } from "./guide.js";
 import { Helper } from "./helper.js";
 import { PageStore } from "./pages.js";
-import { resolveAll } from "./paths.js";
+import { resolveAll, type ShamelaPaths } from "./paths.js";
 import { ServiceStore } from "./services.js";
 
 import {
@@ -174,6 +177,8 @@ export interface Backend {
     catalog: Catalog;
     pages: PageStore;
     services: ServiceStore;
+    /** Needed to re-read master.db when the library changes mid-session. */
+    paths: ShamelaPaths;
 }
 
 const COMMON_ANNOTATIONS = {
@@ -210,7 +215,7 @@ export async function createBackend(): Promise<Backend> {
     logInfo(`helper jar:   ${paths.helperJar}`);
 
     const masterDb = (await import("node:path")).join(paths.database, "master.db");
-    const catalog = await Catalog.load(masterDb, SQL_WASM_BINARY);
+    const catalog = await Catalog.load(masterDb, SQL_WASM_BINARY, { databaseRoot: paths.database });
     logInfo(
         `catalog:      ${catalog.bookCount()} books, ${catalog.authorCount()} authors, ${catalog.categoryCount()} categories`,
     );
@@ -219,7 +224,7 @@ export async function createBackend(): Promise<Backend> {
 
     const h = new Helper({ paths });
     await h.ready(20_000);
-    return { helper: h, catalog, pages, services };
+    return { helper: h, catalog, pages, services, paths };
 }
 
 /**
@@ -877,7 +882,8 @@ async function main(): Promise<void> {
     // full backend (two JVMs, one leaked at shutdown, first call still slow).
     let backendPromise: Promise<Backend> | null = null;
     let backendRef: Backend | null = null; // resolved reference for shutdown()
-    const getBackend = (): Promise<Backend> => {
+    let freshness: CatalogFreshness | null = null;
+    const getBackend = async (): Promise<Backend> => {
         if (!backendPromise) {
             backendPromise = createBackend().then(
                 (b) => {
@@ -890,7 +896,44 @@ async function main(): Promise<void> {
                 },
             );
         }
-        return backendPromise;
+        const b = await backendPromise;
+
+        // The library can change while the session is open — the user goes and
+        // downloads the book we just recommended. Check here, at the single
+        // place every handler passes through, and nowhere else.
+        if (!freshness) {
+            freshness = new CatalogFreshness({
+                masterDbPath: path.join(b.paths.database, "master.db"),
+                databaseRoot: b.paths.database,
+                wasmBinary: SQL_WASM_BINARY,
+                log: logInfo,
+            });
+        }
+        const catalog = await freshness.ensureFresh(b.catalog);
+        if (catalog === b.catalog) return b;
+
+        // Cached SQLite handles hold a byte image of files Shamela may have
+        // just rewritten, so they go with the old catalog.
+        b.pages.invalidate();
+        b.services.invalidate();
+
+        // The page text itself comes from Shamela's Lucene indexes, which the
+        // helper opened when it started. Ask it to pick up what Shamela has
+        // committed since; until that succeeds, books found mid-session are
+        // listed but explicitly not readable rather than silently empty.
+        if (catalog.sessionDiscoveredIds().length > 0) {
+            try {
+                const res = await b.helper.request<{ reopened?: string[] }>("reopen", {});
+                logInfo(`search indexes reopened: ${(res.reopened ?? []).join(", ") || "no change"}`);
+                catalog.clearSessionDiscovered();
+            } catch (e) {
+                logInfo(`could not reopen the search indexes: ${e instanceof Error ? e.message : String(e)}`);
+            }
+        }
+        const refreshed: Backend = { ...b, catalog };
+        backendRef = refreshed;
+        backendPromise = Promise.resolve(refreshed);
+        return refreshed;
     };
     const server = createServer(getBackend);
     const transport = new StdioServerTransport();

@@ -74,7 +74,7 @@ export const booksByPeriodInputShape = {
         .boolean()
         .default(false)
         .describe(
-            "If true, restrict to books actually downloaded on this machine (master.db.book.major_ondisk > 0) — the only ones with searchable page content.",
+            "If true, restrict to books whose file is actually present on this machine — the only ones with searchable page content.",
         ),
     ...PaginationInput,
     ...ResponseFormatInput,
@@ -92,7 +92,7 @@ export interface BooksByPeriodRow {
     book_date: number | null;
     category_id: number | null;
     category: string | null;
-    /** master.db.book.major_ondisk > 0 (flagged downloaded on this machine). */
+    /** The per-book file is present on this machine. */
     downloaded: boolean;
 }
 
@@ -162,7 +162,7 @@ export function runBooksByPeriod(
         if (args.category_id !== undefined && b.book_category !== args.category_id) continue;
 
         // Downloaded constraint.
-        const downloaded = b.major_ondisk > 0;
+        const downloaded = catalog.isDownloaded(b.book_id);
         if (args.downloaded_only && !downloaded) continue;
 
         matched.push({

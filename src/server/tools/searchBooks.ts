@@ -124,7 +124,7 @@ export async function runSearchBooks(
             author_name: rec ? catalog.mainAuthorName(rec) : null,
             category: rec ? catalog.categoryPath(rec.book_category)[0] ?? null : null,
             book_date: rec?.book_date ?? null,
-            downloaded: rec ? rec.major_ondisk > 0 : false,
+            downloaded: rec ? catalog.isDownloaded(rec.book_id) : false,
             snippet: h.snippet,
         };
     });

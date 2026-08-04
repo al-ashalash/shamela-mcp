@@ -2,12 +2,13 @@ import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
 import { PAGE_BODY_BUDGET } from "../constants.js";
-import { bookNotDownloaded, bookNotFound, pageNotFound } from "../errors.js";
+import { pageNotFound } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { getChunk } from "../longtext.js";
 import type { PageStore, TocEntry } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { requireDownloadedBook } from "../gate.js";
 
 export const getPageInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
@@ -21,8 +22,7 @@ export const getPageInputShape = {
         .describe(
             `For long pages: when the body exceeds ~${PAGE_BODY_BUDGET} characters it is split into parts. Pass the 1-based part to read (default 1). The response reports body_part/body_total_parts/body_has_more; request the next part by incrementing. The footnote/comment are returned with part 1.`,
         ),
-    ...ResponseFormatInput,
-};
+    ...ResponseFormatInput };
 export const getPageInput = z.object(getPageInputShape).strict();
 
 export interface ContainingTitle {
@@ -63,9 +63,7 @@ export async function runGetPage(
     pages: PageStore,
     args: z.infer<typeof getPageInput>,
 ): Promise<RenderedResponse<GetPageOutput>> {
-    const rec = catalog.bookRecord(args.book_id);
-    if (!rec) throw bookNotFound(args.book_id);
-    if (rec.major_ondisk === 0) throw bookNotDownloaded(args.book_id, rec.book_name);
+    const rec = requireDownloadedBook(catalog, args.book_id);
 
     const row = await pages.getPageRow(args.book_id, args.page_id);
     if (!row) throw pageNotFound(args.book_id, args.page_id);
@@ -124,10 +122,8 @@ export async function runGetPage(
         containing_titles: ancestor.map((a: TocEntry) => ({
             title_id: a.title_id,
             title_text: titleMap.get(a.title_id) ?? "",
-            page_id: a.page_id,
-        })),
-        category_path: catalog.categoryPath(rec.book_category),
-    };
+            page_id: a.page_id })),
+        category_path: catalog.categoryPath(rec.book_category) };
     return renderResponse(out, args.response_format, (data) => {
         const lines: string[] = [];
         lines.push(header(1, `${data.book_name}${data.printed_page ? ` (ص ${arabize(data.printed_page)})` : ""}`));

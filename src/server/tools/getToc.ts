@@ -1,19 +1,18 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { bookNotDownloaded, bookNotFound } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore, TocEntry } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { requireDownloadedBook } from "../gate.js";
 
 export const getTocInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
     parent_id: z.number().int().min(0).default(0).describe("Title id whose children to expand. 0 (default) returns top-level chapters."),
     depth: z.number().int().min(1).max(5).default(1).describe("How many levels deep to recurse (1–5, default 1)."),
     containing_page_id: z.number().int().positive().optional().describe("Alternate mode: instead of returning a subtree, return the ancestor chain (root → leaf chapter) for this page."),
-    ...ResponseFormatInput,
-};
+    ...ResponseFormatInput };
 export const getTocInput = z.object(getTocInputShape).strict();
 
 export interface TocNode {
@@ -49,8 +48,7 @@ function attachTitles(entries: TocEntry[], titleMap: Map<number, string>): TocNo
         page_id: e.page_id,
         parent_id: e.parent_id,
         has_children: e.has_children,
-        ...(e.children ? { children: attachTitles(e.children, titleMap) } : {}),
-    }));
+        ...(e.children ? { children: attachTitles(e.children, titleMap) } : {}) }));
 }
 
 export async function runGetToc(
@@ -59,9 +57,7 @@ export async function runGetToc(
     pages: PageStore,
     args: z.infer<typeof getTocInput>,
 ): Promise<RenderedResponse<GetTocOutput>> {
-    const rec = catalog.bookRecord(args.book_id);
-    if (!rec) throw bookNotFound(args.book_id);
-    if (rec.major_ondisk === 0) throw bookNotDownloaded(args.book_id, rec.book_name);
+    const rec = requireDownloadedBook(catalog, args.book_id);
 
     let mode: "subtree" | "ancestor_chain";
     let entries: TocEntry[];
@@ -91,8 +87,7 @@ export async function runGetToc(
         parent_id: mode === "subtree" ? args.parent_id : null,
         depth: mode === "subtree" ? args.depth : null,
         titles: mode === "subtree" ? titles : [],
-        ancestor_chain: mode === "ancestor_chain" ? titles : [],
-    };
+        ancestor_chain: mode === "ancestor_chain" ? titles : [] };
     return renderResponse(out, args.response_format, (data) => {
         const lines: string[] = [];
         lines.push(header(1, `فهرس «${data.book_name}»`));
