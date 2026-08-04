@@ -56,7 +56,46 @@ export interface SearchQuranOutput {
     /** Expanded (prefix-variant) searches only: false when a variant's result
      *  set could not be fully paged, so total_hits is a lower bound. */
     total_hits_complete?: boolean;
+    /**
+     * Present only when nothing matched: concrete next steps, so a zero is not
+     * mistaken for "this wording is absent from the Qur'an". The Qur'an index
+     * stores whole words, and a query can miss for reasons that have nothing to
+     * do with the text.
+     */
+    suggestions?: string[];
     results: QuranHit[];
+}
+
+/**
+ * Why a Qur'an search can come back empty even for wording that is in the text.
+ *
+ * The index stores whole surface forms, so an inflected or prefixed form of a
+ * word will not match the bare one, and a phrase is matched as tokens rather
+ * than as a running string. Saying that beats leaving the reader to conclude
+ * the wording is not in the Qur'an at all.
+ */
+function zeroResultSuggestions(query: string, tokens: string[]): string[] {
+    const out: string[] = [];
+    const words = query.trim().split(/\s+/).filter(Boolean);
+    if (words.length > 1) {
+        out.push(
+            `جرّب كلمة واحدة من العبارة («${words[0]}» أو «${words[words.length - 1]}») — البحث في القرآن يطابق الكلمات لا العبارة المتصلة`,
+        );
+    }
+    const first = words[0] ?? query.trim();
+    if (first.startsWith("ال") && first.length > 3) {
+        out.push(`جرّبها بلا «ال» التعريف: «${first.slice(2)}»`);
+    } else if (first.length > 2) {
+        out.push(`جرّبها بـ«ال» التعريف: «ال${first}»`);
+    }
+    out.push("جرّب صيغة أخرى للكلمة (ماضيًا أو مضارعًا أو مصدرًا) — الفهرس يخزّن الكلمة بصورتها لا بجذرها");
+    out.push(
+        "أو ابحث في كتب التفسير بدل نصّ المصحف عبر shamela_search_pages، فقد تكون العبارة تفسيرًا لا تلاوةً",
+    );
+    if (tokens.length) {
+        out.push(`صيغة البحث بعد التطبيع: ${tokens.slice(0, 5).join("، ")}`);
+    }
+    return out;
 }
 
 function toHit(h: RawHit): QuranHit {
@@ -140,6 +179,7 @@ export async function runSearchQuran(
             query: args.query,
             normalized_tokens: variants,
             total_hits_complete: complete,
+            ...(total === 0 ? { suggestions: zeroResultSuggestions(args.query, variants) } : {}),
             results,
         };
     } else {
@@ -157,6 +197,9 @@ export async function runSearchQuran(
             ...(raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
             query: raw.query,
             normalized_tokens: raw.normalized_tokens,
+            ...(raw.total_hits === 0
+                ? { suggestions: zeroResultSuggestions(args.query, raw.normalized_tokens) }
+                : {}),
             results: raw.results.map(toHit),
         };
     }
@@ -166,6 +209,10 @@ export async function runSearchQuran(
         lines.push(`**${arabize(data.total_hits)}** آية موافقة، عرض ${arabize(data.returned)}.`);
         if (data.total_hits_complete === false) {
             lines.push("_العدد الإجمالي حدٌّ أدنى: تعذَّر استيفاء نتائج بعض صيغ الكلمة._");
+        }
+        if (data.suggestions?.length) {
+            lines.push("", "**لا نتائج — جرّب:**");
+            for (const sug of data.suggestions) lines.push(`- ${sug}`);
         }
         lines.push("");
         for (const r of data.results) {
