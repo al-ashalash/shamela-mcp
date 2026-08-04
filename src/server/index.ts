@@ -122,6 +122,7 @@ import {
     type SearchHadithOutput,
 } from "./tools/searchHadith.js";
 import { healthInput, healthInputShape, runHealth, type HealthOutput } from "./tools/health.js";
+import { OUTPUT_SCHEMAS } from "./outputSchemas.js";
 import { runSuggestDownload, suggestDownloadInputShape } from "./tools/suggestDownload.js";
 import { searchExactInputShape, runSearchExact, type SearchExactOutput } from "./tools/searchExact.js";
 import { searchBooleanInputShape, runSearchBoolean, type SearchBooleanOutput } from "./tools/searchBoolean.js";
@@ -279,6 +280,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث في صفحات الكتب",
             description:
                 "Search the body (matn) and footnotes (الحواشي) of every Shamela page the user has downloaded locally. AND-combines tokens; each token can match in any of the search_in fields. Default scope is the full downloaded library; pass `scope` (book_ids/author_ids/category_ids/period_*/downloaded_only) to narrow. `options` controls morphology (Arabic root expansion via AlKhalil), wildcards (`*`/`?` per token, cannot combine with morphology), and search_in subset (body/foot/comment). Returns total_hits + paginated results with book name, author, printed-page label, and a snippet with <mark>...</mark> around matches; coverage rolls up by category/century/book/author. preserve_diacritics/_hamza/_digits currently return OPTION_NOT_SUPPORTED. Use `shamela_search_titles` for chapter title search instead. Examples: shamela_search_pages({query:'الكلام'}), shamela_search_pages({query:'استصناع', scope:{category_ids:[17]}}), shamela_search_pages({query:'كلم', options:{morphology:true}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_pages"] as never,
             inputSchema: searchPagesInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -298,6 +300,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث في عناوين الفصول",
             description:
                 "Search Shamela's title/ Lucene index for chapter and section titles. Same query/scope/options/pagination shape as shamela_search_pages but matches title text rather than page bodies. After finding a matching title, use shamela_get_book_section(book_id, title_id) to read the full section. Examples: shamela_search_titles({query:'باب الصيام'}), shamela_search_titles({query:'تعريف', scope:{book_ids:[<id from shamela_resolve or shamela_list_downloaded_books>]}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_titles"] as never,
             inputSchema: searchTitlesInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -317,6 +320,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث في فهرس الكتب",
             description:
                 "Search Shamela's catalog of ~8,500 books by name, author, or bibliography text. Pre-built index — works even before any books are downloaded. scope.book_ids is not accepted (the catalog IS the universe); use scope.author_ids, category_ids, period_*, downloaded_only. Returns paginated results with book name, author, category, book_date, downloaded flag, and a snippet from the bibliography. Examples: shamela_search_books({query:'الأصول'}), shamela_search_books({query:'فقه', scope:{category_ids:[17], downloaded_only:true}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_books"] as never,
             inputSchema: searchBooksInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -336,6 +340,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث في فهرس المؤلفين",
             description:
                 "Search Shamela's ~3,200-author catalog by name or biography text. Pre-built index — no downloads needed. No scope (authors aren't scoped by category/period). Returns author name, Hijri death year, and book count. Arabic scholars go by several name forms — when a query misses, try the kunya, nisba, and shuhra variants before concluding absence (جرّب الكنية والنسبة والشهرة: ابن قدامة / الموفق / المقدسي). Use the resulting author_id with shamela_get_author for full details, or with scope.author_ids in shamela_search_pages/_books to filter by that author. Examples: shamela_search_authors({query:'ابن قدامة'}), shamela_search_authors({query:'الشافعي', options:{wildcards:false}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_authors"] as never,
             inputSchema: searchAuthorsInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -355,6 +360,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب صفحة",
             description:
                 "Fetch the full text of one Shamela page (book_id, page_id). Returns body (matn), foot (footnotes), comment (user notes), printed_page label, prev/next page ids, the chapter ancestor chain (root → leaf), and the category path. Set keep_html=true to preserve inline <span data-type='title'> markers; default strips them. The book must be downloaded (BOOK_NOT_DOWNLOADED otherwise). For batch reads use shamela_get_pages_range; for full chapters use shamela_get_book_section. Long pages: the body is split into parts of ~4000 chars — `body_part` selects the 1-based part, and body_total_parts/body_has_more report the split (footnote/comment come with part 1; a `_display` hint advises when to ask the user how to show it).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_page"] as never,
             inputSchema: getPageInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -374,6 +380,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب فهرس الكتاب",
             description:
                 "Fetch a downloaded book's table of contents. Two modes: (a) subtree mode (default) — pass parent_id (0 = top level) and depth (1–5) to get a tree of titles; (b) ancestor-chain mode — pass containing_page_id to get the root → leaf chapter chain that contains that page. Returns title_id, title_text, page_id, has_children for each entry. Use the title_id with shamela_get_book_section to read the section. Examples: shamela_get_toc({book_id:<id>, depth:1}) lists top-level chapters; shamela_get_toc({book_id:<id>, containing_page_id:17}) returns the chapter containing page 17. Find downloaded book ids via shamela_list_downloaded_books or shamela_resolve.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_toc"] as never,
             inputSchema: getTocInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -393,6 +400,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب بيانات كتاب",
             description:
                 "Fetch full metadata for a book by book_id. Returns book_name, all authors (main + co), category, book_type (printed/manuscript/journal/thesis/electronic/audio), book_date (Hijri composition year), printed flag, downloaded flag (true ONLY when both master.db says so AND the per-book SQLite has page rows), publication_date (DDMMYYYY Hijri from meta_data), sub_books, and a `notes` array listing citation-grade fields master.db doesn't have (edition/publisher/city/editor — never fabricate these). Find ids via shamela_resolve('book name') or shamela_list_downloaded_books. Works on any catalog book whether downloaded or not.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_book"] as never,
             inputSchema: getBookInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -412,6 +420,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب بيانات مؤلف",
             description:
                 "Fetch metadata for an author by author_id, optionally with the list of books they authored. Returns author_name, death_year (null if unknown or modern), death_text (display string), and the book list (main + co-authored). Each book entry has book_id, book_name, book_date, downloaded flag. Use include_books=false to skip the book list when you only need name/death year. Example: shamela_get_author({author_id:57}) returns Ibn Uthaymeen + his books.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_author"] as never,
             inputSchema: getAuthorInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -431,6 +440,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "قائمة التصنيفات",
             description:
                 "List all 41 categories in Shamela's catalog. Categories are flat (no parent_id, no transitive expansion). Each entry has category_id, category_name, and book_count (total books in catalog under that category). Use category_id values with scope.category_ids in search_pages / search_books to narrow searches. Set include_counts=false to skip the book counts (slightly faster but counts are cached so cost is negligible). Each entry also reports downloaded_count (books in that category present on THIS machine), and downloaded_only=true lists only categories where the user has downloads — useful because Shamela is a 41-category library and tafsir alone spans categories 3 (التفسير), 4 (علوم القرآن وأصول التفسير), and 5 (التجويد والقراءات).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_list_categories"] as never,
             inputSchema: listCategoriesInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -450,6 +460,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "تحويل اسم إلى معرِّف",
             description:
                 "Disambiguate Arabic name fragments to book_ids and/or author_ids. Uses the pre-built s_book/ + s_author/ n-gram indexes for fast partial matching. type='book' searches only books, 'author' only authors, 'any' (default) both. Returns up to `limit` results per type with confidence scores. Use this BEFORE search_pages / search_books / search_authors when the user mentions a name but doesn't know the exact ID. Examples: shamela_resolve({query:'ابن قدامة'}) → returns the matching author_id(s) with confidence; shamela_resolve({query:'روضة الناظر'}) → returns book matches.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_resolve"] as never,
             inputSchema: resolveInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -469,6 +480,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب نطاق صفحات",
             description:
                 "Fetch N (1–20, default 5) consecutive pages from a downloaded book starting at start_page_id. Faster than calling shamela_get_page in a loop. Each page entry has page_id, printed_page, part, body, foot, comment. has_more flag indicates whether more pages exist after the returned range. Very long ranges are cut short to stay within a size budget; when that happens the response sets next_start_page_id and a `_display` hint — continue from there. For full chapters use shamela_get_book_section instead — it knows where the chapter ends. Example: shamela_get_pages_range({book_id:<id>, start_page_id:1, count:5}). Find downloaded book ids via shamela_list_downloaded_books.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_pages_range"] as never,
             inputSchema: getPagesRangeInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -488,6 +500,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب باب من كتاب",
             description:
                 "Fetch every page under a chapter title. Resolves the chapter's start/end page range from the per-book SQLite (next-sibling-title boundary), then batch-reads the page contents. Capped at max_pages (default 30, max 100); sets `truncated:true` if the section is longer. Long sections also stop early on a character budget (even within max_pages) and return next_start_page_id + a `_display` hint to continue. Use shamela_get_toc to find title_ids, then this tool to read the matching section. Example: shamela_get_book_section({book_id:<id>, title_id:<title_id from get_toc>}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_book_section"] as never,
             inputSchema: getBookSectionInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -507,6 +520,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "صياغة إحالة",
             description:
                 "Format a citation in three styles. style='shamela' (default) replicates Shamela's UI copy-with-citation: «<book>» (<part>/ <page>):\\n«<text>». style='short' is a one-line inline reference: <author>، <book>، ص <page>. style='full' is the long form with author death year and book composition year, plus a `notes[]` array listing missing citation-grade fields (edition/publisher/city/editor — master.db doesn't have these; never fabricate). All numbers in output use Arabic-Indic digits. Examples: shamela_get_citation({book_id:<id>, page_id:<page_id>, style:'shamela'}), shamela_get_citation({book_id:<id>, page_id:<page_id>, text:'<quoted passage>', style:'shamela'}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_citation"] as never,
             inputSchema: getCitationInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -526,6 +540,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث في القرآن",
             description:
                 "Search the Qur'an (6,236 verses, Hafs from Asim, Egyptian إملائي orthography) via the pre-built aya/ Lucene index. Ships zero-config — works on a fresh Shamela install. Returns aya_id (1..6236), surah, surah_name, aya, body (full verse text), and a snippet with <mark>...</mark> around matches. Pair with shamela_get_aya to fetch a single verse with the Othmani Amiri rendering, or with shamela_get_tafseer_of_aya to find tafsir books that comment on a matching verse.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_quran"] as never,
             inputSchema: searchQuranInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -545,6 +560,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب آية",
             description:
                 "Fetch a single Qur'anic verse by aya_id (1..6236, cumulative across surahs) OR by surah (1..114) + aya (1..N). Returns the verse text in three renderings: body (Egyptian إملائي, Hafs from Asim — the searchable form), amiri (Othmani Amiri rendering for display), majma (KFQPC Mushaf rendering). Pass either aya_id alone OR both surah and aya. Examples: shamela_get_aya({aya_id:1}) → al-Fatiha verse 1 (basmala); shamela_get_aya({surah:55, aya:1}) → Ar-Rahman verse 1.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_aya"] as never,
             inputSchema: getAyaInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -564,6 +580,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "تفاسير آية",
             description:
                 "Given a Qur'anic verse, list every tafsir book in the catalog that has a page commenting on it. Uses Shamela's pre-built service/tafseer.db join. Pass either aya_id (1..6236) OR surah+aya. By default returns only books the user has downloaded locally (downloaded_only=true) — set to false to see the full catalog of tafsirs that COULD comment on this verse if downloaded. Each result has book_id, book_name, author_name, page_id, downloaded flag. Pair with shamela_get_page(book_id, page_id) to read the actual tafsir text. NOTE: this uses a CURATED service index that may omit downloaded tafsirs (many tafsirs carry no per-page aya markers) — on some installs it returns only al-Tabari. For the user's full tafsir picture, also list downloaded books in the tafsir categories via shamela_list_downloaded_books(category_id=3) and (category_id=4); see coverage_note in the result.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_tafseer_of_aya"] as never,
             inputSchema: getTafseerOfAyaInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -583,6 +600,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "كتب تتضمَّن حديثًا",
             description:
                 "Given a Shamela hadith key (numeric identifier shared by all collections that record the same hadith), list every book that cites it. Uses Shamela's pre-built service/hadeeth.db join. By default filters to downloaded books only. Each result has book_id, book_name, author_name, page_id, downloaded flag. Pair with shamela_get_page to read the cited page. Useful for cross-collection hadith research (Bukhari + Muslim + Sunan + Musnad references for the same hadith), and for gathering a hadith's routes before assessing it — the tool reports where it occurs and never rules on its authenticity.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_books_for_hadith"] as never,
             inputSchema: getBooksForHadithInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -602,6 +620,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "قائمة الكتب المنزَّلة",
             description:
                 "List the books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Returns book_id, book_name, author_name, category, book_date for each. Crucial for honest research scoping: shamela_search_pages only returns hits from downloaded books, so this tool tells the LLM what's actually searchable. Paginated via limit/offset. Pass `category_id` to restrict to one category. Each book reports content_status ('readable' vs 'downloaded_no_pages' = flagged but text not openable), and the response includes library_by_category — the distribution of the whole downloaded library across categories. Example: shamela_list_downloaded_books({limit:50}) → all downloaded books; shamela_list_downloaded_books({category_id:17}) → only الفقه الحنبلي.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_list_downloaded_books"] as never,
             inputSchema: listDownloadedBooksInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -621,6 +640,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "أجزاء الكتاب",
             description:
                 "List the volumes/parts of a multi-volume book. Returns is_multi_volume flag, total_pages, and an array of parts each with part name (e.g. 'ج 1'), page_count, first_page_id, last_page_id. For single-volume books returns is_multi_volume:false and an empty parts array. Useful to know whether a citation needs a part designator. Example: shamela_get_book_parts({book_id:<id>}). Find downloaded book ids via shamela_list_downloaded_books.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_book_parts"] as never,
             inputSchema: getBookPartsInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -640,6 +660,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "إشارات الصفحة",
             description:
                 "Read the per-page services annotations (Qur'anic verses cited, hadith keys, isnād chains) for a specific (book_id, page_id). Returns has_services flag plus three arrays: ayat (cumulative aya_ids), hadeeth (hadith keys), esnad (chain strings). Many books — particularly non-hadith works — have no services and return has_services:false cleanly. Useful to pivot from a search hit to the Qur'anic/hadith content it discusses: pair the returned aya_ids with shamela_get_aya, or hadith keys with shamela_get_books_for_hadith. The `esnad` strings are the entry point for studying a chain narrator by narrator — resolve each name with shamela_search_authors.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_page_services"] as never,
             inputSchema: getPageServicesInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -659,6 +680,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث بالعبارة والتقارب",
             description:
                 "Exact-phrase and proximity search the regular search lacks. mode='phrase' matches the query words as a CONSECUTIVE phrase (e.g. «خيار المجلس» only where those two words are adjacent). mode='near' matches pages where the words occur within `distance` words of each other in any order (e.g. «بيع» near «قبض» within 5 words) — ideal for fiqh questions where related terms sit close but not adjacent. Two-stage: finds candidate pages where all words co-occur, then verifies adjacency/proximity in the full page text. Pass `scope` (book_ids/author_ids/category_ids) to cover large libraries reliably. Returns book name, author, printed page, and a snippet. Examples: shamela_search_phrase({query:'خيار المجلس'}), shamela_search_phrase({query:'بيع قبض', mode:'near', distance:5, scope:{category_ids:[17]}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_phrase"] as never,
             inputSchema: searchPhraseInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -678,6 +700,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث عن حديث بنصه",
             description:
                 "Find a hadith by its TEXT (not its numeric key). Text-searches the downloaded library (matn + footnotes), reads each matching page's service annotations for hadith keys, then resolves each key's cross-collection takhrij via hadeeth.db. Returns matched pages (snippets often show the printed takhrij «رواه البخاري ومسلم») plus cross-book takhrij where service keys exist. Note: fiqh/usul libraries frequently lack service keys on cited-hadith pages — the snippets still carry the printed takhrij. For takhrij work, search options.search_in:['foot'] alone to target editors' footnotes, where the printed referencing lives. To follow a chain narrator by narrator, read the page with shamela_get_page_services (its `esnad` array) and look each name up with shamela_search_authors. Example: shamela_search_hadith({query:'إنما الأعمال بالنيات'}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_hadith"] as never,
             inputSchema: searchHadithInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -697,6 +720,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "فحص خادم الشاملة",
             description:
                 "Self-diagnostics. Returns server version, catalog/author/category counts, downloaded-book count, and a spot-check that the first downloaded book has readable pages. Reaching this tool at all proves the backend booted; the spot-check separates 'server fine' from 'library path / content problems'. Use it FIRST when Shamela tools seem missing, empty, or erroring. Cheap and read-only.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_health"] as never,
             inputSchema: healthInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -716,6 +740,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث مطابق مع التشكيل والهمزات والأرقام",
             description:
                 "Exactness-preserving search the regular search cannot do: it honors diacritics (التشكيل), hamza/alef forms (ٱآأإ vs bare ا, plus ؤ ئ ء ى ة), and digit systems (Arabic-Indic ٠-٩ vs Western 0-9). shamela_search_pages folds all of these away (preserve_* return OPTION_NOT_SUPPORTED). Two-stage, no index change: (1) normalized AND-search gathers candidates; (2) each candidate's FULL raw SQLite text is verified in Node, folding ONLY the features you did NOT ask to preserve. Type the query WITH the diacritics/hamza/digits to enforce; enable at least one flag in `preserve`. Broad searches may miss matches outside the bounded candidate window (`candidate_cap_hit`/`total_candidates_scanned` report it) — pass `scope` for large libraries. Examples: shamela_search_exact({query:'أحمد', preserve:{preserve_hamza:true}}) won't match «احمد»; shamela_search_exact({query:'عِلْم', preserve:{preserve_diacritics:true}}) won't match «عَلَم».",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_exact"] as never,
             inputSchema: searchExactInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -735,6 +760,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "بحث منطقي (و/أو/دون)",
             description:
                 "Boolean search the AND-only regular search lacks — combines OR (any_of) and NOT (none_of) with AND (all_of). `all_of`: terms that must ALL appear (intersection). `any_of`: at least ONE must appear (union), intersected with all_of. `none_of`: pages containing ANY of these are excluded. At least one of all_of/any_of is required. Node-only set algebra over per-term AND-sub-searches: ((∩ all_of) ∩ (∪ any_of)) \\ (∪ none_of) on hit ids. Each sub-search returns a CAPPED window, so this is best-effort — `candidate_cap_hit` flags a capped term, `none_of_within_window` flags window-only exclusion, `subqueries[]` reports each term. STRONGLY prefer `scope` (an unscoped boolean over a large library is unreliable). Examples: shamela_search_boolean({all_of:['الوقف'], any_of:['المسجد','المقبرة'], none_of:['البيع'], scope:{category_ids:[17]}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_search_boolean"] as never,
             inputSchema: searchBooleanInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -754,6 +780,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "انتشار جذر في المكتبة",
             description:
                 "Profile how widely an Arabic root spreads across the DOWNLOADED library, aggregated by category / Hijri century / book / author. Runs ONE morphological (AlKhalil) page search for the root — all derived forms are counted (صابر/يصبر/اصطبار for صبر) — and returns the DISTRIBUTION only, not snippets. `total_hits` is EXACT; the by-category/century/book/author breakdown is built from at most 5,000 top-scoring hits (COVERAGE_CAP), so when `coverage_capped` is true the bucket counts are floors and shares are indicative. Morphology accuracy on classical Arabic is ~0.80 — read counts as reach, not exact tallies. Pass `scope` to profile a slice. Examples: shamela_root_stats({root:'صبر'}), shamela_root_stats({root:'رحم', scope:{category_ids:[17]}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_root_stats"] as never,
             inputSchema: rootStatsInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -773,6 +800,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "كتب حسب المدة (تأليفًا ووفاةً)",
             description:
                 "Catalog filter that keeps the TWO temporal dimensions DISTINCT (unlike scope.period_*, which conflates them). composed_from/composed_to bound the BOOK's composition year (book.book_date); died_from/died_to bound the MAIN AUTHOR's death year. A book matches only if it satisfies ALL provided constraints at once (composition-year AND death-year AND category AND downloaded) — an intersection, never a union. At least one of the four bounds is required. Also accepts category_id, downloaded_only, limit/offset. Returns book_id, book_name, main author + death_year, book_date, category, downloaded flag, and a ready-to-use book_ids[] to pass as scope.book_ids. Use when a question distinguishes 'books composed in a period' from 'books by authors who died in a period' — e.g. died_from:700, died_to:800 for 8th-century-Hijri authors.",
+            outputSchema: OUTPUT_SCHEMAS["shamela_books_by_period"] as never,
             inputSchema: booksByPeriodInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -792,6 +820,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "تغطية تفاسير آية",
             description:
                 "Per-aya tafsir coverage report: cross-references the user's DOWNLOADED tafsir shelves (categories 3 AND 4 — tafsir spans both) against the curated service/tafseer.db index and reports an honest tri-state per book. status='indexed_covers' — the index maps this aya to a page in this book (page_id + printed page included); 'indexed_no_entry_for_this_aya' — the book participates in the index but has no entry for this aya; 'not_indexed_coverage_unknown' — the book is absent from the curated index, so coverage CANNOT be determined (explicitly NOT evidence the book lacks commentary on the verse). Index hits outside categories 3/4 (e.g. mawsuʿat) are included and marked in_tafsir_categories:false. Pass either aya_id (1..6236) OR surah+aya. Returns totals per status and a note about the curated-index limitation. Never text-searches; navigate unknown-status books via shamela_get_toc. Examples: shamela_list_tafsirs_for_aya({surah:2, aya:255}), shamela_list_tafsirs_for_aya({aya_id:262}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_list_tafsirs_for_aya"] as never,
             inputSchema: listTafsirsForAyaInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -811,6 +840,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "جلب نصوص تفسير آية",
             description:
                 "Fetch the actual tafsir texts of one aya across multiple sources in a single call. Strictly index-driven: fetches ONLY pages the curated service/tafseer.db maps to this aya (no text-search fallback — it misattributes verses via shared phrases and the basmala). Pass either aya_id OR surah+aya; optional book_ids restricts sources, max_sources (default 5) caps how many are fetched. Each source carries embedded attribution (book_name, author, death_year, printed_page, page_id) plus continuation: text_part/text_total_parts/text_has_more for long pages (continue with shamela_get_page body_part=2) and next_page_id for commentary spanning pages. Requested book_ids absent from the index get an explicit status ('not_indexed' / 'no_entry_for_this_aya') with no text. The overall response respects a character budget; when cut, remaining_book_ids + a _display hint say how to continue. Use shamela_list_tafsirs_for_aya first to see coverage. Examples: shamela_get_tafseer_texts({surah:2, aya:255}), shamela_get_tafseer_texts({surah:1, aya:5, book_ids:[43], max_sources:2}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_get_tafseer_texts"] as never,
             inputSchema: getTafseerTextsInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -830,6 +860,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "دليل استخدام الإضافة",
             description:
                 "The extension's built-in Arabic user guide (user-facing markdown). Returns the full guide, or one section via the optional `section`: 'الكل' (default — the full guide), 'الأدوات' (every tool with natural-request examples), 'النصائح' (researcher tips). An unrecognized section value falls back to the full guide with a note. Serves the user when they ask what the extension can do or how to use it. Pure text — needs no library access and never fails, so it also works when the Shamela install itself is missing. Examples: shamela_guide({}), shamela_guide({section:'الأدوات'}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_guide"] as never,
             inputSchema: guideInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -848,6 +879,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             title: "إرشاد لتنزيل كتاب غير موجود",
             description:
                 "Look a book up in Shamela's FULL catalogue — downloaded or not — and say what can be done about it: already on this machine, offered for download (with its id and its shamela.ws page), or in the catalogue but not offered, in which case the user must look elsewhere. Use it whenever research needs a book that searches cannot find: a work cited by a downloaded book, a source named in an editor's footnote, or a title the user asked for. An empty search result does not say whether a book is missing from the library or missing from Shamela; this does. Downloads nothing and contacts no server — the Shamela app performs the download, and the extension picks the book up within seconds, so the same conversation can continue. Examples: shamela_suggest_download({query:'مغني المحتاج'}), shamela_suggest_download({book_ids:[6658]}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_suggest_download"] as never,
             inputSchema: suggestDownloadInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
