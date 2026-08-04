@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
+import type { Helper } from "../helper.js";
 import { VERSION } from "../constants.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
@@ -27,8 +28,29 @@ export interface HealthOutput {
     disk_scan_fell_back: boolean;
     /** Spot-check over a small sample of downloaded books: how many are actually readable? */
     readable_spot_check: { sampled: number; readable: number; unreadable_book_ids: number[] } | null;
+    /**
+     * Document counts in Shamela's Lucene indexes, plus a query that is known to
+     * match. A search returning nothing looks the same whether the word is
+     * absent or the whole index is unreachable — this separates the two without
+     * the user having to guess.
+     */
+    search_index: {
+        page_docs: number | null;
+        book_docs: number | null;
+        author_docs: number | null;
+        probe_query: string;
+        probe_hits: number | null;
+        error: string | null;
+    } | null;
     notes: string[];
 }
+
+/**
+ * A word that is common in the corpus and carries a hamza on a seat. Both
+ * properties matter: it proves the index answers at all, and it exercises the
+ * normalization path where a mismatch used to return a silent zero.
+ */
+const PROBE_QUERY = "المسائل";
 
 const SPOT_SAMPLE = 5;
 
@@ -41,6 +63,7 @@ const SPOT_SAMPLE = 5;
 export async function runHealth(
     catalog: Catalog,
     pages: PageStore,
+    helper: Helper | null,
     args: z.infer<typeof healthInput>,
 ): Promise<RenderedResponse<HealthOutput>> {
     const downloaded = catalog.downloadedBookIds();
@@ -88,6 +111,55 @@ export async function runHealth(
         );
     notes.push("the Java search engine warms up lazily; run a small search to exercise it end-to-end");
 
+    // Ask the search engine what it holds. `ping` already reports the document
+    // counts, and one probe query turns "the index is open" into "the index
+    // answers".
+    let searchIndex: HealthOutput["search_index"] = null;
+    if (helper) {
+        try {
+            const pong = await helper.ping(15_000);
+            let probeHits: number | null = null;
+            let probeError: string | null = null;
+            try {
+                const env = await helper.request<{ total_hits?: number }>("search_pages", {
+                    query: PROBE_QUERY,
+                    max_results: 1,
+                    offset: 0,
+                    options: {},
+                });
+                probeHits = env.total_hits ?? 0;
+            } catch (e) {
+                probeError = e instanceof Error ? e.message : String(e);
+            }
+            searchIndex = {
+                page_docs: pong.page_docs ?? null,
+                book_docs: pong.book_docs ?? null,
+                author_docs: pong.author_docs ?? null,
+                probe_query: PROBE_QUERY,
+                probe_hits: probeHits,
+                error: probeError,
+            };
+            if (searchIndex.page_docs === 0)
+                notes.push(
+                    "the page index reports zero documents — Shamela has not built its search index yet, or the library path points somewhere without one",
+                );
+            else if (probeHits === 0 && downloaded.size > 0)
+                notes.push(
+                    `the search index is open but a word as common as «${PROBE_QUERY}» matched nothing — searches will look empty rather than broken; please report this`,
+                );
+        } catch (e) {
+            searchIndex = {
+                page_docs: null,
+                book_docs: null,
+                author_docs: null,
+                probe_query: PROBE_QUERY,
+                probe_hits: null,
+                error: e instanceof Error ? e.message : String(e),
+            };
+            notes.push("the search engine did not respond — searches will fail until it starts");
+        }
+    }
+
     const status: HealthOutput["status"] =
         catalog.bookCount() > 0 && (spot ? spot.readable > 0 : true) ? "ok" : "degraded";
 
@@ -103,6 +175,7 @@ export async function runHealth(
         orphan_files: orphans.length,
         disk_scan_fell_back: catalog.diskScanFellBack(),
         readable_spot_check: spot,
+        search_index: searchIndex,
         notes,
     };
     return renderResponse(out, args.response_format, (data) => {
@@ -124,6 +197,19 @@ export async function runHealth(
             lines.push(
                 `- **عيّنة قابلية القراءة**: ${arabize(data.readable_spot_check.readable)} من ${arabize(data.readable_spot_check.sampled)} مقروءة${data.readable_spot_check.unreadable_book_ids.length ? ` (غير المقروءة: ${data.readable_spot_check.unreadable_book_ids.join("، ")})` : ""}`,
             );
+        if (data.search_index) {
+            const si = data.search_index;
+            lines.push(
+                `- **فهرس البحث**: ${si.page_docs === null ? "غير متاح" : `${arabize(si.page_docs)} وثيقة صفحات`}` +
+                    (si.book_docs !== null ? ` — ${arabize(si.book_docs)} كتب` : "") +
+                    (si.author_docs !== null ? ` — ${arabize(si.author_docs)} مؤلفين` : ""),
+            );
+            lines.push(
+                `- **استعلام تجريبي** «${si.probe_query}»: ${
+                    si.error ? `أخفق (${si.error})` : si.probe_hits === null ? "غير متاح" : `${arabize(si.probe_hits)} نتيجة`
+                }`,
+            );
+        }
         if (data.notes.length) {
             lines.push("", "**ملاحظات**:");
             for (const n of data.notes) lines.push(`- ${n}`);

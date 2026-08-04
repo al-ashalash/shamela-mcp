@@ -698,7 +698,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         async (args) => {
             try {
                 const b = await getBackend();
-                const r = await runHealth(b.catalog, b.pages, args as Parameters<typeof runHealth>[2]);
+                const r = await runHealth(b.catalog, b.pages, b.helper, args as Parameters<typeof runHealth>[3]);
                 return r as unknown as ToolResult;
             } catch (e) { return wrapErr(e); }
         },
@@ -895,7 +895,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         { title: "حالة خادم الشاملة", description: "فحص ذاتي: النسخة والعدّادات وقابلية القراءة.", mimeType: "application/json" },
         async (uri) => {
             const b = await getBackend();
-            const r = await runHealth(b.catalog, b.pages, healthInput.parse({ response_format: "json" }));
+            const r = await runHealth(b.catalog, b.pages, b.helper, healthInput.parse({ response_format: "json" }));
             return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(r.structuredContent, null, 2) }] };
         },
     );
