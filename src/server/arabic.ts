@@ -10,23 +10,95 @@
  * Java side.
  */
 
-// Tashkeel, tatweel, dagger-alef, Quranic annotation marks → removed.
-const DIACRITICS_RE = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
+// Tashkeel, tatweel, dagger-alef, Quranic annotation marks, and the honorific
+// ligatures → removed. Mirrors Normalize.isDropped on the Java side.
+const DIACRITICS_RE = /[ؐ-ًؚ-ٰٟۖ-ۭـ﵀-﵏﷏ﷺﷻ﷽-﷿]/g;
 
-/** Normalize an Arabic string: strip diacritics/tatweel, fold alef/ya/ta/hamza. */
-export function normalizeArabic(input: string): string {
-    if (!input) return "";
-    let s = input.normalize("NFC");
-    s = s.replace(DIACRITICS_RE, "");
-    // Fold orthographic variants.
-    s = s
+/**
+ * Ordered passes mirroring Shamela's chained MappingCharFilters. Each pass walks
+ * left-to-right and NEVER re-scans its own output; that output then feeds the
+ * next pass. The ordering is load-bearing: «يء» becomes «ئ» in P5 before P8 turns
+ * every «ئ» into «ي», which is why «شيء» is indexed as «شي».
+ *
+ * Every replacement is no longer than its key. The Java side relies on that to
+ * carry snippet offsets through the passes, so keep it true.
+ *
+ * NOTE: JavaScript alternation takes the FIRST match, not the longest. No key
+ * below is a prefix of another, so the order within each pattern is safe —
+ * re-check that before adding any rule.
+ */
+const P5_RE = /ءا|يء/g;
+const P5: Record<string, string> = { "ءا": "ء", "يء": "ئ" };
+const P6_AYA_RE = /ائ/g; // the aya index only
+const P7_RE =
+    /سماعيل|سماوات|اولائك|براهام|رحمان|اسحاق|هاذين|مائه|مائت|هاذا|ئو|ءو/g;
+const P7: Record<string, string> = {
+    "سماعيل": "سمعيل",
+    "سماوات": "سموات",
+    "اولائك": "اولئك",
+    "براهام": "براهيم",
+    "رحمان": "رحمن",
+    "اسحاق": "اسحق",
+    "هاذين": "هذين",
+    "مائه": "مئه",
+    "مائت": "مئت",
+    "هاذا": "هذا",
+    "ئو": "وو",
+    "ءو": "وو",
+};
+const P8_RE = /داوود|طاووس|ئ/g;
+const P8: Record<string, string> = {
+    "داوود": "داود",
+    "طاووس": "طاوس",
+    "ئ": "ي",
+};
+const P9_RE = /سفرايين/g;
+
+/** Character folding: drop marks, then map orthographic variants one-for-one. */
+function foldChars(input: string): string {
+    return input
+        .normalize("NFC")
+        .replace(DIACRITICS_RE, "")
         .replace(/[آأإٱ]/g, "ا") // آأإٱ → ا
         .replace(/ى/g, "ي") // ى → ي
         .replace(/ة/g, "ه") // ة → ه
         .replace(/ؤ/g, "و") // ؤ → و
-        .replace(/ئ/g, "ي") // ئ → ي
-        .replace(/ء/g, ""); // standalone hamza removed
-    return s;
+        .replace(/گ/g, "ك") // Persian gaf, in Shamela's basic map
+        .replace(/پ/g, "ب")
+        .replace(/چ/g, "ج");
+    // NOT folded, deliberately: ک (U+06A9) and ی (U+06CC) — Shamela's tables
+    // leave them alone, and the index does hold terms containing ک.
+}
+
+function runPasses(s: string, aya: boolean): string {
+    s = s.replace(P5_RE, (m) => P5[m]!);
+    if (aya) s = s.replace(P6_AYA_RE, "اا");
+    s = s.replace(P7_RE, (m) => P7[m]!);
+    s = s.replace(P8_RE, (m) => P8[m]!);
+    return s.replace(P9_RE, "سفراين");
+}
+
+/**
+ * Normalize an Arabic string the way Shamela built its page/title index.
+ *
+ * A standalone «ء» is KEPT: the live index holds 15,205 terms containing it
+ * («الوضوء», «جزء», «الفقهاء»), so stripping it silently zeroes those searches.
+ * Only the pairs «ءا» and «يء» are rewritten. The Persian «ک» (U+06A9) is
+ * likewise left alone — Shamela indexes it verbatim.
+ */
+export function normalizeArabic(input: string): string {
+    if (!input) return "";
+    return runPasses(foldChars(input), false);
+}
+
+/**
+ * Same, for Shamela's `aya` index, which adds one rule the page index lacks:
+ * «ائ» → «اا» (so «خائفين» is stored as «خاافين»). Using the page table for
+ * Quran searches silently returns zero for any word containing «ائ».
+ */
+export function normalizeArabicAya(input: string): string {
+    if (!input) return "";
+    return runPasses(foldChars(input), true);
 }
 
 /** Strip inline HTML tags (e.g. <span data-type='title'>) before tokenizing. */
@@ -102,7 +174,8 @@ const PROCLITICS = ["", "و", "ف", "ب", "ك", "ل"]; // "", و, ف, ب, ك, ل
  * re-indexing.
  */
 export function expandPrefixVariants(token: string): string[] {
-    const t = normalizeArabic(token);
+    // Its only caller is the Quran search, which queries the `aya` index.
+    const t = normalizeArabicAya(token);
     if (t.length < 2) return [t];
     const core = t.startsWith("ال") ? t.slice(2) : t; // strip leading ال
     const withAl = t.startsWith("ال") ? t : "ال" + t;
