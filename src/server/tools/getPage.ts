@@ -7,6 +7,7 @@ import type { Helper } from "../helper.js";
 import { getChunk } from "../longtext.js";
 import type { PageStore, TocEntry } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
+import { formatShortCitation } from "../citation.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
 import { requireDownloadedBook } from "../gate.js";
 
@@ -53,6 +54,14 @@ export interface GetPageOutput {
     next_page_id: number | null;
     containing_titles: ContainingTitle[];
     category_path: string[];
+    /**
+     * A ready reference for this exact page, so quoting it does not require a
+     * second call — and so the numbering caveat travels with the text rather
+     * than being looked up separately, or not at all.
+     */
+    citation: string;
+    /** True when the page number is Shamela's automatic count, not the print's. */
+    citation_auto_numbered: boolean;
 }
 
 const HTML_TAG_RE = /<[^>]+>/g;
@@ -123,7 +132,13 @@ export async function runGetPage(
             title_id: a.title_id,
             title_text: titleMap.get(a.title_id) ?? "",
             page_id: a.page_id })),
-        category_path: catalog.categoryPath(rec.book_category) };
+        category_path: catalog.categoryPath(rec.book_category),
+        citation: formatShortCitation(rec, catalog.bookAuthors(rec)[0] ?? null, {
+            page_id: args.page_id,
+            part: row?.part ?? null,
+            page: row?.page ?? null,
+        }),
+        citation_auto_numbered: rec.printed !== 1 };
     return renderResponse(out, args.response_format, (data) => {
         const lines: string[] = [];
         lines.push(header(1, `${data.book_name}${data.printed_page ? ` (ص ${arabize(data.printed_page)})` : ""}`));
@@ -144,6 +159,11 @@ export async function runGetPage(
         if (data.comment) {
             lines.push("", header(3, "التعليق"));
             lines.push(data.comment);
+        }
+        lines.push("", header(3, "الإحالة"));
+        lines.push(data.citation);
+        if (data.citation_auto_numbered) {
+            lines.push("_رقم الصفحة بترقيم الشاملة الآلي لا بترقيم المطبوع._");
         }
         return lines.join("\n");
     });
