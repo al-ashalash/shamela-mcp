@@ -38,3 +38,19 @@ export const UNDATED_BOOK_DATE = 99999;
 
 /** Bucket label for undated books in century breakdowns. */
 export const UNDATED_CENTURY_LABEL = "غير مؤرَّخ";
+
+/** Bump to invalidate every cached verse index after the parser changes. */
+export const AYA_INDEX_SCHEMA_VERSION = 1;
+/**
+ * Books indexed per tool call. Building is fast (half a second at worst), but a
+ * library with a hundred tafsirs would otherwise pay for all of them at once on
+ * a single request; the rest are reported as pending and built on the next call.
+ */
+export const AYA_INDEX_BUILD_BUDGET_PER_CALL = 8;
+/** Title ids per helper request. */
+export const TITLES_BATCH_CHUNK = 2_000;
+/**
+ * Below this share of titles carrying text, the book is assumed to be one the
+ * search engine has not read yet rather than one without titles.
+ */
+export const AYA_INDEX_MIN_TITLE_TEXT_RATIO = 0.5;

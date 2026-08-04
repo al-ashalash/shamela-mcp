@@ -60,7 +60,7 @@ const args = healthInput.parse({ response_format: "json" });
 
 describe("health reports the state of the search index", () => {
     it("reports document counts and a probe that matched", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({}), args);
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({}), null, args);
         const si = r.structuredContent.search_index!;
         expect(si.page_docs).toBe(1_111_817);
         expect(si.probe_hits).toBe(25_420);
@@ -69,7 +69,7 @@ describe("health reports the state of the search index", () => {
     });
 
     it("calls out an index that holds nothing", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ pageDocs: 0 }), args);
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ pageDocs: 0 }), null, args);
         expect(r.structuredContent.notes.join(" | ")).toContain("zero documents");
     });
 
@@ -77,25 +77,25 @@ describe("health reports the state of the search index", () => {
         // The shape of the normalization fault: the engine is fine, our query
         // is what fails to match — and it would otherwise look like an empty
         // library.
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ probeHits: 0 }), args);
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ probeHits: 0 }), null, args);
         expect(r.structuredContent.notes.join(" | ")).toContain("matched nothing");
     });
 
     it("reports a search engine that never answered, without failing the check", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ pingThrows: true }), args);
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ pingThrows: true }), null, args);
         expect(r.structuredContent.search_index!.error).toContain("helper did not start");
         expect(r.structuredContent.notes.join(" | ")).toContain("did not respond");
     });
 
     it("keeps the probe's failure separate from the engine's health", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ probeThrows: true }), args);
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ probeThrows: true }), null, args);
         const si = r.structuredContent.search_index!;
         expect(si.page_docs).toBe(1_111_817); // the engine answered
         expect(si.error).toContain("index closed"); // the query did not
     });
 
     it("still works with no helper at all", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, null, args);
+        const r = await runHealth(makeCatalog(), readablePages, null, null, args);
         expect(r.structuredContent.search_index).toBeNull();
         expect(r.structuredContent.status).toBe("ok");
     });

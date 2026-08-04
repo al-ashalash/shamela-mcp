@@ -172,6 +172,7 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_get_tafseer_of_aya: {
+        index_rows: z.number().optional(),
         aya_id: z.unknown().optional(),
         surah: z.unknown().optional(),
         surah_name: z.unknown().optional(),
@@ -213,6 +214,7 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_health: {
+        aya_index: z.unknown().optional(),
         server_version: z.unknown().optional(),
         status: z.string().optional(),
         catalog_books: z.unknown().optional(),
@@ -254,6 +256,7 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_list_tafsirs_for_aya: {
+        index_pending_book_ids: z.unknown().optional(),
         aya_id: z.unknown().optional(),
         surah: z.unknown().optional(),
         surah_name: z.unknown().optional(),

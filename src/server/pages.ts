@@ -324,6 +324,36 @@ export class PageStore {
     }
 
     /**
+     * Every row of the title tree, without the text.
+     *
+     * The text of a title is not in this file — it lives in Shamela's search
+     * index — so building a verse index needs the structure from here and the
+     * words from the helper. Returned flat and in id order, which is the order
+     * the book was written in, and which the verse index relies on.
+     */
+    async allTitleRows(
+        bookId: number,
+    ): Promise<Array<{ title_id: number; page_id: number; parent_id: number }>> {
+        const db = await this.getDb(bookId);
+        if (!db) return [];
+        const stmt = db.prepare("SELECT id, page, parent FROM title ORDER BY id");
+        const out: Array<{ title_id: number; page_id: number; parent_id: number }> = [];
+        try {
+            while (stmt.step()) {
+                const r = stmt.get();
+                out.push({
+                    title_id: r[0] as number,
+                    page_id: (r[1] as number) ?? 0,
+                    parent_id: (r[2] as number) ?? 0,
+                });
+            }
+        } finally {
+            stmt.free();
+        }
+        return out;
+    }
+
+    /**
      * Walk the title tree from root to the title that owns `pageId`. Returns
      * the chain of (title_id, parent_id, page_id) entries, root → leaf.
      */
