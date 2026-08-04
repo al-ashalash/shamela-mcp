@@ -161,7 +161,11 @@ const SERVER_INSTRUCTIONS = `أنت متصل بمكتبة المستخدم ال�
 - لا تُغرِق المستخدم بنصٍّ طويل: get_page يقطّع المتن (body_part / body_total_parts / body_has_more)، وget_pages_range وget_book_section يقفان عند ميزانية الحجم ويُرجعان next_start_page_id؛ متى طال النص فاعرضه على أجزاء أو اسأل المستخدم عن طريقة العرض (انظر الحقل _display).
 - المكتبة الشاملة متعددة التصنيفات (41 تصنيفًا، وكتب التفسير وحدها موزَّعة على التصنيفات 3 و4 و5)؛ فضيّق نطاق البحث والتصفّح بالتصنيف المناسب عبر category_id.
 - للتفسير: أداة get_tafseer_of_aya فهرسها منتقًى؛ فلبيان تغطية التفاسير المنزَّلة لآيةٍ بعينها استعمل shamela_list_tafsirs_for_aya، ولجلب النصوص من عدة مصادر دفعةً واحدة shamela_get_tafseer_texts (تفاصيل القيود في وصف كل أداة).
-- الحياد الترجيحي: اعرض أقوال المذاهب منسوبةً بأدلتها دون ترجيح إلا أن يطلبه المستخدم، وميّز النقل عن الاستنباط.
+- لا تحكم على حديثٍ بصحةٍ ولا ضعفٍ من عندك؛ إنما تنقل حكمًا وجدته في نتيجة أداة (كتخريج المحقق في الحاشية) منسوبًا إلى قائله، وتُصرِّح بأنه لم يرد إن لم يرد.
+- قبل البحث في مسألة: استوثق من صيغتها ومصطلحها عند أهل الفن، وميّز المعلوم من المطلوب، واستفصل من المستخدم إن كان السؤال محتملًا لأكثر من معنًى — فالبحث بمصطلحٍ خاطئ يعيد صفرًا صادقًا عن سؤالٍ لم يُطرح.
+- في المقارنة بين المذاهب: ابحث في تصنيف كل مذهب على حدة (لا في تصنيف واحد) حتى لا يُنسب إلى مذهبٍ ما لم تبحث فيه أصلًا، وصرِّح بأي مذهب لم تجد فيه نصًّا.
+- الحياد الترجيحي: اعرض أقوال المذاهب منسوبةً بأدلتها دون ترجيح إلا أن يطلبه المستخدم.
+- ميِّز في عرضك بين ثلاثة: نصٍّ منقولٍ بحروفه (بين قوسين)، وخلاصةٍ لكلام المصنِّف بعبارتك، واستنباطٍ منك أنت — ولا تُقدِّم الثالث في صورة الأول.
 - في الكتب التراثية ذات الفصول غير المعنونة (فهارسها «فصل» مكررة بلا عناوين) لا تكتفِ بـ get_toc للتنقل؛ اجمعه مع shamela_search_pages محصورًا بالكتاب عبر scope.book_ids.
 - أداة shamela_guide تعرض دليل استخدام الإضافة عند سؤال المستخدم عن قدراتها أو طريقة استخدامها (ولو بلفظ عام كـ«مساعدة» أو «كيف أبحث» أو «اشرح لي الإضافة»)، وللمستخدم الجديد أو الطلب الأول الغامض يناسب عرض قسمٍ موجز من الدليل أولًا.`;
 
@@ -577,7 +581,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "كتب تتضمَّن حديثًا",
             description:
-                "Given a Shamela hadith key (numeric identifier shared by all collections that record the same hadith), list every book that cites it. Uses Shamela's pre-built service/hadeeth.db join. By default filters to downloaded books only. Each result has book_id, book_name, author_name, page_id, downloaded flag. Pair with shamela_get_page to read the cited page. Useful for cross-collection hadith research (Bukhari + Muslim + Sunan + Musnad references for the same hadith).",
+                "Given a Shamela hadith key (numeric identifier shared by all collections that record the same hadith), list every book that cites it. Uses Shamela's pre-built service/hadeeth.db join. By default filters to downloaded books only. Each result has book_id, book_name, author_name, page_id, downloaded flag. Pair with shamela_get_page to read the cited page. Useful for cross-collection hadith research (Bukhari + Muslim + Sunan + Musnad references for the same hadith), and for gathering a hadith's routes before assessing it — the tool reports where it occurs and never rules on its authenticity.",
             inputSchema: getBooksForHadithInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -634,7 +638,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "إشارات الصفحة",
             description:
-                "Read the per-page services annotations (Qur'anic verses cited, hadith keys, isnād chains) for a specific (book_id, page_id). Returns has_services flag plus three arrays: ayat (cumulative aya_ids), hadeeth (hadith keys), esnad (chain strings). Many books — particularly non-hadith works — have no services and return has_services:false cleanly. Useful to pivot from a search hit to the Qur'anic/hadith content it discusses: pair the returned aya_ids with shamela_get_aya, or hadith keys with shamela_get_books_for_hadith.",
+                "Read the per-page services annotations (Qur'anic verses cited, hadith keys, isnād chains) for a specific (book_id, page_id). Returns has_services flag plus three arrays: ayat (cumulative aya_ids), hadeeth (hadith keys), esnad (chain strings). Many books — particularly non-hadith works — have no services and return has_services:false cleanly. Useful to pivot from a search hit to the Qur'anic/hadith content it discusses: pair the returned aya_ids with shamela_get_aya, or hadith keys with shamela_get_books_for_hadith. The `esnad` strings are the entry point for studying a chain narrator by narrator — resolve each name with shamela_search_authors.",
             inputSchema: getPageServicesInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
@@ -672,7 +676,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: "بحث عن حديث بنصه",
             description:
-                "Find a hadith by its TEXT (not its numeric key). Text-searches the downloaded library (matn + footnotes), reads each matching page's service annotations for hadith keys, then resolves each key's cross-collection takhrij via hadeeth.db. Returns matched pages (snippets often show the printed takhrij «رواه البخاري ومسلم») plus cross-book takhrij where service keys exist. Note: fiqh/usul libraries frequently lack service keys on cited-hadith pages — the snippets still carry the printed takhrij. Example: shamela_search_hadith({query:'إنما الأعمال بالنيات'}).",
+                "Find a hadith by its TEXT (not its numeric key). Text-searches the downloaded library (matn + footnotes), reads each matching page's service annotations for hadith keys, then resolves each key's cross-collection takhrij via hadeeth.db. Returns matched pages (snippets often show the printed takhrij «رواه البخاري ومسلم») plus cross-book takhrij where service keys exist. Note: fiqh/usul libraries frequently lack service keys on cited-hadith pages — the snippets still carry the printed takhrij. For takhrij work, search options.search_in:['foot'] alone to target editors' footnotes, where the printed referencing lives. To follow a chain narrator by narrator, read the page with shamela_get_page_services (its `esnad` array) and look each name up with shamela_search_authors. Example: shamela_search_hadith({query:'إنما الأعمال بالنيات'}).",
             inputSchema: searchHadithInputShape,
             annotations: COMMON_ANNOTATIONS,
         },
