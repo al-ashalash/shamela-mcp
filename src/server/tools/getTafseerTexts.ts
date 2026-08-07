@@ -8,6 +8,8 @@ import { getChunk } from "../longtext.js";
 import type { PageStore } from "../pages.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import { ResponseFormatInput } from "../schemas.js";
+import { locateAya } from "../ayaIndex/build.js";
+import type { AyaIndexStore } from "../ayaIndex/store.js";
 import type { ServiceStore } from "../services.js";
 import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
 
@@ -47,7 +49,20 @@ export const getTafseerTextsInputShape = {
 };
 export const getTafseerTextsInput = z.object(getTafseerTextsInputShape).strict();
 
-export type TafseerSourceStatus = "ok" | "not_indexed" | "no_entry_for_this_aya" | "not_downloaded";
+export type TafseerSourceStatus =
+    /** Text fetched, located by Shamela's own table. */
+    | "ok"
+    /** Text fetched, located from the book's own chapter markers. */
+    | "ok_titles"
+    /** Located to a marker covering several verses, this one among them. */
+    | "ok_group"
+    /** Nothing places verses in this book. */
+    | "not_indexed"
+    /** Indexed, but nothing marks this particular verse. */
+    | "no_entry_for_this_aya"
+    /** Its index has not been built yet; ask again. */
+    | "index_pending"
+    | "not_downloaded";
 
 export interface TafseerSourceText {
     book_id: number;
@@ -65,6 +80,12 @@ export interface TafseerSourceText {
     text_part: number;
     text_total_parts: number;
     text_has_more: boolean;
+    /** Which index placed this text: Shamela's table, or the book's own titles. */
+    locus_source: "service" | "titles" | null;
+    /** The chapter title that placed it, so the reader can check it directly. */
+    title_id: number | null;
+    /** How far the title index for this book may be trusted. */
+    confidence: "high" | "medium" | null;
     /** Arabic explanation for non-ok statuses or continuation advice. */
     note: string | null;
 }
@@ -75,7 +96,16 @@ export interface GetTafseerTextsOutput {
     surah_name: string;
     aya: number;
     /** Distinct books the curated index maps to this aya. */
+    /**
+     * Books whose commentary on this verse could be located, from either index.
+     * Was the size of Shamela's curated table alone, which under-reported once
+     * the books' own markers started answering too.
+     */
     total_indexed: number;
+    /** Of those, how many came from Shamela's own table. */
+    total_from_service: number;
+    /** Of those, how many were located from the books' chapter markers. */
+    total_from_titles: number;
     /** Sources for which text was actually fetched. */
     fetched: number;
     sources: TafseerSourceText[];
@@ -97,6 +127,7 @@ export async function runGetTafseerTexts(
     catalog: Catalog,
     services: ServiceStore,
     pages: PageStore,
+    ayaIndex: AyaIndexStore | null,
     args: z.infer<typeof getTafseerTextsInput>,
 ): Promise<RenderedResponse<GetTafseerTextsOutput>> {
     let resolvedId: number;
@@ -114,6 +145,49 @@ export async function runGetTafseerTexts(
     for (const h of hits) if (!hitPageByBook.has(h.book_id)) hitPageByBook.set(h.book_id, h.page_id);
     const inService = new Set(await services.listInService("tafseer"));
 
+    /**
+     * Where this verse's commentary starts in a given book.
+     *
+     * Shamela's own table answers first — it is their data about their books —
+     * and the index built from the book's chapter markers covers the rest of
+     * the shelf, which that table never did.
+     */
+    interface Locus {
+        page_id: number;
+        source: "service" | "titles";
+        title_id: number | null;
+        confidence: "high" | "medium" | null;
+        group: boolean;
+    }
+    const locusCache = new Map<number, Locus | "pending" | null>();
+    const findLocus = async (bookId: number): Promise<Locus | "pending" | null> => {
+        const cached = locusCache.get(bookId);
+        if (cached !== undefined) return cached;
+        let result: Locus | "pending" | null = null;
+        const fromService = hitPageByBook.get(bookId);
+        if (fromService !== undefined) {
+            result = { page_id: fromService, source: "service", title_id: null, confidence: null, group: false };
+        } else if (ayaIndex && catalog.isDownloaded(bookId)) {
+            const availability = await ayaIndex.get(helper, bookId);
+            if (availability.state === "ready") {
+                const found = locateAya(availability.index, sa.surah, sa.aya);
+                if (found) {
+                    result = {
+                        page_id: found.page_id,
+                        source: "titles",
+                        title_id: found.title_id || null,
+                        confidence: availability.index.confidence === "low" ? null : availability.index.confidence,
+                        group: found.group,
+                    };
+                }
+            } else if (availability.state === "pending" || availability.state === "not_built") {
+                result = "pending";
+            }
+        }
+        locusCache.set(bookId, result);
+        return result;
+    };
+
     const bookMeta = (bookId: number) => {
         const rec = catalog.bookRecord(bookId);
         const authorRec =
@@ -129,6 +203,9 @@ export async function runGetTafseerTexts(
         book_id: bookId,
         ...bookMeta(bookId),
         status,
+        locus_source: null,
+        title_id: null,
+        confidence: null,
         page_id: hitPageByBook.get(bookId) ?? null,
         printed_page: null,
         next_page_id: null,
@@ -144,38 +221,61 @@ export async function runGetTafseerTexts(
     // Fetch candidates: indexed hits, filtered to book_ids when provided,
     // downloaded books only (text lives on this machine).
     const fetchQueue: number[] = [];
+    const locusFor = new Map<number, Locus>();
+    ayaIndex?.resetBudget();
+
     if (args.book_ids?.length) {
         for (const id of args.book_ids) {
-            if (!hitPageByBook.has(id)) {
-                if (inService.has(id)) {
-                    sources.push(
-                        statusRow(
-                            id,
-                            "no_entry_for_this_aya",
-                            "الكتاب مشارك في فهرس التفسير لكن لا مدخل له لهذه الآية؛ لا يُجلب نص بلا فهرسة تفاديًا للنسبة الخاطئة.",
-                        ),
-                    );
-                } else {
-                    sources.push(
-                        statusRow(
-                            id,
-                            "not_indexed",
-                            "الكتاب غير مشمول بفهرس التفسير المنتقى فلا يمكن تحديد موضع الآية فيه؛ وليس ذلك دليلًا على خلوّه من تفسيرها — تصفَّحه بـ shamela_get_toc.",
-                        ),
-                    );
-                }
+            const locus = await findLocus(id);
+            if (locus === "pending") {
+                sources.push(
+                    statusRow(
+                        id,
+                        "index_pending",
+                        "لم يُفهرس هذا الكتاب بعد في هذه الجلسة؛ أعد الطلب ليُستكمل.",
+                    ),
+                );
+            } else if (locus === null) {
+                sources.push(
+                    statusRow(
+                        id,
+                        inService.has(id) ? "no_entry_for_this_aya" : "not_indexed",
+                        inService.has(id)
+                            ? "الكتاب مشارك في فهرس الشاملة لكن لا مدخل له لهذه الآية، ولا علامة لها في عناوينه؛ لا يُجلب نص بلا تحديد موضع تفاديًا للنسبة الخاطئة."
+                            : "لم نجد ما يحدّد موضع الآية في هذا الكتاب — لا في فهرس الشاملة ولا في عناوينه؛ وليس ذلك دليلًا على خلوّه من تفسيرها، فتصفَّحه بـ shamela_get_toc.",
+                    ),
+                );
             } else if (!catalog.isDownloaded(id)) {
                 sources.push(
-                    statusRow(id, "not_downloaded", "الكتاب مفهرس لهذه الآية لكنه غير منزَّل محليًّا فلا يمكن قراءة نصه."),
+                    statusRow(id, "not_downloaded", "موضع الآية معلوم في هذا الكتاب لكنه غير منزَّل محليًّا فلا يمكن قراءة نصه."),
                 );
             } else {
+                locusFor.set(id, locus);
                 fetchQueue.push(id);
             }
         }
     } else {
-        for (const id of hitPageByBook.keys()) {
-            if (catalog.isDownloaded(id)) fetchQueue.push(id);
+        // Everything on the shelf that can be placed, not just the books
+        // Shamela's own table happens to cover.
+        const candidates = new Set<number>(hitPageByBook.keys());
+        for (const cid of [3, 4, 5]) {
+            for (const id of catalog.booksInCategory(cid)) {
+                if (catalog.isDownloaded(id)) candidates.add(id);
+            }
         }
+        for (const id of candidates) {
+            if (!catalog.isDownloaded(id)) continue;
+            const locus = await findLocus(id);
+            if (locus === "pending" || locus === null) continue;
+            locusFor.set(id, locus);
+            fetchQueue.push(id);
+        }
+        // Books Shamela's table places come first: their locations are its own
+        // data rather than our reading of a chapter title.
+        fetchQueue.sort((a, b) => {
+            const rank = (id: number) => (locusFor.get(id)!.source === "service" ? 0 : 1);
+            return rank(a) - rank(b) || a - b;
+        });
     }
 
     const capped = fetchQueue.slice(0, args.max_sources);
@@ -187,7 +287,8 @@ export async function runGetTafseerTexts(
     let fetched = 0;
     for (let i = 0; i < capped.length; i++) {
         const bookId = capped[i]!;
-        const pageId = hitPageByBook.get(bookId)!;
+        const locus = locusFor.get(bookId)!;
+        const pageId = locus.page_id;
         if (fetched >= 1 && budgetUsed >= MULTIPAGE_CHAR_BUDGET) {
             budgetCut = true;
             remaining.unshift(...capped.slice(i));
@@ -209,10 +310,16 @@ export async function runGetTafseerTexts(
             chunk.has_more || nextPageId !== null
                 ? `التفسير قد يمتد؛ ${chunk.has_more ? `لبقية هذه الصفحة استخدم shamela_get_page(book_id=${bookId}, page_id=${pageId}, body_part=2)` : ""}${chunk.has_more && nextPageId !== null ? "، و" : ""}${nextPageId !== null ? `للصفحة التالية next_page_id=${nextPageId}` : ""}.`
                 : null;
+        const groupNote = locus.group
+            ? "هذا الموضع يغطي مجموعة آيات هذه الآية إحداها، لا الآية وحدها."
+            : null;
         sources.push({
             book_id: bookId,
             ...bookMeta(bookId),
-            status: "ok",
+            status: locus.source === "service" ? "ok" : locus.group ? "ok_group" : "ok_titles",
+            locus_source: locus.source,
+            title_id: locus.title_id,
+            confidence: locus.confidence,
             page_id: pageId,
             printed_page: printed,
             next_page_id: nextPageId,
@@ -221,7 +328,7 @@ export async function runGetTafseerTexts(
             text_part: chunk.part,
             text_total_parts: chunk.total_parts,
             text_has_more: chunk.has_more,
-            note: contNote,
+            note: [groupNote, contNote].filter(Boolean).join(" ") || null,
         });
         budgetUsed += chunk.text.length + foot.length;
         fetched++;
@@ -237,7 +344,9 @@ export async function runGetTafseerTexts(
         surah: sa.surah,
         surah_name: sa.surah_name,
         aya: sa.aya,
-        total_indexed: hitPageByBook.size,
+        total_indexed: locusFor.size + sources.filter((s) => s.status === "not_downloaded").length,
+        total_from_service: [...locusFor.values()].filter((l) => l.source === "service").length,
+        total_from_titles: [...locusFor.values()].filter((l) => l.source === "titles").length,
         fetched,
         sources,
         remaining_book_ids: remaining,
@@ -247,7 +356,7 @@ export async function runGetTafseerTexts(
     return renderResponse(out, args.response_format, (data) => {
         const lines = [
             header(1, `نصوص تفسير الآية ${data.surah_name} ${arabize(data.surah)}:${arabize(data.aya)}`),
-            `في الفهرس **${arabize(data.total_indexed)}** كتابًا لهذه الآية، جُلِب نص ${arabize(data.fetched)} منها.`,
+            `موضع الآية معلوم في **${arabize(data.total_indexed)}** كتابًا (${arabize(data.total_from_service)} من فهرس الشاملة و${arabize(data.total_from_titles)} من عناوين الكتب)، جُلِب نص ${arabize(data.fetched)} منها.`,
             "",
             `> *${data.note}*`,
         ];
