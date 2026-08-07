@@ -184,6 +184,8 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_get_tafseer_texts: {
+        total_from_service: z.number().optional(),
+        total_from_titles: z.number().optional(),
         aya_id: z.unknown().optional(),
         surah: z.unknown().optional(),
         surah_name: z.unknown().optional(),
