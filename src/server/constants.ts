@@ -28,7 +28,16 @@ export const PAGE_BODY_BUDGET = 4_000;
 export const MULTIPAGE_CHAR_BUDGET = 12_000;
 
 /** LRU cache size for per-book SQLite handles. */
-export const PER_BOOK_CACHE_LIMIT = 50;
+/**
+ * Book databases held open at once.
+ *
+ * Each entry is the whole file as a byte image in wasm memory, so this is a
+ * memory budget, not a handle count: a comparison across the four schools can
+ * touch dozens of books in one answer, and evicting them at 50 meant re-reading
+ * files that were about to be used again. Raised with that shape in mind rather
+ * than as far as it would go — the books involved run to tens of megabytes.
+ */
+export const PER_BOOK_CACHE_LIMIT = 120;
 
 /** Total verses in the Qur'an. Used for AYA_NOT_FOUND validation. */
 export const QURAN_AYA_COUNT = 6236;
