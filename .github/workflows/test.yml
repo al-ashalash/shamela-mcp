@@ -17,4 +17,13 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      # Types first: a type error fails every test below it for the same
+      # reason, and this says so in one line instead of many.
+      - run: npx tsc --noEmit -p tsconfig.json
       - run: npm run test:unit
+      # The version is written in six places and has drifted before, shipping
+      # a release page that advertised the wrong one for two versions.
+      - run: npm run check:versions
+      # A language block missing from the landing page renders blank for those
+      # readers and looks correct to anyone reviewing in Arabic or English.
+      - run: npm run check:landing
