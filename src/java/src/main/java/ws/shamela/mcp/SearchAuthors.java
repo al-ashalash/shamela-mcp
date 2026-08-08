@@ -54,6 +54,13 @@ public final class SearchAuthors {
         int fetch = Math.min(safeOffset + safeMax, 5_000);
         TopDocs top = searcher.search(q, fetch);
 
+        // A root search matches «الصابرين» for «صبر»; the root itself is not in
+        // the bio, so the literal highlighter finds nothing there.
+        List<String> morphRoots = morphology
+                ? MorphologySpans.rootsOfQuery(morphologyAnalyzer, tokens)
+                : List.of();
+        final long highlightDeadline = MorphologySpans.deadline();
+
         List<Map<String, Object>> results = new ArrayList<>();
         int seen = 0;
         for (ScoreDoc sd : top.scoreDocs) {
@@ -67,7 +74,8 @@ public final class SearchAuthors {
             catch (NumberFormatException e) { continue; }
 
             String bio = nullToEmpty(doc.get("body_store"));
-            String snippet = !bio.isEmpty() ? Snippet.make(bio, tokens) : "";
+            String snippet = Snippet.forHit(
+                    bio, tokens, morphology ? morphologyAnalyzer : null, morphRoots, highlightDeadline);
 
             Map<String, Object> hit = new LinkedHashMap<>();
             hit.put("author_id", authorId);

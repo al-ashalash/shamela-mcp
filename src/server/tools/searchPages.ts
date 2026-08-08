@@ -35,6 +35,8 @@ interface RawCoverage {
     by_book_key: Record<string, number>;
     total_seen: number;
     at_cap: boolean;
+    /** "all_results" when every match was counted, "window" when sampled. */
+    basis?: "all_results" | "window";
 }
 interface RawEnvelope {
     query: string;
@@ -73,6 +75,11 @@ export interface SearchPagesOutput {
     normalized_tokens: string[];
     scope_count: number;
     coverage: {
+        /**
+         * What the rollup below describes: "all_results" when every matching
+         * page was counted, "window" when only the fetched page of results was.
+         */
+        basis: "all_results" | "window";
         by_category: Record<string, number>;
         by_century: Record<string, number>;
         by_book: Record<string, number>;
@@ -208,6 +215,7 @@ function enrichCoverage(raw: RawCoverage, catalog: Catalog) {
         }
     }
     return {
+        basis: raw.basis === "window" ? ("window" as const) : ("all_results" as const),
         by_category: byCat,
         by_century: byCentury,
         by_book: byBook,

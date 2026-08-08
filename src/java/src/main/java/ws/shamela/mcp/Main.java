@@ -190,6 +190,35 @@ public final class Main {
                             asInt(args.get("offset"), 0),
                             boolFlag(opts, "morphology"),
                             boolFlag(opts, "wildcards"),
+                            asStringList(opts.get("search_in")),
+                            // Coverage is on unless the caller says it does not
+                            // want it, so an older client keeps what it had.
+                            !boolFlag(opts, "skip_coverage"));
+                }
+                case "search_phrase" -> {
+                    Map<String, Object> opts = (Map<String, Object>) args.getOrDefault("options", new LinkedHashMap<>());
+                    rejectPreservation(opts);
+                    yield SearchAdvanced.runPhrase(
+                            indexCache,
+                            asString(args.get("query")),
+                            asString(args.get("mode")),
+                            asInt(args.get("distance"), 5),
+                            asStringList(args.get("scope_book_keys")),
+                            asInt(args.get("max_results"), 20),
+                            asInt(args.get("offset"), 0),
+                            asStringList(opts.get("search_in")));
+                }
+                case "search_boolean" -> {
+                    Map<String, Object> opts = (Map<String, Object>) args.getOrDefault("options", new LinkedHashMap<>());
+                    rejectPreservation(opts);
+                    yield SearchAdvanced.runBoolean(
+                            indexCache,
+                            asStringList(args.get("all_of")),
+                            asStringList(args.get("any_of")),
+                            asStringList(args.get("none_of")),
+                            asStringList(args.get("scope_book_keys")),
+                            asInt(args.get("max_results"), 20),
+                            asInt(args.get("offset"), 0),
                             asStringList(opts.get("search_in")));
                 }
                 case "search_titles" -> {

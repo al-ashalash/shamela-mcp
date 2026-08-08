@@ -76,7 +76,7 @@ export async function runSearchHadith(
         scope_book_keys: null,
         max_results: args.max_pages_scanned,
         offset: 0,
-        options: { search_in: ["body", "foot"] },
+        options: { search_in: ["body", "foot"], skip_coverage: true },
     });
 
     // Stage 2: read each matching page's service keys.

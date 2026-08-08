@@ -70,6 +70,18 @@ public final class SearchBooks {
         }
 
         Coverage coverage = new Coverage();
+        // Only a scope-free search can be counted over every match: the scope
+        // here is applied after the fetch, so a full pass would count books the
+        // caller asked to leave out.
+        boolean fullCoverage = scopeIds == null && coverage.collectAll(searcher, q);
+
+        // A root search matches «الصابرين» for «صبر»; the root itself is not in
+        // the bibliography, so the literal highlighter finds nothing there.
+        List<String> morphRoots = morphology
+                ? MorphologySpans.rootsOfQuery(morphologyAnalyzer, tokens)
+                : List.of();
+        final long highlightDeadline = MorphologySpans.deadline();
+
         List<Map<String, Object>> results = new ArrayList<>();
         int seen = 0;
         for (ScoreDoc sd : top.scoreDocs) {
@@ -81,13 +93,14 @@ public final class SearchBooks {
             catch (NumberFormatException e) { continue; }
             if (scopeIds != null && !scopeIds.contains(bookId)) continue;
 
-            coverage.recordBookKey(idField);
+            if (!fullCoverage) coverage.recordBookKey(idField);
 
             if (seen++ < safeOffset) continue;
             if (results.size() >= safeMax) continue;
 
             String biblio = nullToEmpty(doc.get("body_store"));
-            String snippet = !biblio.isEmpty() ? Snippet.make(biblio, tokens) : "";
+            String snippet = Snippet.forHit(
+                    biblio, tokens, morphology ? morphologyAnalyzer : null, morphRoots, highlightDeadline);
 
             Map<String, Object> hit = new LinkedHashMap<>();
             hit.put("book_id", bookId);
@@ -98,6 +111,7 @@ public final class SearchBooks {
         Map<String, Object> coverageMap = new LinkedHashMap<>();
         coverageMap.put("by_book_key", coverage.snapshot());
         coverageMap.put("total_seen", coverage.total());
+        coverageMap.put("basis", coverage.basis() == Coverage.Basis.ALL_RESULTS ? "all_results" : "window");
 
         envelope.put("total_hits", (int) Math.min(total, Integer.MAX_VALUE));
         envelope.put("returned", results.size());
