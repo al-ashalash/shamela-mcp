@@ -124,6 +124,7 @@ import {
 import { healthInput, healthInputShape, runHealth, type HealthOutput } from "./tools/health.js";
 import { AyaIndexStore } from "./ayaIndex/store.js";
 import { OUTPUT_SCHEMAS } from "./outputSchemas.js";
+import { runDumpBook, dumpBookInputShape } from "./tools/dumpBook.js";
 import { runSuggestDownload, suggestDownloadInputShape } from "./tools/suggestDownload.js";
 import { searchExactInputShape, runSearchExact, type SearchExactOutput } from "./tools/searchExact.js";
 import { searchBooleanInputShape, runSearchBoolean, type SearchBooleanOutput } from "./tools/searchBoolean.js";
@@ -891,6 +892,31 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
             try {
                 const b = await getBackend();
                 const r = runSuggestDownload(b.catalog, args as Parameters<typeof runSuggestDownload>[1]);
+                return r as unknown as ToolResult;
+            } catch (e) { return wrapErr(e); }
+        },
+    );
+
+    // ----------- 32. shamela_dump_book -----------
+    server.registerTool(
+        "shamela_dump_book",
+        {
+            title: "تصدير الكتاب كاملًا",
+            description:
+                "Export a downloaded book's whole text as ordered records, for indexing or bulk processing rather than reading. Each page comes back with its printed page, part, the chapter heading in force there, and a ready citation, so a chunk stays attributable after it leaves this conversation. Bounded per call by `max_chars` and resumed with `next_start_page_id` — loop while `has_more` is true to walk a whole book. The text lives in structuredContent.pages; the rendered channel is a manifest only, so request response_format='json' when a pipeline is consuming it. Use shamela_get_page / shamela_get_pages_range for reading, and shamela_get_book_section for one chapter — this tool is for taking the book out whole. Examples: shamela_dump_book({book_id:9942}), shamela_dump_book({book_id:9942, start_page_id:41, include:['body'], response_format:'json'}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_dump_book"] as never,
+            inputSchema: dumpBookInputShape,
+            annotations: COMMON_ANNOTATIONS,
+        },
+        async (args) => {
+            try {
+                const b = await getBackend();
+                const r = await runDumpBook(
+                    b.helper,
+                    b.catalog,
+                    b.pages,
+                    args as Parameters<typeof runDumpBook>[3],
+                );
                 return r as unknown as ToolResult;
             } catch (e) { return wrapErr(e); }
         },
