@@ -278,7 +278,7 @@ export async function runSearchExact(
         scope_book_keys: scopeBookKeys,
         max_results: candidateCap,
         offset: 0,
-        options: { search_in: SEARCH_FIELDS },
+        options: { search_in: SEARCH_FIELDS, skip_coverage: true },
     });
     const candidates = raw.results;
     const candidateCapHit = raw.has_more || raw.total_hits > candidates.length;

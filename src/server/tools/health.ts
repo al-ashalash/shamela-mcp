@@ -140,7 +140,9 @@ export async function runHealth(
                     query: PROBE_QUERY,
                     max_results: 1,
                     offset: 0,
-                    options: {},
+                    // A smoke query wants a number, not a distribution; the
+                    // rollup would walk every match in the library for it.
+                    options: { skip_coverage: true },
                 });
                 probeHits = env.total_hits ?? 0;
             } catch (e) {

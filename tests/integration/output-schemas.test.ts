@@ -39,6 +39,15 @@ const CALLS: Array<{ name: string; args: Record<string, unknown> }> = [
         name: "shamela_search_pages",
         args: { query: "الكلام", scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 3 },
     },
+    {
+        name: "shamela_search_phrase",
+        args: { query: "الكلام لغة", scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 3 },
+    },
+    {
+        name: "shamela_search_boolean",
+        args: { all_of: ["الكلام"], any_of: ["خبر"], scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 3 },
+    },
+    { name: "shamela_root_stats", args: { root: "كلم", scope: { book_ids: [FIXTURE_BOOK_ID] } } },
     { name: "shamela_search_titles", args: { query: "تعريف", limit: 3 } },
     { name: "shamela_search_books", args: { query: "علم", limit: 3 } },
     { name: "shamela_search_authors", args: { query: "ابن", limit: 3 } },

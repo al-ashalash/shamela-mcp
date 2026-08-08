@@ -59,6 +59,9 @@ public final class SearchTitles {
         TopDocs top = searcher.search(q, fetch);
 
         Coverage coverage = new Coverage();
+        // The scope is already inside the query here, so counting every match
+        // counts exactly what the caller asked about.
+        boolean fullCoverage = coverage.collectAll(searcher, q);
         List<Map<String, Object>> results = new ArrayList<>();
         int seen = 0;
         for (ScoreDoc sd : top.scoreDocs) {
@@ -75,7 +78,7 @@ public final class SearchTitles {
                 continue;
             }
             // book_key is indexed but not stored — derive it from id.
-            coverage.recordBookKey(idField.substring(0, dash));
+            if (!fullCoverage) coverage.recordBookKey(idField.substring(0, dash));
 
             if (seen++ < safeOffset) continue;
             if (results.size() >= safeMax) continue;
@@ -97,6 +100,7 @@ public final class SearchTitles {
         Map<String, Object> coverageMap = new LinkedHashMap<>();
         coverageMap.put("by_book_key", coverage.snapshot());
         coverageMap.put("total_seen", coverage.total());
+        coverageMap.put("basis", coverage.basis() == Coverage.Basis.ALL_RESULTS ? "all_results" : "window");
 
         envelope.put("total_hits", (int) Math.min(total, Integer.MAX_VALUE));
         envelope.put("returned", results.size());

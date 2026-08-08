@@ -21,6 +21,86 @@ public final class Snippet {
     private static final int WINDOW = 80;
 
     /**
+     * A snippet for one hit, highlighted the way the query found it.
+     *
+     * A root search is handed the analyzer and the roots it was built from and
+     * marks the derived words; every other search marks the query's own
+     * characters. Passing a null analyzer, or calling past the highlighting
+     * deadline, falls back to the literal path — which for a root search
+     * usually finds nothing, and returns "" rather than a wrong mark.
+     */
+    public static String forHit(
+            String text,
+            List<String> normalizedTokens,
+            org.apache.lucene.analysis.Analyzer morphologyAnalyzer,
+            List<String> morphologyRoots,
+            long deadlineNanos
+    ) {
+        if (text == null || text.isEmpty()) return "";
+        if (morphologyAnalyzer != null
+                && morphologyRoots != null
+                && !morphologyRoots.isEmpty()
+                && System.nanoTime() < deadlineNanos) {
+            return makeMorphological(
+                    text, MorphologySpans.find(morphologyAnalyzer, text, morphologyRoots, deadlineNanos));
+        }
+        return make(text, normalizedTokens);
+    }
+
+    /**
+     * Build a snippet around words whose morphological root the query asked for.
+     *
+     * A root search matches «يصبرون» for «صبر», and the root itself is nowhere
+     * in the page, so looking for the query's characters finds nothing — which
+     * is why every morphological hit used to arrive with an empty snippet. The
+     * positions come from re-analysing the text with the same analyzer the
+     * index was built with, which reports each word's root and where it sat.
+     */
+    public static String makeMorphological(
+            String text,
+            java.util.List<MorphologySpans.Span> spans
+    ) {
+        if (text == null || text.isEmpty() || spans == null || spans.isEmpty()) return "";
+        MorphologySpans.Span first = spans.get(0);
+        int winStart = Math.max(0, first.start() - WINDOW);
+        int winEnd = Math.min(text.length(), first.end() + WINDOW);
+        String window = text.substring(winStart, winEnd);
+
+        List<int[]> rawMarks = new ArrayList<>();
+        for (MorphologySpans.Span sp : spans) {
+            if (sp.end() <= winStart || sp.start() >= winEnd) continue;
+            // Clamp to the window. Spans are collected further ahead than the
+            // window shows, so a word straddling the far edge carries an end
+            // past it; left unclamped the mark ran to the end of the snippet
+            // and swallowed the trailing text.
+            int s = Math.max(sp.start(), winStart) - winStart;
+            int e = Math.min(sp.end(), winEnd) - winStart;
+            if (e > s) rawMarks.add(new int[] { s, e });
+        }
+        StripResult stripped = stripHtmlKeepMarks(window, rawMarks);
+        String cleanedRaw = stripped.text();
+        // Wrap before collapsing whitespace: the marks are positions in the
+        // stripped text, and collapsing would move them.
+        StringBuilder sb = new StringBuilder(cleanedRaw.length() + 32);
+        int cursor = 0;
+        List<int[]> marks = new ArrayList<>(stripped.marks());
+        marks.sort((a, b) -> Integer.compare(a[0], b[0]));
+        for (int[] m : marks) {
+            int s = Math.max(cursor, Math.min(m[0], cleanedRaw.length()));
+            int e = Math.max(s, Math.min(m[1], cleanedRaw.length()));
+            if (e <= s) continue;
+            sb.append(cleanedRaw, cursor, s).append("<mark>").append(cleanedRaw, s, e).append("</mark>");
+            cursor = e;
+        }
+        sb.append(cleanedRaw, cursor, cleanedRaw.length());
+        String cleaned = sb.toString().replaceAll("[ \t\r\n]+", " ").trim();
+        if (cleaned.isEmpty()) return "";
+        String prefix = winStart > 0 ? "…" : "";
+        String suffix = winEnd < text.length() ? "…" : "";
+        return (prefix + cleaned + suffix).trim();
+    }
+
+    /**
      * Build a snippet for `text` highlighting any of `normalizedTokens`.
      * Returns "" when there's no match or no usable text.
      */

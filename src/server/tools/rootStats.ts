@@ -11,21 +11,23 @@
  * does (options.morphology = true); no Java changes. This tool deliberately
  * discards the snippet payload and keeps only the aggregation.
  *
- * HONEST CAPS — surfaced in the output so callers don't over-read the numbers:
+ * HONESTY — surfaced in the output so callers don't over-read the numbers:
  *   • `total_hits` is EXACT (Lucene `searcher.count`), i.e. the true number of
  *     pages whose morphological forms include the root.
- *   • The DISTRIBUTION (by_book/category/century/author, and `total_counted`)
- *     is built from at most COVERAGE_CAP (5,000) top-scoring hits on the Java
- *     side. When `coverage_capped` is true the breakdown is a top-5,000 SAMPLE,
- *     not the full population — treat the relative shares as indicative only.
+ *   • The DISTRIBUTION is normally exact too: the Java side counts every
+ *     matching page by book, reading a per-document book number rather than
+ *     the pages themselves. `coverage_basis` says which happened —
+ *     "all_results" for the full count, "window" when the pass was abandoned
+ *     and the numbers describe a sample instead (then `coverage_capped` is
+ *     true and the shares are indicative only).
  *   • Morphology accuracy on classical Arabic is ~0.80, so counts are indicative
  *     of reach, not exact lexical tallies (surfaced in `accuracy_note`).
  *
- * Coverage-streaming trick: the Java side records coverage for every doc in the
- * fetched window, where fetch = min(offset + max_results, 5000). max_results is
- * clamped to 100, so to make the window reach the full 5,000-hit cap we page to
- * a high offset (COVERAGE_CAP - 100) and ignore the returned page rows — only
- * the `coverage` object is used. See SearchPages.java / Coverage.java.
+ * Only the distribution is wanted here, never the page rows, so the request
+ * asks for the smallest page of results the helper will return. When the full
+ * count is unavailable the old trick is still needed — coverage then follows
+ * the fetched window, so the request is repeated with the window opened to the
+ * cap. See SearchPages.java / Coverage.java.
  */
 
 import { z } from "zod";
@@ -60,6 +62,8 @@ interface RawCoverage {
     by_book_key: Record<string, number>;
     total_seen: number;
     at_cap: boolean;
+    /** "all_results" when every match was counted, "window" when sampled. */
+    basis?: "all_results" | "window";
 }
 interface RawEnvelope {
     query: string;
@@ -97,6 +101,8 @@ export interface RootStatsOutput {
      */
     coverage_capped: boolean;
     coverage_cap: number;
+    /** "all_results" when every matching page was counted; "window" when sampled. */
+    coverage_basis: "all_results" | "window";
     scope_count: number;
     accuracy_note: string;
     by_category: CountItem[];
@@ -105,8 +111,10 @@ export interface RootStatsOutput {
     by_author: CountItem[];
 }
 
-const ACCURACY_NOTE =
-    "المطابقة صرفية عبر محلّل الخليل (يشمل المشتقات)، ودقته على العربية التراثية نحو ٠٫٨٠؛ فاعدد الأعداد مؤشِّرًا على انتشار الجذر لا إحصاءً لفظيًّا دقيقًا. وإجمالي الصفحات (total_hits) دقيق، أمّا التوزيع فيُبنى من أعلى ٥٠٠٠ نتيجة (COVERAGE_CAP) وقد يكون عيّنة عند تجاوز هذا الحدّ (coverage_capped).";
+const ACCURACY_NOTE_FULL =
+    "المطابقة صرفية عبر محلّل الخليل (يشمل المشتقات)، ودقته على العربية التراثية نحو ٠٫٨٠؛ فاعدد الأعداد مؤشِّرًا على انتشار الجذر لا إحصاءً لفظيًّا دقيقًا. وإجمالي الصفحات (total_hits) دقيق، والتوزيع محسوب على كل الصفحات الموافقة لا على عيّنة منها.";
+const ACCURACY_NOTE_SAMPLE =
+    "المطابقة صرفية عبر محلّل الخليل (يشمل المشتقات)، ودقته على العربية التراثية نحو ٠٫٨٠؛ فاعدد الأعداد مؤشِّرًا على انتشار الجذر لا إحصاءً لفظيًّا دقيقًا. وإجمالي الصفحات (total_hits) دقيق، أمّا التوزيع فتعذَّر حصره على كل النتائج فبُني من أعلى ٥٠٠٠ نتيجة (coverage_capped).";
 
 export async function runRootStats(
     helper: Helper,
@@ -127,17 +135,30 @@ export async function runRootStats(
         scopeCount = resolved.book_ids.length;
     }
 
-    // Page to a high offset so the Java coverage window (fetch = min(offset +
-    // max_results, COVERAGE_CAP)) spans the full cap. We ignore the returned
-    // page rows and read only the coverage rollup. max_results is clamped to
-    // 100 on the Java side, so offset = COVERAGE_CAP - 100 lands fetch at the cap.
-    const raw = await helper.request<RawEnvelope>("search_pages", {
+    // Ask for one row, not five thousand: the distribution comes from the
+    // coverage rollup, which now counts every matching page regardless of how
+    // many are returned. Highlighting a page that is thrown away unread is the
+    // most expensive thing this tool could do.
+    let raw = await helper.request<RawEnvelope>("search_pages", {
         query: args.root,
         scope_book_keys: scopeBookKeys,
-        max_results: 100,
-        offset: Math.max(0, COVERAGE_CAP - 100),
+        max_results: 1,
+        offset: 0,
         options: { morphology: true },
     });
+    if (raw.coverage.basis !== "all_results") {
+        // The full pass did not happen, so coverage describes the fetched
+        // window — which one row would make useless. Open the window to the cap
+        // and take the sample, saying so in the output.
+        raw = await helper.request<RawEnvelope>("search_pages", {
+            query: args.root,
+            scope_book_keys: scopeBookKeys,
+            max_results: 100,
+            offset: Math.max(0, COVERAGE_CAP - 100),
+            options: { morphology: true },
+        });
+    }
+    const fullCoverage = raw.coverage.basis === "all_results";
 
     const enriched = enrichDistribution(raw.coverage, catalog);
     const out: RootStatsOutput = {
@@ -148,8 +169,9 @@ export async function runRootStats(
         books_matched: enriched.booksMatched,
         coverage_capped: raw.coverage.at_cap,
         coverage_cap: COVERAGE_CAP,
+        coverage_basis: fullCoverage ? "all_results" : "window",
         scope_count: scopeCount,
-        accuracy_note: ACCURACY_NOTE,
+        accuracy_note: fullCoverage ? ACCURACY_NOTE_FULL : ACCURACY_NOTE_SAMPLE,
         by_category: enriched.byCategory,
         by_century: enriched.byCentury,
         by_book: enriched.byBook,
