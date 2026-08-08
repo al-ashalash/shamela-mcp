@@ -31,6 +31,7 @@ const CALLS: Array<{ name: string; args: Record<string, unknown> }> = [
     { name: "shamela_get_book", args: { book_id: FIXTURE_BOOK_ID } },
     { name: "shamela_get_page", args: { book_id: FIXTURE_BOOK_ID, page_id: 63 } },
     { name: "shamela_get_pages_range", args: { book_id: FIXTURE_BOOK_ID, start_page_id: 10, count: 2 } },
+    { name: "shamela_dump_book", args: { book_id: FIXTURE_BOOK_ID, max_chars: 2000 } },
     { name: "shamela_get_toc", args: { book_id: FIXTURE_BOOK_ID } },
     { name: "shamela_get_book_parts", args: { book_id: FIXTURE_BOOK_ID } },
     { name: "shamela_get_page_services", args: { book_id: FIXTURE_BOOK_ID, page_id: 63 } },
