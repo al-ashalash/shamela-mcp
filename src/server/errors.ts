@@ -1,7 +1,10 @@
 /**
- * Error taxonomy per `docs/architecture.md`. User-visible parts are Arabic;
- * diagnostic parts (paths, stack contexts) stay English.
+ * Error taxonomy per `docs/architecture.md`. The user-visible wording comes
+ * from the language catalogue (src/server/i18n/); the diagnostic parts — paths,
+ * technical detail, stack contexts — read the same in every language.
  */
+
+import { messages } from "./i18n/index.js";
 
 import { ShamelaNotFoundError } from "./paths.js";
 import { HelperError } from "./helper.js";
@@ -42,15 +45,13 @@ export class ShamelaError extends Error {
 }
 
 export function bookNotFound(bookId: number): ShamelaError {
-    return new ShamelaError("BOOK_NOT_FOUND", `الكتاب رقم ${bookId} غير موجود في الفهرس.`);
+    return new ShamelaError("BOOK_NOT_FOUND", messages().errors.bookNotFound(bookId));
 }
 
 export function bookNotDownloaded(bookId: number, bookName?: string): ShamelaError {
-    const name = bookName ? `«${bookName}» (${bookId})` : `رقم ${bookId}`;
-    return new ShamelaError(
-        "BOOK_NOT_DOWNLOADED",
-        `الكتاب ${name} غير منزَّل محليًّا. نزِّله من تطبيق المكتبة الشاملة أولًا.`,
-    );
+    const L = messages().errors;
+    const name = bookName ? L.bookRefNamed(bookName, bookId) : L.bookRefBare(bookId);
+    return new ShamelaError("BOOK_NOT_DOWNLOADED", L.bookNotDownloaded(name));
 }
 
 /**
@@ -62,34 +63,25 @@ export function bookNotDownloaded(bookId: number, bookName?: string): ShamelaErr
  * behaviour returned an empty page body, which reads as "this book is empty".
  */
 export function bookIndexPending(bookId: number, bookName?: string): ShamelaError {
-    const name = bookName ? `«${bookName}» (${bookId})` : `رقم ${bookId}`;
-    return new ShamelaError(
-        "BOOK_INDEX_PENDING",
-        `الكتاب ${name} نُزِّل أثناء هذه الجلسة، ومحرِّك البحث يقرأ فهارسه عند بدايتها. ` +
-            `أعد تشغيل تطبيق كلود لقراءة نصِّه؛ وبياناته وفهرسه متاحة الآن.`,
-    );
+    const L = messages().errors;
+    const name = bookName ? L.bookRefNamed(bookName, bookId) : L.bookRefBare(bookId);
+    return new ShamelaError("BOOK_INDEX_PENDING", L.bookIndexPending(name));
 }
 
 export function authorNotFound(authorId: number): ShamelaError {
-    return new ShamelaError("AUTHOR_NOT_FOUND", `المؤلف رقم ${authorId} غير موجود في الفهرس.`);
+    return new ShamelaError("AUTHOR_NOT_FOUND", messages().errors.authorNotFound(authorId));
 }
 
 export function categoryNotFound(categoryId: number): ShamelaError {
-    return new ShamelaError("CATEGORY_NOT_FOUND", `التصنيف رقم ${categoryId} غير موجود.`);
+    return new ShamelaError("CATEGORY_NOT_FOUND", messages().errors.categoryNotFound(categoryId));
 }
 
 export function pageNotFound(bookId: number, pageId: number): ShamelaError {
-    return new ShamelaError(
-        "PAGE_NOT_FOUND",
-        `الصفحة رقم ${pageId} غير موجودة في الكتاب ${bookId}.`,
-    );
+    return new ShamelaError("PAGE_NOT_FOUND", messages().errors.pageNotFound(bookId, pageId));
 }
 
 export function titleNotFound(bookId: number, titleId: number): ShamelaError {
-    return new ShamelaError(
-        "TITLE_NOT_FOUND",
-        `العنوان رقم ${titleId} غير موجود في الكتاب ${bookId}.`,
-    );
+    return new ShamelaError("TITLE_NOT_FOUND", messages().errors.titleNotFound(bookId, titleId));
 }
 
 export function ayaNotFound(detail: string): ShamelaError {
@@ -98,11 +90,7 @@ export function ayaNotFound(detail: string): ShamelaError {
 
 export function emptyScope(diagnostics: Array<{ source: string; contributed: number }>): ShamelaError {
     const lines = diagnostics.map((d) => `  ${d.source}: ${d.contributed}`).join("\n");
-    return new ShamelaError(
-        "EMPTY_SCOPE",
-        `النطاق المحدَّد لا يشمل أي كتاب. تشخيص:\n${lines}`,
-        { diagnostics },
-    );
+    return new ShamelaError("EMPTY_SCOPE", messages().errors.emptyScope(lines), { diagnostics });
 }
 
 export function optionNotSupported(name: string): ShamelaError {
@@ -121,10 +109,7 @@ export function badArg(message: string): ShamelaError {
 }
 
 export function serviceKeyNotFound(service: string, key: number): ShamelaError {
-    return new ShamelaError(
-        "SERVICE_KEY_NOT_FOUND",
-        `لا توجد كتب مفهرسة للمفتاح ${key} في خدمة ${service}.`,
-    );
+    return new ShamelaError("SERVICE_KEY_NOT_FOUND", messages().errors.serviceKeyNotFound(service, key));
 }
 
 /** Format any error for an MCP tool error response. */
@@ -163,12 +148,7 @@ export function errorCode(err: unknown): ErrorCode {
  * the fix is to update it, so say that.
  */
 export function engineTooOld(installRoot: string): ShamelaError {
-    return new ShamelaError(
-        "ENGINE_TOO_OLD",
-        `نسخة برنامج «المكتبة الشاملة» المثبَّتة في ${installRoot} أقدم من أن تُشغِّل محرك البحث الذي تحتاجه الإضافة. ` +
-            `حدِّث برنامج المكتبة الشاملة إلى أحدث إصدار، ثم أعد تشغيل تطبيق كلود. ` +
-            `(الإضافة تستعمل محرك البحث المرفق مع البرنامج نفسه، ولا تحمل نسخة خاصة بها.)`,
-    );
+    return new ShamelaError("ENGINE_TOO_OLD", messages().errors.engineTooOld(installRoot));
 }
 
 /**
@@ -179,10 +159,5 @@ export function engineTooOld(installRoot: string): ShamelaError {
  * died".
  */
 export function indexNotReady(detail: string): ShamelaError {
-    return new ShamelaError(
-        "INDEX_NOT_READY",
-        `تعذَّر فتح فهارس البحث الخاصة بالمكتبة الشاملة. ` +
-            `تأكَّد أن البرنامج ليس في أثناء تنزيل كتاب أو إعادة بناء فهرس، ثم أعد المحاولة. ` +
-            `التفصيل التقني: ${detail}`,
-    );
+    return new ShamelaError("INDEX_NOT_READY", messages().errors.indexNotReady(detail));
 }

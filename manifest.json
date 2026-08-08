@@ -26,7 +26,8 @@
       ],
       "env": {
         "SHAMELA_INSTALL_ROOT": "${user_config.shamela_install_folder}",
-        "SHAMELA_JRE": "${user_config.jre_path}"
+        "SHAMELA_JRE": "${user_config.jre_path}",
+        "SHAMELA_LANG": "${user_config.language}"
       }
     }
   },
@@ -42,6 +43,13 @@
       "type": "file",
       "title": "مسار جافا (إعداد متقدم)",
       "description": "مسار ملف جافا التنفيذي. اترك الحقل فارغًا لاستخدام جافا المرفقة مع المكتبة الشاملة.",
+      "required": false,
+      "default": ""
+    },
+    "language": {
+      "type": "string",
+      "title": "لغة الواجهة / Interface language",
+      "description": "رمز لغة واجهة الإضافة: ar للعربية (الافتراض)، en للإنجليزية. اترك الحقل فارغًا للعربية. — Interface language code: ar for Arabic (default), en for English. Leave empty for Arabic. This changes only how the extension talks; the library and its texts stay Arabic.",
       "required": false,
       "default": ""
     }
