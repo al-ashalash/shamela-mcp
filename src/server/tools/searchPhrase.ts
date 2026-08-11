@@ -84,6 +84,8 @@ export interface PhraseHit {
     page_id: number;
     printed_page: string | null;
     matched_in: string[];
+    /** False when the book's page file is not on disk (issue #47). */
+    readable: boolean;
     snippet_body: string;
     snippet_foot: string;
 }
@@ -149,6 +151,7 @@ export async function runSearchPhrase(
             page_id: c.page_id,
             printed_page: printed,
             matched_in: c.matched_in,
+            readable: catalog.isDownloaded(c.book_id) || catalog.confirmOnDisk(c.book_id),
             snippet_body: c.snippet_body,
             snippet_foot: c.snippet_foot,
         });
@@ -182,7 +185,7 @@ export async function runSearchPhrase(
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}${r.readable ? "" : ` ${L.unreadableHit}`}`,
             );
             if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);

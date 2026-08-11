@@ -62,6 +62,11 @@ export interface SearchPageHit {
     page_id: number;
     printed_page: string | null;
     matched_in: string[];
+    /**
+     * False when the book's page file is not on disk — the index answered, but
+     * get_page will refuse. Issue #47: a hit that cannot be read must say so.
+     */
+    readable: boolean;
     snippet_body: string;
     snippet_foot: string;
     snippet_comment?: string;
@@ -144,6 +149,8 @@ export async function runSearchPages(
             page_id: hit.page_id,
             printed_page: printedByBook.get(hit.book_id)?.get(hit.page_id) ?? null,
             matched_in: hit.matched_in,
+            // The same judgement the reading gate makes, so search and read agree.
+            readable: catalog.isDownloaded(hit.book_id) || catalog.confirmOnDisk(hit.book_id),
             snippet_body: hit.snippet_body,
             snippet_foot: hit.snippet_foot,
             ...(hit.snippet_comment ? { snippet_comment: hit.snippet_comment } : {}),
@@ -171,7 +178,7 @@ export async function runSearchPages(
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}${r.readable ? "" : ` ${L.unreadableHit}`}`,
             );
             if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);

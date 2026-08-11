@@ -2,6 +2,8 @@ import type { Slice } from "../labels.js";
 
 /** Wording for shamela_search_pages. Arabic first; English translates it. */
 export const searchPagesLabels: Slice<{
+    /** Appended to a hit whose book file is missing (issue #47). */
+    unreadableHit: string;
     heading: (query: string) => string;
     /** How many pages matched, how many are on screen, and where the window starts. */
     /**
@@ -18,6 +20,7 @@ export const searchPagesLabels: Slice<{
     more: (offset: string) => string;
 }> = {
     ar: {
+        unreadableHit: "⚠️ ملف الكتاب غير موجود على القرص — لن تنجح قراءته",
         heading: (query) => `نتائج البحث في الصفحات: «${query}»`,
         summary: (total, returned, offset) =>
             `**${total}** صفحة موافقة، عرض ${returned} ابتداءً من ${offset}.`,
@@ -28,6 +31,7 @@ export const searchPagesLabels: Slice<{
         more: (offset) => `*للمزيد، استخدم \`offset=${offset}\`.*`,
     },
     en: {
+        unreadableHit: "⚠️ the book's file is not on disk — reading it will fail",
         heading: (query) => `Page search results: "${query}"`,
         summary: (total, returned, offset, n) =>
             `**${total}** ${n === 1 ? "page matches" : "pages match"}, showing ${returned} starting at ${offset}.`,
