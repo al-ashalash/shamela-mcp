@@ -2,6 +2,8 @@ import type { Slice } from "../labels.js";
 
 /** Wording for shamela_search_boolean. Arabic first; English translates it. */
 export const searchBooleanLabels: Slice<{
+    /** Appended to a hit whose book file is missing (issue #47). */
+    unreadableHit: string;
     /** AND — every term must be on the page. */
     allOf: (terms: string[]) => string;
     /** OR — at least one of the terms must be on the page. */
@@ -26,6 +28,7 @@ export const searchBooleanLabels: Slice<{
     more: (offset: string) => string;
 }> = {
     ar: {
+        unreadableHit: "⚠️ ملف الكتاب غير موجود على القرص — لن تنجح قراءته",
         allOf: (terms) => `الكل: «${terms.join("» و«")}»`,
         anyOf: (terms) => `أيّ: «${terms.join("» أو «")}»`,
         noneOf: (terms) => `دون: «${terms.join("» و«")}»`,
@@ -41,6 +44,7 @@ export const searchBooleanLabels: Slice<{
         more: (offset) => `*للمزيد، استخدم \`offset=${offset}\`.*`,
     },
     en: {
+        unreadableHit: "⚠️ the book's file is not on disk — reading it will fail",
         allOf: (terms) => `All: "${terms.join('" and "')}"`,
         anyOf: (terms) => `Any: "${terms.join('" or "')}"`,
         noneOf: (terms) => `None: "${terms.join('" and "')}"`,

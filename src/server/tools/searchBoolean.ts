@@ -100,6 +100,8 @@ export interface BooleanHit {
     page_id: number;
     printed_page: string | null;
     matched_in: string[];
+    /** False when the book's page file is not on disk (issue #47). */
+    readable: boolean;
     /** Which all_of/any_of terms this page's window hit came from. */
     matched_terms: string[];
     snippet_body: string;
@@ -220,6 +222,7 @@ export async function runSearchBoolean(
             page_id: h.page_id,
             printed_page: printedByBook.get(h.book_id)?.get(h.page_id) ?? null,
             matched_in: h.matched_in,
+            readable: catalog.isDownloaded(h.book_id) || catalog.confirmOnDisk(h.book_id),
             matched_terms: h.matched_terms ?? [],
             snippet_body: h.snippet_body,
             snippet_foot: h.snippet_foot,
@@ -261,7 +264,7 @@ export async function runSearchBoolean(
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${r.page_id}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${r.page_id}${r.readable ? "" : ` ${L.unreadableHit}`}`,
             );
             if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.matched_terms.length) lines.push(L.matchedTerms(r.matched_terms));

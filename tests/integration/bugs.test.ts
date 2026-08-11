@@ -9,7 +9,11 @@ import { describe, it, expect, beforeAll } from "vitest";
 import type { Catalog } from "../../src/server/catalog.js";
 import { runSearchBooks } from "../../src/server/tools/searchBooks.js";
 import type { Helper } from "../../src/server/helper.js";
-import { getCatalog, getHelper } from "../fixtures/shared.js";
+import { runGetBook, getBookInput } from "../../src/server/tools/getBook.js";
+import { runGetPage, getPageInput } from "../../src/server/tools/getPage.js";
+import { runGetPagesRange, getPagesRangeInput } from "../../src/server/tools/getPagesRange.js";
+import { runSearchPages, searchPagesInput } from "../../src/server/tools/searchPages.js";
+import { FIXTURE_BOOK_ID, getCatalog, getHelper, getPageStore } from "../fixtures/shared.js";
 
 describe("Bug #2 — search_books must honor scope in total_hits/has_more/next_offset", () => {
     let helper: Helper;
@@ -105,4 +109,107 @@ describe("Bug #2 — search_books must honor scope in total_hits/has_more/next_o
             expect(r.structuredContent.next_offset).toBeUndefined();
         }
     });
+});
+
+describe("Issue #47 — search must never point at pages that cannot be read", () => {
+    // The report: search_pages returned 73 hits with page ids for a book that
+    // get_book called downloaded_no_pages, and get_page then failed. The books
+    // involved (1000, 71) share one property: id % 1000 < 100, so their folder
+    // name is zero-padded («000», «071») — the bucket bug. Book 101 worked
+    // because 101 needs no padding.
+    //
+    // Two contracts pinned here. First, on a padded-bucket book that IS on
+    // disk, the reporter's exact sequence must succeed end to end. Second, when
+    // the index and the files genuinely diverge, every search hit must carry
+    // readable:false rather than a page id that will only fail — search answers
+    // from the index alone, so it is the tool that lies first.
+
+    it("replays the reported sequence on a padded-bucket book from this library", async () => {
+        const catalog = await getCatalog();
+        const helper = await getHelper();
+        const pages = await getPageStore();
+
+        // Find a downloaded book the shape of the reporter's: bucket < 100.
+        // Discovered from the live catalog rather than hardcoded, so the test
+        // runs on any library that has one (43 padded buckets exist on the
+        // machine the bug was diagnosed on; skip honestly if a library has none).
+        const padded = [...catalog.downloadedBookIds()].filter((id) => id % 1000 < 100).slice(0, 2);
+        if (padded.length === 0) {
+            // Not silent: the suite still asserts the discovery ran against a
+            // real catalog. A library with no padded books cannot regress here.
+            expect(catalog.downloadedBookIds().size).toBeGreaterThan(0);
+            return;
+        }
+
+        for (const bookId of padded) {
+            // Step 1 of the report: the book must not claim to have no pages.
+            const book = await runGetBook(catalog, pages, helper, getBookInput.parse({ book_id: bookId }));
+            expect(book.structuredContent.content_status, `book ${bookId}`).toBe("readable");
+
+            // Step 2: search inside it.
+            const env = await helper.request<{
+                total_hits: number;
+                results: Array<{ page_id: number; readable?: boolean }>;
+            }>("search_pages", {
+                query: "من",
+                scope_book_keys: [String(bookId)],
+                max_results: 3,
+                offset: 0,
+                options: { skip_coverage: true },
+            });
+            if (env.results.length === 0) continue; // a book with no «من» proves nothing
+
+            // Step 3, where the report failed: every hit must be retrievable.
+            for (const hit of env.results) {
+                const page = await runGetPage(
+                    helper, catalog, pages,
+                    getPageInput.parse({ book_id: bookId, page_id: hit.page_id }),
+                );
+                const sc = page.structuredContent;
+                // The page exists and carries text somewhere — matn or footnote.
+                expect(
+                    (sc.body ?? "").length + (sc.foot ?? "").length,
+                    `book ${bookId} page ${hit.page_id}`,
+                ).toBeGreaterThan(0);
+            }
+
+            // Step 4, the silent-empty complaint: a range from the top of the
+            // book must return pages, not an empty success.
+            const range = await runGetPagesRange(
+                helper, catalog, pages,
+                getPagesRangeInput.parse({ book_id: bookId, start_page_id: 1, count: 2 }),
+            );
+            expect(range.structuredContent.count, `book ${bookId} range`).toBeGreaterThan(0);
+        }
+    }, 120_000);
+
+    it("marks hits readable:false when the index answers for a book whose file is gone", async () => {
+        const helper = await getHelper();
+        const pages = await getPageStore();
+        const realCatalog = await getCatalog();
+
+        // The diverged state cannot be created against the real library — the
+        // extension never writes there — so the judgement is faked instead:
+        // same catalog, except the book's file is reported missing.
+        const catalog = new Proxy(realCatalog, {
+            get(target, prop, receiver) {
+                if (prop === "isDownloaded" || prop === "confirmOnDisk") return () => false;
+                const v = Reflect.get(target, prop, receiver);
+                return typeof v === "function" ? v.bind(target) : v;
+            },
+        }) as typeof realCatalog;
+
+        const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
+            query: "الكلام",
+            scope: { book_ids: [FIXTURE_BOOK_ID] },
+            limit: 2,
+        }));
+        const sc = out.structuredContent;
+        expect(sc.results.length).toBeGreaterThan(0);
+        for (const r of sc.results) {
+            expect(r.readable, `hit ${r.page_id}`).toBe(false);
+        }
+        // And the reader is warned in the rendered text, not only in a field.
+        expect(out.content[0]!.text).toContain("⚠️");
+    }, 60_000);
 });
