@@ -233,6 +233,10 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_health: {
+        // Present only when the extension could not start. Undeclared, the
+        // protocol's additionalProperties:false would reject the very response
+        // that explains the failure.
+        startup_error: z.unknown().optional(),
         aya_index: z.unknown().optional(),
         server_version: z.unknown().optional(),
         status: z.string().optional(),

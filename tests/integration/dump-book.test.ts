@@ -9,6 +9,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
 
 import { runDumpBook, dumpBookInput } from "../../src/server/tools/dumpBook.js";
+import { arabize } from "../../src/server/format.js";
+import { runGetPagesRange, getPagesRangeInput } from "../../src/server/tools/getPagesRange.js";
 import { FIXTURE_BOOK_ID, getBackend } from "../fixtures/shared.js";
 import type { Backend } from "../../src/server/index.js";
 
@@ -99,4 +101,67 @@ describe("shamela_dump_book", () => {
             code: expect.stringMatching(/BOOK_NOT_FOUND|BOOK_NOT_DOWNLOADED/),
         });
     });
+});
+
+/**
+ * A citation that reads «ص NaN».
+ *
+ * printedPage returns a formatted LABEL, and for a page inside a volume that
+ * label is "1/ 5" — the volume and the page together. Number() of it is NaN,
+ * which passes every null check and reaches the reader. The fixture book is a
+ * single volume and its label is a bare number, so it cannot show this: the
+ * test has to find a multi-volume book, and there is no point hardcoding one
+ * because the library differs per machine.
+ */
+describe("citations of a book that has volumes", () => {
+    let backend: Backend;
+    let multiVolumeBookId: number | null = null;
+
+    beforeAll(async () => {
+        backend = await getBackend();
+        for (const id of [...backend.catalog.downloadedBookIds()].slice(0, 400)) {
+            if ((await backend.pages.getBookParts(id)).length > 1) {
+                multiVolumeBookId = id;
+                break;
+            }
+        }
+    }, 120_000);
+
+    it("dump_book gives the page number, not NaN", async () => {
+        if (multiVolumeBookId === null) {
+            // Not silent: a library with no multi-volume book cannot regress
+            // here, but the search for one must have run against a real catalog.
+            expect(backend.catalog.downloadedBookIds().size).toBeGreaterThan(0);
+            return;
+        }
+        const out = await runDumpBook(
+            backend.helper, backend.catalog, backend.pages,
+            dumpBookInput.parse({ book_id: multiVolumeBookId, max_chars: 3000 }),
+        );
+        const pages = out.structuredContent.pages;
+        expect(pages.length).toBeGreaterThan(0);
+        for (const p of pages) {
+            expect(p.citation, `book ${multiVolumeBookId} page ${p.page_id}`).not.toMatch(/NaN/);
+            // The label still carries the volume, so the two are not confused:
+            // a citation that dropped to the volume number would also pass a
+            // bare "no NaN" check.
+            if (p.printed_page && /^\s*\d+\s*\/\s*(\d+)/.test(p.printed_page)) {
+                const printedNumber = /^\s*\d+\s*\/\s*(\d+)/.exec(p.printed_page)![1]!;
+                expect(p.citation, `page ${p.page_id} should cite page ${printedNumber}`).toContain(
+                    arabize(printedNumber),
+                );
+            }
+        }
+    }, 120_000);
+
+    it("get_pages_range gives the page number, not NaN", async () => {
+        if (multiVolumeBookId === null) return;
+        const out = await runGetPagesRange(
+            backend.helper, backend.catalog, backend.pages,
+            getPagesRangeInput.parse({ book_id: multiVolumeBookId, start_page_id: 1, count: 3 }),
+        );
+        for (const p of out.structuredContent.pages) {
+            expect(p.citation, `page ${p.page_id}`).not.toMatch(/NaN/);
+        }
+    }, 120_000);
 });

@@ -178,7 +178,11 @@ export async function runDumpBook(
                 citation: formatShortCitation(rec, mainAuthor, {
                     page_id: r.page_id,
                     part: r.part,
-                    page: printed !== null ? Number(printed) : null,
+                    // The numeric column, not the printed label: printedPage
+                    // formats a part-bearing page as "1/ 5", and Number() of
+                    // that is NaN — which passes every null check and reaches
+                    // the reader as «ص NaN».
+                    page: r.page,
                 }),
             });
             chars += size;
