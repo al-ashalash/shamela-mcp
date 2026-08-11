@@ -2,6 +2,16 @@ import type { Slice } from "../labels.js";
 
 /** Wording for shamela_health. Arabic first; English translates it. */
 export const healthLabels: Slice<{
+    /**
+     * The report shown when the extension could not start at all (issue #42).
+     * Deliberately says what to DO, not only what failed: the reader of this
+     * text is someone for whom every other tool just returned an error.
+     */
+    notStartedHeading: string;
+    notStartedLead: (code: string) => string;
+    installRootLine: (root: string) => string;
+    catalogStillReadable: (books: string, downloaded: string) => string;
+    catalogUnreadable: string;
     heading: (status: string) => string;
     ok: string;
     degraded: string;
@@ -25,6 +35,13 @@ export const healthLabels: Slice<{
     notesHeading: string;
 }> = {
     ar: {
+        notStartedHeading: "الإضافة لم تبدأ",
+        notStartedLead: (code) =>
+            `تعذَّر تشغيل الإضافة، فكل أداة ستُرجع الخطأ نفسه حتى يُعالَج السبب (الرمز: ${code}).`,
+        installRootLine: (root) => `مجلد الشاملة الذي وُجد: \`${root}\``,
+        catalogStillReadable: (books, downloaded) =>
+            `وفهرس الكتب نفسه يُقرأ: ${books} كتابًا في الفهرس، ${downloaded} منزَّلًا على القرص — فالعطل في محرك البحث لا في مكتبتك.`,
+        catalogUnreadable: "ولم يُقرأ فهرس الكتب أيضًا — تأكَّد أن مسار مجلد الشاملة في إعدادات الإضافة صحيح.",
         heading: (status) => `فحص خادم الشاملة — ${status}`,
         ok: "سليم ✅",
         degraded: "متعثر ⚠️",
@@ -52,6 +69,13 @@ export const healthLabels: Slice<{
         notesHeading: "**ملاحظات**:",
     },
     en: {
+        notStartedHeading: "The extension did not start",
+        notStartedLead: (code) =>
+            `The extension could not start, so every tool will return this same error until the cause is fixed (code: ${code}).`,
+        installRootLine: (root) => `Shamela folder found at: \`${root}\``,
+        catalogStillReadable: (books, downloaded) =>
+            `The book catalogue itself reads fine: ${books} books in the catalogue, ${downloaded} downloaded on disk — so the fault is in the search engine, not in your library.`,
+        catalogUnreadable: "The book catalogue could not be read either — check that the Shamela folder path in the extension's settings is correct.",
         heading: (status) => `Shamela server check — ${status}`,
         ok: "Healthy ✅",
         degraded: "Degraded ⚠️",

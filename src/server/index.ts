@@ -215,6 +215,44 @@ export function readyTimeoutMs(): number {
     return Math.min(parsed, 300_000);
 }
 
+/**
+ * What could be built, when the whole backend could not be.
+ *
+ * Everything here except the helper is SQLite, and SQLite loads on installs the
+ * JVM helper refuses to run on. Diagnosis needs those parts and does not need
+ * the helper, so this returns them with the reason the rest is missing.
+ */
+export interface PartialBackend {
+    catalog: Catalog | null;
+    pages: PageStore | null;
+    paths: ShamelaPaths | null;
+    /** Why the full backend could not be built. */
+    startupError: unknown;
+}
+
+/**
+ * Rebuild as much as possible after createBackend failed, for shamela_health.
+ *
+ * Deliberately repeats createBackend's early steps rather than sharing them: a
+ * diagnostic that goes through the same code path as the thing it is
+ * diagnosing fails in the same place and reports nothing.
+ */
+export async function createPartialBackend(startupError: unknown): Promise<PartialBackend> {
+    let paths: ShamelaPaths | null = null;
+    let catalog: Catalog | null = null;
+    let pages: PageStore | null = null;
+    try {
+        paths = await resolveAll();
+        const masterDb = (await import("node:path")).join(paths.database, "master.db");
+        catalog = await Catalog.load(masterDb, SQL_WASM_BINARY, { databaseRoot: paths.database });
+        pages = new PageStore(paths.database, SQL_WASM_BINARY);
+    } catch {
+        // Whatever was reached is what health reports; the rest stays null and
+        // the caller says so.
+    }
+    return { catalog, pages, paths, startupError };
+}
+
 /** Build the long-lived backend (paths, catalog, page/service stores, JVM helper). */
 export async function createBackend(): Promise<Backend> {
     const paths = await resolveAll();
@@ -714,8 +752,25 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         },
         async (args) => {
             try {
-                const b = await getBackend();
-                const r = await runHealth(b.catalog, b.pages, b.helper, b.ayaIndex, args as Parameters<typeof runHealth>[4]);
+                let b: Backend | null = null;
+                let partial: PartialBackend | null = null;
+                try {
+                    b = await getBackend();
+                } catch (startupError) {
+                    // The extension is not working. Saying why IS this tool's job,
+                    // so it must not fail with everything else (issue #42).
+                    partial = await createPartialBackend(startupError);
+                }
+                const r = b
+                    ? await runHealth(b.catalog, b.pages, b.helper, b.ayaIndex, args as Parameters<typeof runHealth>[4])
+                    : await runHealth(
+                          partial!.catalog,
+                          partial!.pages,
+                          null,
+                          null,
+                          args as Parameters<typeof runHealth>[4],
+                          { startupError: partial!.startupError, paths: partial!.paths },
+                      );
                 return r as unknown as ToolResult;
             } catch (e) { return wrapErr(e); }
         },
