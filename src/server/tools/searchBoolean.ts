@@ -127,8 +127,6 @@ export interface SearchBooleanOutput {
     results: BooleanHit[];
 }
 
-const key = (h: { book_id: number; page_id: number }): string => `${h.book_id}:${h.page_id}`;
-
 export async function runSearchBoolean(
     helper: Helper,
     catalog: Catalog,

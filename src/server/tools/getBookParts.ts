@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Catalog } from "../catalog.js";
 import type { BookPart, PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { getBookPartsLabels } from "../i18n/tools/getBookParts.js";
 import { requireDownloadedBook } from "../gate.js";

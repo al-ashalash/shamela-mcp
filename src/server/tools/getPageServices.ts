@@ -32,7 +32,9 @@ export async function runGetPageServices(
 ): Promise<RenderedResponse<GetPageServicesOutput>> {
     // Served from the per-book SQLite file, so a book downloaded during
     // this session works right away — no Lucene reader involved.
-    const book = requireDownloadedBook(catalog, args.book_id, { needsTextIndex: false });
+    // Called for the throw, not the record: this is the gate that refuses a
+    // book the user does not have.
+    requireDownloadedBook(catalog, args.book_id, { needsTextIndex: false });
     const row = await pages.getPageRow(args.book_id, args.page_id);
     if (!row) throw pageNotFound(args.book_id, args.page_id);
     const services = await pages.getPageServices(args.book_id, args.page_id);
