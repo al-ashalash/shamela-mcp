@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Catalog } from "../catalog.js";
 import type { Helper } from "../helper.js";
 import { VERSION } from "../constants.js";
+import { errorCode, formatErrorMessage } from "../errors.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { renderResponse, type RenderedResponse, header } from "../format.js";
@@ -14,7 +15,14 @@ export const healthInput = z.object(healthInputShape).strict();
 
 export interface HealthOutput {
     server_version: string;
-    status: "ok" | "degraded";
+    status: "ok" | "degraded" | "not_started";
+    /**
+     * Present only when the extension could not start at all: the reason, in
+     * the user's language, plus what to do about it. Issue #42 — an install
+     * Shamela never upgraded fails every tool, and this is the tool that has
+     * to say why rather than fail with them.
+     */
+    startup_error?: { code: string; message: string; install_root: string | null };
     catalog_books: number;
     catalog_authors: number;
     categories: number;
@@ -77,12 +85,17 @@ const SPOT_SAMPLE = 5;
  * "library path / content problems" when users report missing/empty tools.
  */
 export async function runHealth(
-    catalog: Catalog,
-    pages: PageStore,
+    catalog: Catalog | null,
+    pages: PageStore | null,
     helper: Helper | null,
     ayaIndex: { stats(): HealthOutput["aya_index"] } | null,
     args: z.infer<typeof healthInput>,
+    /** Set when createBackend threw: what failed, and how far setup got. */
+    diagnosis?: { startupError: unknown; paths: { installRoot: string } | null },
 ): Promise<RenderedResponse<HealthOutput>> {
+    if (diagnosis || catalog === null || pages === null) {
+        return notStarted(catalog, diagnosis, args);
+    }
     const downloaded = catalog.downloadedBookIds();
     // Computed over the whole library from sets already in memory — no disk
     // access — so this is an exact count, not something a sample might miss.
@@ -245,6 +258,63 @@ export async function runHealth(
         if (data.notes.length) {
             lines.push("", L.notesHeading);
             for (const n of data.notes) lines.push(`- ${n}`);
+        }
+        return lines.join("\n");
+    });
+}
+
+/**
+ * The answer when the extension never started.
+ *
+ * Reports what could still be determined — the install it found, whether the
+ * catalogue opened, how many books are there — and names the failure with the
+ * step the user has to take. Everything the ordinary report would compute from
+ * the search engine is absent, and said to be absent rather than shown as zero:
+ * a zero here would read as "your library is empty", which is the misreading
+ * this whole tool exists to prevent.
+ */
+function notStarted(
+    catalog: Catalog | null,
+    diagnosis: { startupError: unknown; paths: { installRoot: string } | null } | undefined,
+    args: z.infer<typeof healthInput>,
+): RenderedResponse<HealthOutput> {
+    const err = diagnosis?.startupError;
+    const code = errorCode(err);
+    const out: HealthOutput = {
+        server_version: VERSION,
+        status: "not_started",
+        startup_error: {
+            code,
+            message: formatErrorMessage(err),
+            install_root: diagnosis?.paths?.installRoot ?? null,
+        },
+        catalog_books: catalog?.bookCount() ?? 0,
+        catalog_authors: catalog?.authorCount() ?? 0,
+        categories: catalog?.categoryCount() ?? 0,
+        downloaded_books: catalog?.downloadedBookIds().size ?? 0,
+        flagged_books: 0,
+        flagged_file_missing: 0,
+        orphan_files: 0,
+        disk_scan_fell_back: false,
+        readable_spot_check: null,
+        search_index: null,
+        aya_index: null,
+        notes: [],
+    };
+    return renderResponse(out, args.response_format, (data) => {
+        const L = pick(healthLabels);
+        const lines = [header(1, L.notStartedHeading)];
+        lines.push(L.notStartedLead(data.startup_error?.code ?? ""));
+        lines.push("");
+        lines.push(`> ${data.startup_error?.message ?? ""}`);
+        lines.push("");
+        if (data.startup_error?.install_root) {
+            lines.push(L.installRootLine(data.startup_error.install_root));
+        }
+        if (catalog) {
+            lines.push(L.catalogStillReadable(num(data.catalog_books), num(data.downloaded_books)));
+        } else {
+            lines.push(L.catalogUnreadable);
         }
         return lines.join("\n");
     });
