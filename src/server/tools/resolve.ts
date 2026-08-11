@@ -3,7 +3,9 @@ import { z } from "zod";
 import type { Catalog } from "../catalog.js";
 import type { Helper } from "../helper.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { resolveLabels } from "../i18n/tools/resolve.js";
 
 export const resolveInputShape = {
     query: z
@@ -92,23 +94,31 @@ export async function runResolve(
         authors,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const lines: string[] = [header(1, `نتائج البحث عن «${data.query}»`)];
+        const L = pick(resolveLabels);
+        const lines: string[] = [header(1, L.heading(data.query))];
         if (data.authors.length) {
-            lines.push("", header(2, `المؤلفون (${arabize(data.authors.length)})`));
+            lines.push("", header(2, L.authorsHeading(num(data.authors.length))));
             for (const a of data.authors) {
                 lines.push(
-                    `- **${a.author_name}** (id=${a.author_id})${a.death_year ? ` ت ${arabize(a.death_year)}هـ` : ""} — ${arabize(a.book_count)} كتاب`,
+                    L.authorLine(
+                        a.author_name,
+                        String(a.author_id),
+                        a.death_year ? L.died(num(a.death_year)) : "",
+                        num(a.book_count),
+                    ),
                 );
             }
         }
         if (data.books.length) {
-            lines.push("", header(2, `الكتب (${arabize(data.books.length)})`));
+            lines.push("", header(2, L.booksHeading(num(data.books.length))));
             for (const b of data.books) {
-                lines.push(`- **${b.book_name}** (id=${b.book_id})${b.author_name ? ` — ${b.author_name}` : ""}`);
+                lines.push(
+                    L.bookLine(b.book_name, String(b.book_id), b.author_name ? L.byAuthor(b.author_name) : ""),
+                );
             }
         }
         if (!data.books.length && !data.authors.length) {
-            lines.push("", "_لا توجد نتائج. جرِّب صياغة مختلفة أو جزءًا من الاسم._");
+            lines.push("", L.empty);
         }
         return lines.join("\n");
     });

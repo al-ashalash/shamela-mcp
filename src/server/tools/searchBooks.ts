@@ -10,7 +10,9 @@ import {
     ScopeInputShape,
     type ScopeInputType,
 } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchBooksLabels } from "../i18n/tools/searchBooks.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
 
 // scope.book_ids isn't useful when searching the catalog; expose the rest.
@@ -137,17 +139,18 @@ export async function runSearchBooks(
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `نتائج البحث في فهرس الكتب: «${data.query}»`)];
-        lines.push(`**${arabize(data.total_hits)}** كتاب موافق، عرض ${arabize(data.returned)}.`);
+        const L = pick(searchBooksLabels);
+        const lines = [header(1, L.heading(data.query))];
+        lines.push(L.summary(num(data.total_hits), num(data.returned)));
         lines.push("");
         for (const r of data.results) {
-            lines.push(`## ${r.book_name} (id=${r.book_id})${r.downloaded ? " — منزَّل" : ""}`);
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
-            if (r.category) lines.push(`التصنيف: ${r.category}`);
+            lines.push(`## ${r.book_name} (id=${r.book_id})${r.downloaded ? L.downloadedSuffix : ""}`);
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
+            if (r.category) lines.push(`${L.category}: ${r.category}`);
             if (r.snippet) lines.push("", `> ${r.snippet}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

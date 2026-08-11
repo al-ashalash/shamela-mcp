@@ -24,7 +24,9 @@ import type { Catalog } from "../catalog.js";
 import type { PageStore } from "../pages.js";
 import { badArg } from "../errors.js";
 import { ResponseFormatInput, PaginationInput } from "../schemas.js";
-import { renderResponse, type RenderedResponse, header, arabize } from "../format.js";
+import { renderResponse, type RenderedResponse, header } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { booksByPeriodLabels } from "../i18n/tools/booksByPeriod.js";
 
 export const booksByPeriodInputShape = {
     composed_from: z
@@ -137,9 +139,7 @@ export async function runBooksByPeriod(
     const hasComposed = args.composed_from !== undefined || args.composed_to !== undefined;
     const hasDied = args.died_from !== undefined || args.died_to !== undefined;
     if (!hasComposed && !hasDied) {
-        throw badArg(
-            "حدِّد نطاقًا زمنيًّا واحدًا على الأقل: composed_from/composed_to (سنة التأليف) أو died_from/died_to (سنة وفاة المؤلف). هذه الأداة تفصل سنة التأليف عن سنة الوفاة.",
-        );
+        throw badArg(pick(booksByPeriodLabels).needRange);
     }
 
     // Open-ended bounds: a missing side of a provided range is treated as the
@@ -215,44 +215,44 @@ export async function runBooksByPeriod(
     };
 
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(booksByPeriodLabels);
         const f = data.filter;
         const parts: string[] = [];
         if (f.composed_from !== null || f.composed_to !== null) {
-            parts.push(
-                `سنة التأليف ${arabize(f.composed_from ?? "…")}–${arabize(f.composed_to ?? "…")}هـ`,
-            );
+            parts.push(L.composedRange(num(f.composed_from ?? "…"), num(f.composed_to ?? "…")));
         }
         if (f.died_from !== null || f.died_to !== null) {
-            parts.push(`سنة وفاة المؤلف ${arabize(f.died_from ?? "…")}–${arabize(f.died_to ?? "…")}هـ`);
+            parts.push(L.diedRange(num(f.died_from ?? "…"), num(f.died_to ?? "…")));
         }
         if (f.category_id !== null) {
             parts.push(
-                `التصنيف ${catalog.category(f.category_id)?.category_name ?? f.category_id}`,
+                L.categoryFilter(
+                    catalog.category(f.category_id)?.category_name ?? String(f.category_id),
+                ),
             );
         }
-        if (f.downloaded_only) parts.push("المنزَّلة فقط");
-        const scope = parts.length ? ` (${parts.join("، ")})` : "";
+        if (f.downloaded_only) parts.push(L.downloadedOnly);
+        const scope = parts.length ? ` (${parts.join(L.filterSep)})` : "";
 
         const lines = [
-            header(1, `كتب حسب المدة${scope} — ${arabize(data.total)}`),
-            `عرض ${arabize(data.returned)} من ${arabize(data.total)} ابتداءً من ${arabize(data.offset)}`,
+            header(1, L.heading(scope, num(data.total))),
+            L.counts(num(data.returned), num(data.total), num(data.offset)),
             "",
         ];
         for (const b of data.books) {
-            lines.push(`## ${b.book_name} (id=${b.book_id})${b.downloaded ? " — منزَّل" : ""}`);
+            lines.push(
+                `## ${b.book_name} (id=${b.book_id})${b.downloaded ? L.downloadedSuffix : ""}`,
+            );
             if (b.main_author_name) {
-                const dy = b.main_author_death_year ? ` (ت ${arabize(b.main_author_death_year)}هـ)` : "";
-                lines.push(`- المؤلف: ${b.main_author_name}${dy}`);
+                const dy = b.main_author_death_year ? L.died(num(b.main_author_death_year)) : "";
+                lines.push(`- ${L.author}: ${b.main_author_name}${dy}`);
             }
-            if (b.book_date) lines.push(`- سنة التأليف: ${arabize(b.book_date)}هـ`);
-            if (b.category) lines.push(`- التصنيف: ${b.category} (id=${b.category_id})`);
+            if (b.book_date) lines.push(`- ${L.composedYear}: ${L.hijri(num(b.book_date))}`);
+            if (b.category) lines.push(`- ${L.category}: ${b.category} (id=${b.category_id})`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
-        lines.push(
-            "",
-            "*تنبيه: هذه الأداة تفصل سنة التأليف (book_date) عن سنة وفاة المؤلف الرئيس (death_year)، بخلاف scope.period القديم الذي يخلط بينهما. مرِّر `book_ids` الناتجة إلى scope.book_ids في أدوات البحث.*",
-        );
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
+        lines.push("", L.note);
         return lines.join("\n");
     });
 }

@@ -7,7 +7,9 @@ import type { Helper } from "../helper.js";
 import { trimPagesByBudget } from "../longtext.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getBookSectionLabels } from "../i18n/tools/getBookSection.js";
 import { requireDownloadedBook } from "../gate.js";
 
 export const getBookSectionInputShape = {
@@ -93,10 +95,13 @@ export async function runGetBookSection(
     const lastId = pagesOut.length ? pagesOut[pagesOut.length - 1]!.page_id : section.start_page_id - 1;
     const truncated = pagesOut.length < section.total_pages;
     const moreInSection = lastId < section.end_page_id;
+    // `_display` is prose the reader reads, not a field a caller parses, so it
+    // follows the reader's language like every other label does.
+    const L = pick(getBookSectionLabels);
     const display = truncated
         ? (budgetTrimmed
-              ? `القسم طويل، فعُرِض ${arabize(pagesOut.length)} من ${arabize(section.total_pages)} صفحة لضبط الحجم. أكمِل بـ shamela_get_pages_range(start_page_id=${lastId + 1}) أو ارفع max_pages.`
-              : `القسم مقطوع عند حدّ max_pages — عُرِض ${arabize(pagesOut.length)} من ${arabize(section.total_pages)}. أكمِل بـ start_page_id=${lastId + 1} أو ارفع max_pages.`)
+              ? L.trimmedByBudget(num(pagesOut.length), num(section.total_pages), String(lastId + 1))
+              : L.trimmedByMaxPages(num(pagesOut.length), num(section.total_pages), String(lastId + 1)))
         : null;
 
     const out: GetBookSectionOutput = {
@@ -114,12 +119,12 @@ export async function runGetBookSection(
         pages: pagesOut };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [
-            header(1, `${data.book_name} — ${data.title_text || "(بدون عنوان)"}`),
+            header(1, `${data.book_name} — ${data.title_text || L.untitled}`),
             data.author_name ? `*${data.author_name}*` : "",
-            `صفحات ${arabize(data.start_page_id)}–${arabize(data.end_page_id)} (إجمالي ${arabize(data.total_pages_in_section)})`,
+            L.range(num(data.start_page_id), num(data.end_page_id), num(data.total_pages_in_section)),
         ].filter(Boolean);
         for (const p of data.pages) {
-            lines.push("", header(3, `صفحة ${arabize(p.printed_page ?? p.page_id)}`));
+            lines.push("", header(3, L.page(num(p.printed_page ?? p.page_id))));
             if (p.body) lines.push(p.body);
             if (p.foot) lines.push("", `_${p.foot}_`);
         }

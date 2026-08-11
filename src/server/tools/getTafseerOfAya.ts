@@ -5,7 +5,9 @@ import { ayaNotFound, badArg, serviceKeyNotFound } from "../errors.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import { ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getTafseerOfAyaLabels } from "../i18n/tools/getTafseerOfAya.js";
 
 export const getTafseerOfAyaInputShape = {
     aya_id: z.number().int().min(1).max(6236).optional().describe("Aya id 1..6236."),
@@ -38,9 +40,6 @@ export interface GetTafseerOfAyaOutput {
     coverage_note: string;
     results: TafseerHit[];
 }
-
-const COVERAGE_NOTE =
-    "هذه القائمة من فهرس الخدمة المنتقى (service/tafseer.db) وقد لا يشمل كل تفاسيرك المنزَّلة — كثير من التفاسير لا تحمل علامات آيات على صفحاتها فلا تظهر هنا. لاستيفاء تفاسيرك المنزَّلة، راجع تصنيفات التفسير عبر shamela_list_downloaded_books(category_id=3) و(category_id=4)، ثم تنقّل إليها بفهرسها (shamela_get_toc).";
 
 export async function runGetTafseerOfAya(
     catalog: Catalog,
@@ -75,6 +74,7 @@ export async function runGetTafseerOfAya(
             downloaded: catalog.isDownloaded(h.book_id),
         };
     });
+    const L = pick(getTafseerOfAyaLabels);
     const out: GetTafseerOfAyaOutput = {
         aya_id: resolvedId,
         surah: sa.surah,
@@ -83,20 +83,25 @@ export async function runGetTafseerOfAya(
         total: distinctBooks,
         index_rows: hits.length,
         returned: results.length,
-        coverage_note: COVERAGE_NOTE,
+        coverage_note: L.coverageNote,
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [
-            header(1, `تفاسير الآية ${data.surah_name} ${arabize(data.surah)}:${arabize(data.aya)}`),
-            `**${arabize(data.total)}** كتابًا يعلِّق على هذه الآية في فهرس الشاملة، منها ${arabize(data.returned)} في النطاق الحالي.`,
+            header(1, L.heading(data.surah_name, num(data.surah), num(data.aya))),
+            L.summary(num(data.total), num(data.returned)),
             "",
-            `> *${data.coverage_note}*`,
+            `> *${L.coverageNote}*`,
             "",
         ];
         for (const r of data.results) {
             lines.push(
-                `- **${r.book_name}**${r.author_name ? ` — ${r.author_name}` : ""} (page_id=${r.page_id}${r.downloaded ? ", منزَّل" : ""})`,
+                L.bookLine(
+                    r.book_name,
+                    r.author_name ?? "",
+                    String(r.page_id),
+                    r.downloaded,
+                ),
             );
         }
         return lines.join("\n");

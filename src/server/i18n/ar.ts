@@ -7,6 +7,8 @@
  * key does not fall back quietly at runtime — it fails to compile.
  */
 
+import { guideAr } from "./guide.ar.js";
+
 export const ar = {
     /** Server instructions: what the model is told before it does anything. */
     instructions: `أنت متصل بمكتبة المستخدم المحلية من «المكتبة الشاملة» للقراءة فقط. التزم بما يلي:
@@ -34,6 +36,12 @@ export const ar = {
 - **service/{tafseer,hadeeth,trajim}.db**: جداول الربط — \\\`service(key_id, book_id, page_id)\\\` و\\\`inservice(book, user_excluded)\\\`. key_id = aya_id للتفسير، ومفتاح الحديث للحديث. (ملاحظة: هذه الجداول منتقاة ولا تغطي كل التفاسير المنزّلة.)
 - **فهارس Lucene**: نصوص الصفحات (body/foot/comment) والعناوين والمؤلفين والآيات — يقرؤها المساعد الجافي.
 - القراءة فقط؛ لا تُكتب ملفات الشاملة أبدًا.`,
+
+    /** The user guide the extension carries about itself. */
+    guide: guideAr,
+
+    guideUnknownSection: (requested: string, available: string[]) =>
+        `القسم المطلوب «${requested}» غير معروف؛ الأقسام المتاحة: ${available.join("، ")} — وقد عُرض الدليل كاملًا.`,
 
     /** Tool titles, as the client shows them. Descriptions stay English: they
      *  are read by the model, not by the user. */
@@ -75,7 +83,7 @@ export const ar = {
     resources: {
         categories: { title: "تصنيفات المكتبة", description: "تصنيفات الشاملة الـ41 مع عدد الكتب." },
         downloaded: { title: "الكتب المنزَّلة", description: "الكتب المنزَّلة فعليًّا على هذا الجهاز (المتاحة للبحث)." },
-        guide: { title: "دليل استخدام الإضافة", description: "دليل عربي للمستخدم: الأدوات الثلاثون بأمثلة طلبات طبيعية، ونصائح الباحث." },
+        guide: { title: "دليل استخدام الإضافة", description: "دليل المستخدم: كل أداة بأمثلة طلبات طبيعية، ونصائح الباحث — بلغة الإضافة المختارة." },
         schema: { title: "مخطط بيانات الشاملة", description: "وصف موجز لبنية بيانات الشاملة للمطوّرين." },
         status: { title: "حالة خادم الشاملة", description: "فحص ذاتي: النسخة والعدّادات وقابلية القراءة." },
     },

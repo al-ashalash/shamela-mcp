@@ -3,7 +3,9 @@ import { z } from "zod";
 import type { Catalog } from "../catalog.js";
 import type { Helper } from "../helper.js";
 import { OptionsInputShape, PaginationInput, ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchAuthorsLabels } from "../i18n/tools/searchAuthors.js";
 
 export const searchAuthorsInputShape = {
     query: z.string().min(1).describe("Arabic search phrase matched against author name + biography."),
@@ -64,16 +66,17 @@ export async function runSearchAuthors(
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `نتائج البحث في فهرس المؤلفين: «${data.query}»`)];
-        lines.push(`**${arabize(data.total_hits)}** مؤلف موافق، عرض ${arabize(data.returned)}.`);
+        const L = pick(searchAuthorsLabels);
+        const lines = [header(1, L.heading(data.query))];
+        lines.push(L.summary(num(data.total_hits), num(data.returned)));
         lines.push("");
         for (const r of data.results) {
-            lines.push(`## ${r.author_name}${r.death_year ? ` (ت ${arabize(r.death_year)}هـ)` : ""}`);
-            lines.push(`id=${r.author_id} — ${arabize(r.book_count)} كتاب`);
+            lines.push(`## ${r.author_name}${r.death_year ? L.died(num(r.death_year)) : ""}`);
+            lines.push(L.idLine(String(r.author_id), num(r.book_count)));
             if (r.snippet) lines.push("", `> ${r.snippet}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

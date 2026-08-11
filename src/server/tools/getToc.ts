@@ -4,7 +4,9 @@ import type { Catalog } from "../catalog.js";
 import type { Helper } from "../helper.js";
 import type { PageStore, TocEntry } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getTocLabels } from "../i18n/tools/getToc.js";
 import { requireDownloadedBook } from "../gate.js";
 
 export const getTocInputShape = {
@@ -89,18 +91,21 @@ export async function runGetToc(
         titles: mode === "subtree" ? titles : [],
         ancestor_chain: mode === "ancestor_chain" ? titles : [] };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(getTocLabels);
         const lines: string[] = [];
-        lines.push(header(1, `فهرس «${data.book_name}»`));
+        lines.push(header(1, L.heading(data.book_name)));
         if (data.mode === "ancestor_chain") {
-            lines.push("**سلسلة الأبواب** (الجذر → الحالي):");
+            lines.push(L.chainHeading);
             for (const t of data.ancestor_chain) {
-                lines.push(`- ${t.title_text} (title_id=${t.title_id}, page_id=${t.page_id})`);
+                lines.push(L.chainLine(t.title_text, String(t.title_id), String(t.page_id)));
             }
         } else {
             const render = (nodes: TocNode[], indent: number) => {
                 for (const n of nodes) {
+                    // page_id is arabized in Arabic today, so it keeps num() rather
+                    // than String(): changing it would change the Arabic output.
                     lines.push(
-                        `${"  ".repeat(indent)}- **${n.title_text || "(بدون عنوان)"}** (title_id=${n.title_id}, page=${arabize(n.page_id)})`,
+                        `${"  ".repeat(indent)}${L.nodeLine(n.title_text || L.untitled, String(n.title_id), num(n.page_id))}`,
                     );
                     if (n.children) render(n.children, indent + 1);
                 }

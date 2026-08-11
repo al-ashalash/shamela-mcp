@@ -4,7 +4,9 @@ import type { Catalog } from "../catalog.js";
 import { serviceKeyNotFound } from "../errors.js";
 import type { ServiceStore } from "../services.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getBooksForHadithLabels } from "../i18n/tools/getBooksForHadith.js";
 
 export const getBooksForHadithInputShape = {
     hadith_key: z
@@ -59,13 +61,14 @@ export async function runGetBooksForHadith(
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(getBooksForHadithLabels);
         const lines = [
-            header(1, `كتب تتضمَّن الحديث ذو المفتاح ${arabize(data.hadith_key)}`),
-            `**${arabize(data.total)}** كتاب، منها ${arabize(data.returned)} ضمن النطاق الحالي.`,
+            header(1, L.heading(num(data.hadith_key))),
+            L.summary(num(data.total), num(data.returned)),
             "",
         ];
         for (const r of data.results) {
-            lines.push(`- **${r.book_name}**${r.author_name ? ` — ${r.author_name}` : ""} (page_id=${r.page_id}${r.downloaded ? ", منزَّل" : ""})`);
+            lines.push(L.resultLine(r.book_name, r.author_name, String(r.page_id), r.downloaded));
         }
         return lines.join("\n");
     });

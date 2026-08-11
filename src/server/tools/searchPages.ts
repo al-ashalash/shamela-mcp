@@ -11,7 +11,9 @@ import {
     ScopeInputShape,
     type ScopeInputType,
 } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchPagesLabels } from "../i18n/tools/searchPages.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
 
 export const searchPagesInputShape = {
@@ -162,22 +164,21 @@ export async function runSearchPages(
         results: enriched,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `نتائج البحث في الصفحات: «${data.query}»`)];
-        lines.push(
-            `**${arabize(data.total_hits)}** صفحة موافقة، عرض ${arabize(data.returned)} ابتداءً من ${arabize(data.offset)}.`,
-        );
-        if (data.scope_count >= 0) lines.push(`النطاق: ${arabize(data.scope_count)} كتاب.`);
+        const L = pick(searchPagesLabels);
+        const lines = [header(1, L.heading(data.query))];
+        lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset), data.total_hits));
+        if (data.scope_count >= 0) lines.push(L.scopeLine(num(data.scope_count), data.scope_count));
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? ` (ص ${arabize(r.printed_page)})` : ""} — page_id=${r.page_id}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);
-            if (r.snippet_foot) lines.push("", `> _حاشية_: ${r.snippet_foot}`);
+            if (r.snippet_foot) lines.push("", `> ${L.footLabel}${r.snippet_foot}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

@@ -27,7 +27,9 @@ import { requireDownloadedBook } from "../gate.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { dumpBookLabels } from "../i18n/tools/dumpBook.js";
 
 /**
  * Characters of page text per call, by default.
@@ -188,6 +190,9 @@ export async function runDumpBook(
 
     const lastId = out.length ? out[out.length - 1]!.page_id : args.start_page_id - 1;
     const hasMore = lastId < total;
+    // `_display` is prose the reader reads, not a field a caller parses, so it
+    // follows the reader's language like every other label does.
+    const L = pick(dumpBookLabels);
 
     const payload: DumpBookOutput = {
         book_id: args.book_id,
@@ -203,7 +208,7 @@ export async function runDumpBook(
         next_start_page_id: hasMore ? lastId + 1 : null,
         citation_auto_numbered: rec.printed !== 1,
         _display: hasMore
-            ? `صُدِّرت ${arabize(out.length)} صفحة (${arabize(chars)} حرفًا). أكمِل التصدير بـ start_page_id=${lastId + 1}.`
+            ? L.display(num(out.length), num(chars), String(lastId + 1))
             : null,
         pages: out,
     };
@@ -212,21 +217,21 @@ export async function runDumpBook(
         // The markdown channel is a manifest, not the text: whoever asked for a
         // whole book in JSON is not reading it here, and dumping it twice would
         // only get the response truncated.
-        const lines = [header(1, `تصدير: ${data.book_name}`)];
+        const lines = [header(1, L.heading(data.book_name))];
         if (data.author_name) {
-            lines.push(`*${data.author_name}*${data.author_death_year ? ` — ${arabize(data.author_death_year)}هـ` : ""}`);
+            lines.push(`*${data.author_name}*${data.author_death_year ? L.deathYear(num(data.author_death_year)) : ""}`);
         }
         lines.push("");
         lines.push(
-            `صُدِّرت **${arabize(data.returned)}** صفحة (${arabize(data.chars)} حرفًا) من أصل ${arabize(data.total_pages)}، ابتداءً من الصفحة ${arabize(data.start_page_id)}.`,
+            L.summary(num(data.returned), num(data.chars), num(data.total_pages), num(data.start_page_id)),
         );
-        if (data.category) lines.push(`التصنيف: ${data.category}.`);
+        if (data.category) lines.push(L.category(data.category));
         if (data.citation_auto_numbered) {
             lines.push("");
-            lines.push("> *ترقيم الصفحات آليٌّ من الشاملة لا من المطبوع، فاحترز في الإحالة.*");
+            lines.push(`> *${L.autoNumbered}*`);
         }
         lines.push("");
-        lines.push("النصّ في `structuredContent.pages` — كل صفحة بمتنها وحاشيتها وعنوان بابها وإحالتها.");
+        lines.push(L.textLocation);
         if (data._display) lines.push("", `> *${data._display}*`);
         return lines.join("\n");
     });

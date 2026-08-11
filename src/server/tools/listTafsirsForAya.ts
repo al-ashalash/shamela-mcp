@@ -9,7 +9,9 @@ import { locateAya } from "../ayaIndex/build.js";
 import type { Helper } from "../helper.js";
 import { ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { listTafsirsForAyaLabels } from "../i18n/tools/listTafsirsForAya.js";
 
 /**
  * Per-aya tafsir coverage report (#18).
@@ -99,9 +101,6 @@ export interface ListTafsirsForAyaOutput {
     books: TafsirCoverageRow[];
 }
 
-const COVERAGE_NOTE =
-    "المواضع تأتي من مصدرين: فهرس الشاملة الجاهز (منتقًى لا يشمل كل الكتب)، وفهرسٌ نبنيه من عناوين الكتاب نفسه. و«غير معلوم» ليس نفيًا: الكتاب قد يفسّر الآية ولم نجد له علامةً تحدّد موضعها، فتصفَّحه بـ shamela_get_toc أو shamela_get_book_section. ولا يُبنى موضعٌ على مطابقة نصّ الآية، لأن الألفاظ المتكررة بين السور تُنتج نسبةً واثقةً إلى صفحةٍ خاطئة.";
-
 const STATUS_ORDER: Record<TafsirCoverageStatus, number> = {
     indexed_covers: 0,
     title_index: 1,
@@ -110,16 +109,6 @@ const STATUS_ORDER: Record<TafsirCoverageStatus, number> = {
     covered_no_locus: 4,
     index_pending: 5,
     not_indexed_coverage_unknown: 6,
-};
-
-const STATUS_LABEL: Record<TafsirCoverageStatus, string> = {
-    indexed_covers: "موضع الآية معلوم (من فهرس الشاملة)",
-    title_index: "موضع الآية معلوم (من فهرس عناوين الكتاب)",
-    title_index_group: "الموضع معلوم لمجموعة آيات تشمل هذه الآية",
-    indexed_no_entry_for_this_aya: "مشارك في فهرس الشاملة ولا مدخل له لهذه الآية",
-    covered_no_locus: "الكتاب مفهرس عندنا ولا علامة لهذه الآية فيه",
-    index_pending: "لم يُفهرس بعد — أعد الطلب لاستكماله",
-    not_indexed_coverage_unknown: "غير مرتَّب على الآيات — التغطية غير معلومة",
 };
 
 export async function runListTafsirsForAya(
@@ -260,29 +249,49 @@ export async function runListTafsirsForAya(
         aya: sa.aya,
         totals,
         index_pending_book_ids: pendingIds,
-        note: COVERAGE_NOTE,
+        // A caveat written for a reader, not a value a caller branches on, so
+        // it follows the reader's language even though it rides in
+        // structuredContent alongside the ids and the counts.
+        note: pick(listTafsirsForAyaLabels).note,
         books: rows,
     };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(listTafsirsForAyaLabels);
+        const located =
+            (data.totals.indexed_covers ?? 0) +
+            (data.totals.title_index ?? 0) +
+            (data.totals.title_index_group ?? 0);
+        const unlocated =
+            (data.totals.covered_no_locus ?? 0) +
+            (data.totals.indexed_no_entry_for_this_aya ?? 0) +
+            (data.totals.not_indexed_coverage_unknown ?? 0);
         const lines = [
-            header(1, `تغطية تفاسير الآية ${data.surah_name} ${arabize(data.surah)}:${arabize(data.aya)}`),
-            `موضع الآية معلوم في **${arabize((data.totals.indexed_covers ?? 0) + (data.totals.title_index ?? 0) + (data.totals.title_index_group ?? 0))}** كتابًا، وغير معلوم في **${arabize((data.totals.covered_no_locus ?? 0) + (data.totals.indexed_no_entry_for_this_aya ?? 0) + (data.totals.not_indexed_coverage_unknown ?? 0))}**${data.index_pending_book_ids.length ? `، ولم يُفهرس بعد **${arabize(data.index_pending_book_ids.length)}**` : ""}.`,
+            header(1, L.heading(data.surah_name, num(data.surah), num(data.aya))),
+            L.summary(
+                located,
+                unlocated,
+                data.index_pending_book_ids.length
+                    ? L.pendingClause(data.index_pending_book_ids.length)
+                    : "",
+            ),
             "",
             `> *${data.note}*`,
         ];
         for (const status of Object.keys(STATUS_ORDER) as TafsirCoverageStatus[]) {
             const group = data.books.filter((r) => r.status === status);
             if (!group.length) continue;
-            lines.push("", header(3, STATUS_LABEL[status]));
+            lines.push("", header(3, L.statusLabel[status]));
             for (const r of group) {
                 const bits: string[] = [];
-                if (r.author_name) bits.push(`${r.author_name}${r.death_year ? ` (ت ${arabize(r.death_year)}هـ)` : ""}`);
-                if (r.page_id !== null) {
-                    bits.push(`page_id=${r.page_id}${r.printed_page ? `، ص ${arabize(r.printed_page)}` : ""}`);
+                if (r.author_name) {
+                    bits.push(`${r.author_name}${r.death_year ? L.deathYear(num(r.death_year)) : ""}`);
                 }
-                if (!r.in_tafsir_categories && r.category_name) bits.push(`من تصنيف: ${r.category_name}`);
-                if (!r.downloaded) bits.push("غير منزَّل");
-                lines.push(`- **${r.book_name}**${bits.length ? ` — ${bits.join("؛ ")}` : ""}`);
+                if (r.page_id !== null) {
+                    bits.push(L.pageBit(String(r.page_id), r.printed_page ? num(r.printed_page) : ""));
+                }
+                if (!r.in_tafsir_categories && r.category_name) bits.push(L.fromCategory(r.category_name));
+                if (!r.downloaded) bits.push(L.notDownloaded);
+                lines.push(L.bookLine(r.book_name, bits.join(L.bitSeparator)));
             }
         }
         return lines.join("\n");

@@ -11,6 +11,8 @@ import { bookNotFound } from "../errors.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { renderResponse, type RenderedResponse, header } from "../format.js";
+import { pick } from "../i18n/labels.js";
+import { getCitationLabels } from "../i18n/tools/getCitation.js";
 
 export const getCitationInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
@@ -85,12 +87,15 @@ export async function runGetCitation(
     // suffix («ت <editor>» / «ط <publisher>»), which master.db columns lack.
     const parts = book.book_name.split(/\s+-\s+/);
     const suffix = (book.meta_data?.suffix?.trim() || (parts.length > 1 ? parts[parts.length - 1]!.trim() : "")) || "";
+    // i18n:arabic-data — «ت » and «ط » are Shamela's own prefixes for the
+    // editor and the edition inside a book title; they are read, not shown.
     const editorFromName = /^ت\s/.test(suffix) ? suffix.replace(/^ت\s+/, "").trim() : null;
     const publisherFromName = /^ط\s/.test(suffix) ? suffix.replace(/^ط\s+/, "").trim() : null;
     if (editorFromName || publisherFromName) {
+        const L = pick(getCitationLabels);
         const found: string[] = [];
-        if (editorFromName) found.push(`المحقق (من اسم الشاملة): ${editorFromName}`);
-        if (publisherFromName) found.push(`الناشر/الطبعة (من اسم الشاملة): ${publisherFromName}`);
+        if (editorFromName) found.push(L.editorFromBookName(editorFromName));
+        if (publisherFromName) found.push(L.publisherFromBookName(publisherFromName));
         notes = found.concat(
             notes.filter(
                 (n) => !(editorFromName && /editor|muḥaqqiq/i.test(n)) && !(publisherFromName && /publisher/i.test(n)),
@@ -105,12 +110,13 @@ export async function runGetCitation(
         notes,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, "الإحالة")];
+        const L = pick(getCitationLabels);
+        const lines = [header(1, L.heading)];
         lines.push("```");
         lines.push(data.formatted);
         lines.push("```");
         if (data.notes.length) {
-            lines.push("", header(2, "ملاحظات"));
+            lines.push("", header(2, L.notesHeading));
             for (const n of data.notes) lines.push(`- ${n}`);
         }
         return lines.join("\n");

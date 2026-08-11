@@ -8,7 +8,9 @@ import { getChunk } from "../longtext.js";
 import type { PageStore, TocEntry } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { formatShortCitation } from "../citation.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getPageLabels } from "../i18n/tools/getPage.js";
 import { requireDownloadedBook } from "../gate.js";
 
 export const getPageInputShape = {
@@ -106,9 +108,13 @@ export async function runGetPage(
     // page in one shot. Short pages stay a single part (no _display advice).
     const chunk = getChunk(fullBody, args.body_part, PAGE_BODY_BUDGET);
     const onFirst = chunk.part === 1;
+    // Prose, not a machine field: it says the same thing in whichever language
+    // the reader is being answered in. The part to ask for next stays in Latin
+    // digits — the user types it straight back as body_part.
+    const nextBodyPart = chunk.part < chunk.total_parts ? chunk.part + 1 : chunk.total_parts;
     const display =
         chunk.total_parts > 1
-            ? `النص طويل، قُسِّم إلى ${arabize(chunk.total_parts)} أجزاء (هذا الجزء ${arabize(chunk.part)}). اعرض المعروض كاملًا حرفيًّا أو اسأل المستخدم عن طريقة العرض؛ ولجلب التالي استخدم body_part=${chunk.part < chunk.total_parts ? chunk.part + 1 : chunk.total_parts}. (الحاشية والتعليق يظهران مع الجزء الأول.)`
+            ? pick(getPageLabels).longBody(num(chunk.total_parts), num(chunk.part), String(nextBodyPart))
             : null;
 
     const printed = await pages.printedPage(args.book_id, args.page_id);
@@ -140,30 +146,31 @@ export async function runGetPage(
         }),
         citation_auto_numbered: rec.printed !== 1 };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(getPageLabels);
         const lines: string[] = [];
-        lines.push(header(1, `${data.book_name}${data.printed_page ? ` (ص ${arabize(data.printed_page)})` : ""}`));
+        lines.push(header(1, `${data.book_name}${data.printed_page ? ` (${L.printedPage(num(data.printed_page))})` : ""}`));
         if (data.author_name) lines.push(`*${data.author_name}*`);
         if (data.containing_titles.length) {
-            lines.push("", header(3, "المسار"));
+            lines.push("", header(3, L.path));
             lines.push(data.containing_titles.map((t) => t.title_text).filter(Boolean).join(" › "));
         }
         if (data.body) {
-            lines.push("", header(3, data.body_total_parts > 1 ? `المتن (جزء ${arabize(data.body_part)}/${arabize(data.body_total_parts)})` : "المتن"));
+            lines.push("", header(3, data.body_total_parts > 1 ? L.matnPart(num(data.body_part), num(data.body_total_parts)) : L.matn));
             lines.push(data.body);
         }
         if (data._display) lines.push("", `> *${data._display}*`);
         if (data.foot) {
-            lines.push("", header(3, "الحاشية"));
+            lines.push("", header(3, L.hashiya));
             lines.push(data.foot);
         }
         if (data.comment) {
-            lines.push("", header(3, "التعليق"));
+            lines.push("", header(3, L.comment));
             lines.push(data.comment);
         }
-        lines.push("", header(3, "الإحالة"));
+        lines.push("", header(3, L.citation));
         lines.push(data.citation);
         if (data.citation_auto_numbered) {
-            lines.push("_رقم الصفحة بترقيم الشاملة الآلي لا بترقيم المطبوع._");
+            lines.push(L.autoNumbered);
         }
         return lines.join("\n");
     });

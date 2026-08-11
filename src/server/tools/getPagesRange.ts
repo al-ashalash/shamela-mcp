@@ -6,8 +6,10 @@ import type { Helper } from "../helper.js";
 import { trimPagesByBudget } from "../longtext.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { formatShortCitation } from "../citation.js";
+import { num, pick } from "../i18n/labels.js";
+import { getPagesRangeLabels } from "../i18n/tools/getPagesRange.js";
 import { requireDownloadedBook } from "../gate.js";
 
 export const getPagesRangeInputShape = {
@@ -94,7 +96,7 @@ export async function runGetPagesRange(
     const lastId = pagesOut.length ? pagesOut[pagesOut.length - 1]!.page_id : args.start_page_id - 1;
     const hasMore = lastId < total;
     const display = trimmed
-        ? `النطاق طويل، فاقتُصِر على ${arabize(pagesOut.length)} صفحة (من ${arabize(allPages.length)} مطلوبة) لضبط الحجم. أكمِل بـ start_page_id=${lastId + 1}.`
+        ? pick(getPagesRangeLabels).trimmed(pagesOut.length, allPages.length, String(lastId + 1))
         : null;
 
     const out: GetPagesRangeOutput = {
@@ -109,15 +111,16 @@ export async function runGetPagesRange(
         citation_auto_numbered: rec.printed !== 1,
         pages: pagesOut };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `${data.book_name} — صفحات ${arabize(data.start_page_id)}+`)];
+        const L = pick(getPagesRangeLabels);
+        const lines = [header(1, L.heading(data.book_name, num(data.start_page_id)))];
         if (data.author_name) lines.push(`*${data.author_name}*`);
         for (const p of data.pages) {
-            lines.push("", header(3, `صفحة ${arabize(p.printed_page ?? p.page_id)}`));
+            lines.push("", header(3, L.page(num(p.printed_page ?? p.page_id))));
             if (p.body) lines.push(p.body);
             if (p.foot) lines.push("", `_${p.foot}_`);
         }
         if (data._display) lines.push("", `> *${data._display}*`);
-        else if (data.has_more) lines.push("", `*للمزيد، استخدم \`start_page_id=${data.next_start_page_id}\`.*`);
+        else if (data.has_more) lines.push("", `*${L.more(String(data.next_start_page_id))}*`);
         return lines.join("\n");
     });
 }
