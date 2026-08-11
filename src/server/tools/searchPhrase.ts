@@ -23,7 +23,9 @@ import { badArg, emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchPhraseLabels } from "../i18n/tools/searchPhrase.js";
 
 export const searchPhraseInputShape = {
     query: z
@@ -167,28 +169,27 @@ export async function runSearchPhrase(
     };
 
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(searchPhraseLabels);
         const lines = [
             header(
                 1,
                 data.mode === "phrase"
-                    ? `بحث بالعبارة الحرفية: «${data.query}»`
-                    : `بحث بالتقارب اللفظي (ضمن ${arabize(data.distance)} كلمات): «${data.query}»`,
+                    ? L.phraseHeading(data.query)
+                    : L.nearHeading(num(data.distance), data.query),
             ),
         ];
-        lines.push(
-            `**${arabize(data.total_hits)}** صفحة مطابقة في المكتبة كلها، معروض منها ${arabize(data.returned)}.`,
-        );
+        lines.push(L.summary(num(data.total_hits), num(data.returned), data.total_hits));
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? ` (ص ${arabize(r.printed_page)})` : ""} — page_id=${r.page_id}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);
-            if (r.snippet_foot) lines.push("", `> _حاشية_: ${r.snippet_foot}`);
+            if (r.snippet_foot) lines.push("", `> ${L.footLabel}${r.snippet_foot}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

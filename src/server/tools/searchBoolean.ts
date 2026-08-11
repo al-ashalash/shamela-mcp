@@ -27,7 +27,9 @@ import { badArg, emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchBooleanLabels } from "../i18n/tools/searchBoolean.js";
 
 export const searchBooleanInputShape = {
     all_of: z
@@ -249,28 +251,27 @@ export async function runSearchBoolean(
     };
 
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(searchBooleanLabels);
         const parts: string[] = [];
-        if (data.all_of.length) parts.push(`الكل: «${data.all_of.join("» و«")}»`);
-        if (data.any_of.length) parts.push(`أيّ: «${data.any_of.join("» أو «")}»`);
-        if (data.none_of.length) parts.push(`دون: «${data.none_of.join("» و«")}»`);
-        const lines = [header(1, `بحث منطقي: ${parts.join(" — ")}`)];
-        lines.push(
-            `**${arabize(data.total_in_window)}** صفحة مطابقة، عرض ${arabize(data.returned)} ابتداءً من ${arabize(data.offset)}.`,
-        );
-        if (data.scope_count >= 0) lines.push(`النطاق: ${arabize(data.scope_count)} كتاب.`);
-        for (const n of data.notes) lines.push(`*ملاحظة: ${n}*`);
+        if (data.all_of.length) parts.push(L.allOf(data.all_of));
+        if (data.any_of.length) parts.push(L.anyOf(data.any_of));
+        if (data.none_of.length) parts.push(L.noneOf(data.none_of));
+        const lines = [header(1, L.heading(parts.join(" — ")))];
+        lines.push(L.summary(num(data.total_in_window), num(data.returned), num(data.offset), data.total_in_window));
+        if (data.scope_count >= 0) lines.push(L.scope(num(data.scope_count), data.scope_count));
+        for (const n of data.notes) lines.push(L.note(n));
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? ` (ص ${arabize(r.printed_page)})` : ""} — page_id=${r.page_id}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${r.page_id}`,
             );
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
-            if (r.matched_terms.length) lines.push(`_وافق_: ${r.matched_terms.join("، ")}`);
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
+            if (r.matched_terms.length) lines.push(L.matchedTerms(r.matched_terms));
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);
-            if (r.snippet_foot) lines.push("", `> _حاشية_: ${r.snippet_foot}`);
+            if (r.snippet_foot) lines.push("", `> ${L.footLabel}${r.snippet_foot}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

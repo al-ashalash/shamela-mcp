@@ -5,6 +5,8 @@ import { pageNotFound } from "../errors.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { pick } from "../i18n/labels.js";
+import { getPageServicesLabels } from "../i18n/tools/getPageServices.js";
 import { requireDownloadedBook } from "../gate.js";
 
 export const getPageServicesInputShape = {
@@ -43,14 +45,18 @@ export async function runGetPageServices(
         esnad: services?.esnad ?? [],
         raw: services?.raw ?? null };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `إشارات الصفحة ${data.page_id} في الكتاب ${data.book_id}`)];
+        const L = pick(getPageServicesLabels);
+        // Ids and counts alike stay in Western digits: the ids are typed back into
+        // other tools, and the counts were never arabized here — num() would change
+        // the Arabic this refactor has to leave untouched.
+        const lines = [header(1, L.heading(String(data.page_id), String(data.book_id)))];
         if (!data.has_services) {
-            lines.push("", "_لا توجد إشارات (آيات / أحاديث / إسناد) في هذه الصفحة._");
+            lines.push("", L.none);
             return lines.join("\n");
         }
-        if (data.ayat.length) lines.push(`- **آيات قرآنية**: ${data.ayat.length} (aya_id: ${data.ayat.join(", ")})`);
-        if (data.hadeeth.length) lines.push(`- **أحاديث**: ${data.hadeeth.length} (key: ${data.hadeeth.join(", ")})`);
-        if (data.esnad.length) lines.push(`- **أسانيد**: ${data.esnad.length}`);
+        if (data.ayat.length) lines.push(L.ayat(String(data.ayat.length), data.ayat.join(", ")));
+        if (data.hadeeth.length) lines.push(L.hadeeth(String(data.hadeeth.length), data.hadeeth.join(", ")));
+        if (data.esnad.length) lines.push(L.esnad(String(data.esnad.length)));
         return lines.join("\n");
     });
 }

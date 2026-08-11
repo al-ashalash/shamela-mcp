@@ -18,7 +18,9 @@ import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchHadithLabels } from "../i18n/tools/searchHadith.js";
 
 export const searchHadithInputShape = {
     query: z.string().min(1).describe("The hadith text (or a distinctive part of it). AND-combines words across matn + footnotes."),
@@ -122,21 +124,22 @@ export async function runSearchHadith(
     };
 
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `بحث عن حديث: «${data.query}»`)];
-        lines.push(`**${arabize(data.total_text_matches)}** صفحة فيها نص الحديث (فُحصت ${arabize(data.pages_scanned)} منها للمفاتيح).`, "");
+        const L = pick(searchHadithLabels);
+        const lines = [header(1, L.heading(data.query))];
+        lines.push(L.summary(num(data.total_text_matches), num(data.pages_scanned)), "");
         for (const m of data.matches) {
             lines.push(`## ${m.book_name} — page_id=${m.page_id}`);
             if (m.snippet) lines.push("", `> ${m.snippet}`);
-            if (m.hadith_keys.length) lines.push(`*مفاتيح الحديث: ${m.hadith_keys.map((k) => arabize(k)).join("، ")}*`);
+            if (m.hadith_keys.length) lines.push(L.hadithKeys(m.hadith_keys.map((k) => num(k))));
             lines.push("");
         }
         if (data.takhrij.length) {
-            lines.push(header(2, "التخريج عبر الكتب (من مفاتيح الخدمة)"));
+            lines.push(header(2, L.takhrijHeading));
             for (const t of data.takhrij) {
-                lines.push(`- **مفتاح ${arabize(t.hadith_key)}**: ${t.books.map((b) => `${b.book_name}${b.downloaded ? " (منزَّل)" : ""}`).join("؛ ")}`);
+                lines.push(L.keyLine(num(t.hadith_key), t.books.map((b) => `${b.book_name}${b.downloaded ? L.downloadedTag : ""}`)));
             }
         } else {
-            lines.push("_لا توجد مفاتيح خدمة على الصفحات المطابقة (شائع في كتب الفقه/الأصول)؛ انظر التخريج المطبوع في المقتطفات أعلاه._");
+            lines.push(L.noKeys);
         }
         return lines.join("\n");
     });

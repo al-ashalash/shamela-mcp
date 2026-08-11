@@ -4,7 +4,9 @@ import { expandPrefixVariants } from "../arabic.js";
 import type { Helper } from "../helper.js";
 import { surahAyaFromId } from "../quran.js";
 import { OptionsInputShape, PaginationInput, ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchQuranLabels } from "../i18n/tools/searchQuran.js";
 
 export const searchQuranInputShape = {
     query: z.string().min(1).describe("Arabic phrase. Searches against the Egyptian إملائي (writing-style) text of all 6,236 verses. Single-word queries also match prefixed forms (e.g. «الصبر» matches «بالصبر»); their results are ordered by mushaf position (aya_id), not relevance."),
@@ -75,25 +77,27 @@ export interface SearchQuranOutput {
  * the wording is not in the Qur'an at all.
  */
 function zeroResultSuggestions(query: string, tokens: string[]): string[] {
+    // Prose a person reads, so it follows the reader's language — even though
+    // it travels in `structuredContent.suggestions` rather than the markdown.
+    // The «ال» surgery below stays here: it is Arabic morphology, not wording.
+    const L = pick(searchQuranLabels);
     const out: string[] = [];
     const words = query.trim().split(/\s+/).filter(Boolean);
     if (words.length > 1) {
-        out.push(
-            `جرّب كلمة واحدة من العبارة («${words[0]}» أو «${words[words.length - 1]}») — البحث في القرآن يطابق الكلمات لا العبارة المتصلة`,
-        );
+        out.push(L.tryOneWord(words[0]!, words[words.length - 1]!));
     }
     const first = words[0] ?? query.trim();
+    // i18n:arabic-data — «ال» is the Arabic definite article being added to
+    // and stripped from the search word. It is the operation, not a label.
     if (first.startsWith("ال") && first.length > 3) {
-        out.push(`جرّبها بلا «ال» التعريف: «${first.slice(2)}»`);
+        out.push(L.tryWithoutAl(first.slice(2)));
     } else if (first.length > 2) {
-        out.push(`جرّبها بـ«ال» التعريف: «ال${first}»`);
+        out.push(L.tryWithAl(`ال${first}`));
     }
-    out.push("جرّب صيغة أخرى للكلمة (ماضيًا أو مضارعًا أو مصدرًا) — الفهرس يخزّن الكلمة بصورتها لا بجذرها");
-    out.push(
-        "أو ابحث في كتب التفسير بدل نصّ المصحف عبر shamela_search_pages، فقد تكون العبارة تفسيرًا لا تلاوةً",
-    );
+    out.push(L.tryAnotherForm);
+    out.push(L.trySearchPages);
     if (tokens.length) {
-        out.push(`صيغة البحث بعد التطبيع: ${tokens.slice(0, 5).join("، ")}`);
+        out.push(L.normalizedAs(tokens.slice(0, 5).join(L.tokenSeparator)));
     }
     return out;
 }
@@ -205,22 +209,23 @@ export async function runSearchQuran(
     }
 
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `نتائج البحث في القرآن: «${data.query}»`)];
-        lines.push(`**${arabize(data.total_hits)}** آية موافقة، عرض ${arabize(data.returned)}.`);
+        const L = pick(searchQuranLabels);
+        const lines = [header(1, L.heading(data.query))];
+        lines.push(L.hits(num(data.total_hits), num(data.returned)));
         if (data.total_hits_complete === false) {
-            lines.push("_العدد الإجمالي حدٌّ أدنى: تعذَّر استيفاء نتائج بعض صيغ الكلمة._");
+            lines.push(L.lowerBound);
         }
         if (data.suggestions?.length) {
-            lines.push("", "**لا نتائج — جرّب:**");
+            lines.push("", L.noResults);
             for (const sug of data.suggestions) lines.push(`- ${sug}`);
         }
         lines.push("");
         for (const r of data.results) {
-            lines.push(`## ${r.surah_name} ${arabize(r.surah)}:${arabize(r.aya)}`);
+            lines.push(header(2, L.ayaHeading(r.surah_name, num(r.surah), num(r.aya))));
             lines.push(`> ${r.snippet_body || r.body}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

@@ -10,7 +10,9 @@ import {
     ScopeInputShape,
     type ScopeInputType,
 } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchTitlesLabels } from "../i18n/tools/searchTitles.js";
 
 export const searchTitlesInputShape = {
     query: z.string().min(1).describe("Arabic search phrase. Matches against chapter / section title text."),
@@ -104,13 +106,14 @@ export async function runSearchTitles(
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `نتائج البحث في عناوين الفصول: «${data.query}»`)];
-        lines.push(`**${arabize(data.total_hits)}** عنوان موافق، عرض ${arabize(data.returned)} ابتداءً من ${arabize(data.offset)}.`);
+        const L = pick(searchTitlesLabels);
+        const lines = [header(1, L.heading(data.query))];
+        lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset)));
         lines.push("");
         for (const r of data.results) {
-            lines.push(`- **${r.title_text}** — ${r.book_name}${r.author_name ? ` (${r.author_name})` : ""} — title_id=${r.title_id}`);
+            lines.push(`- **${r.title_text}** — ${r.book_name}${r.author_name ? ` (${r.author_name})` : ""} — title_id=${String(r.title_id)}`);
         }
-        if (data.has_more) lines.push("", `*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push("", L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

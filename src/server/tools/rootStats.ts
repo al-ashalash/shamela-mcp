@@ -37,7 +37,9 @@ import { COVERAGE_CAP, UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../const
 import { emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { rootStatsLabels } from "../i18n/tools/rootStats.js";
 
 export const rootStatsInputShape = {
     root: z
@@ -111,11 +113,6 @@ export interface RootStatsOutput {
     by_author: CountItem[];
 }
 
-const ACCURACY_NOTE_FULL =
-    "المطابقة صرفية عبر محلّل الخليل (يشمل المشتقات)، ودقته على العربية التراثية نحو ٠٫٨٠؛ فاعدد الأعداد مؤشِّرًا على انتشار الجذر لا إحصاءً لفظيًّا دقيقًا. وإجمالي الصفحات (total_hits) دقيق، والتوزيع محسوب على كل الصفحات الموافقة لا على عيّنة منها.";
-const ACCURACY_NOTE_SAMPLE =
-    "المطابقة صرفية عبر محلّل الخليل (يشمل المشتقات)، ودقته على العربية التراثية نحو ٠٫٨٠؛ فاعدد الأعداد مؤشِّرًا على انتشار الجذر لا إحصاءً لفظيًّا دقيقًا. وإجمالي الصفحات (total_hits) دقيق، أمّا التوزيع فتعذَّر حصره على كل النتائج فبُني من أعلى ٥٠٠٠ نتيجة (coverage_capped).";
-
 export async function runRootStats(
     helper: Helper,
     catalog: Catalog,
@@ -160,6 +157,12 @@ export async function runRootStats(
     }
     const fullCoverage = raw.coverage.basis === "all_results";
 
+    // `accuracy_note` is a sentence a reader reads, not a value a caller
+    // branches on — `coverage_basis` is what says which case this is. So the
+    // note comes from the slice and follows the language in force, like every
+    // other line of prose this tool emits.
+    const L = pick(rootStatsLabels);
+
     const enriched = enrichDistribution(raw.coverage, catalog);
     const out: RootStatsOutput = {
         root: raw.query,
@@ -171,7 +174,7 @@ export async function runRootStats(
         coverage_cap: COVERAGE_CAP,
         coverage_basis: fullCoverage ? "all_results" : "window",
         scope_count: scopeCount,
-        accuracy_note: fullCoverage ? ACCURACY_NOTE_FULL : ACCURACY_NOTE_SAMPLE,
+        accuracy_note: fullCoverage ? L.accuracyNoteFull : L.accuracyNoteSample,
         by_category: enriched.byCategory,
         by_century: enriched.byCentury,
         by_book: enriched.byBook,
@@ -179,46 +182,44 @@ export async function runRootStats(
     };
 
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `انتشار الجذر «${data.root}» في المكتبة المنزَّلة`)];
+        const lines = [header(1, L.heading(data.root))];
         lines.push(
-            `**${arabize(data.total_hits)}** صفحة موافقة (بحث صرفي)، احتُسب منها في التوزيع ${arabize(data.total_counted)} من ${arabize(data.books_matched)} كتابًا.`,
+            L.summary(num(data.total_hits), num(data.total_counted), num(data.books_matched)),
         );
-        if (data.scope_count >= 0) lines.push(`النطاق: ${arabize(data.scope_count)} كتاب.`);
+        if (data.scope_count >= 0) lines.push(L.scope(num(data.scope_count)));
         if (data.coverage_capped) {
-            lines.push(
-                `> تنبيه: التوزيع عيّنة من أعلى ${arabize(data.coverage_cap)} نتيجة (تجاوز الإجمالي الحدّ)، فالأعداد أدناه حدٌّ أدنى ونِسَبها تقريبية.`,
-            );
+            lines.push(L.cappedNote(num(data.coverage_cap)));
         }
         lines.push("");
 
         if (data.by_category.length) {
-            lines.push(header(2, "حسب التصنيف"));
-            for (const c of data.by_category) lines.push(`- ${c.name}: ${arabize(c.count)}`);
+            lines.push(header(2, L.byCategory));
+            for (const c of data.by_category) lines.push(`- ${c.name}: ${num(c.count)}`);
             lines.push("");
         }
         if (data.by_century.length) {
-            lines.push(header(2, "حسب القرن الهجري"));
+            lines.push(header(2, L.byCentury));
             for (const c of data.by_century) {
                 lines.push(
                     c.name === UNDATED_CENTURY_LABEL
-                        ? `- ${c.name}: ${arabize(c.count)}`
-                        : `- القرن ${arabize(c.name)}: ${arabize(c.count)}`,
+                        ? `- ${L.undatedCentury}: ${num(c.count)}`
+                        : L.centuryLine(num(c.name), num(c.count)),
                 );
             }
             lines.push("");
         }
         if (data.by_book.length) {
-            lines.push(header(2, "أكثر الكتب"));
+            lines.push(header(2, L.topBooks));
             for (const b of data.by_book) {
                 const who = b.author_name ? ` — ${b.author_name}` : "";
-                const when = b.book_date ? ` (${arabize(b.book_date)}هـ)` : "";
-                lines.push(`- ${b.book_name}${who}${when}: ${arabize(b.count)} — book_id=${b.book_id}`);
+                const when = b.book_date ? L.bookDate(num(b.book_date)) : "";
+                lines.push(`- ${b.book_name}${who}${when}: ${num(b.count)} — book_id=${b.book_id}`);
             }
             lines.push("");
         }
         if (data.by_author.length) {
-            lines.push(header(2, "أكثر المؤلفين"));
-            for (const a of data.by_author) lines.push(`- ${a.name}: ${arabize(a.count)}`);
+            lines.push(header(2, L.topAuthors));
+            for (const a of data.by_author) lines.push(`- ${a.name}: ${num(a.count)}`);
             lines.push("");
         }
 

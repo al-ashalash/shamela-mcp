@@ -22,7 +22,9 @@ import { z } from "zod";
 
 import { normalizeArabic } from "../arabic.js";
 import type { Catalog } from "../catalog.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { suggestDownloadLabels } from "../i18n/tools/suggestDownload.js";
 import { ResponseFormatInput } from "../schemas.js";
 
 export const suggestDownloadInputShape = {
@@ -96,6 +98,8 @@ const BOOK_PAGE = (id: number): string => `https://shamela.ws/book/${id}`;
  */
 function matches(hay: string, needleWords: string[]): boolean {
     const h = normalizeArabic(hay);
+    // i18n:arabic-data — matching a title with or without its «ال»; the
+    // article is part of the comparison, not part of the interface.
     return needleWords.every((w) => h.includes(w) || (w.startsWith("ال") && h.includes(w.slice(2))));
 }
 
@@ -110,6 +114,12 @@ export function runSuggestDownload(
     catalog: Catalog,
     args: z.infer<typeof suggestDownloadInput>,
 ): RenderedResponse<SuggestDownloadOutput> {
+    // `next_steps` and `notes` ride in `structuredContent`, but they are prose a
+    // reader reads — the counts and the `status` codes are what a caller reads.
+    // So they come from the slice and follow the language in force, and the
+    // slice is picked out here rather than in the renderer because they are
+    // written while the answer is being assembled.
+    const L = pick(suggestDownloadLabels);
     const notes: string[] = [];
     const seen = new Set<number>();
     const matched: SuggestDownloadCandidate[] = [];
@@ -140,7 +150,7 @@ export function runSuggestDownload(
         seen.add(id);
         const c = describe(id);
         if (c) matched.push(c);
-        else notes.push(`الرقم ${arabize(id)} ليس في فهرس الشاملة إطلاقًا`);
+        else notes.push(L.noteUnknownId(num(id)));
     }
 
     if (args.query) {
@@ -172,28 +182,20 @@ export function runSuggestDownload(
 
     const next_steps: string[] = [];
     if (availableCount) {
-        next_steps.push(
-            "افتح برنامج «المكتبة الشاملة» على جهازك، وابحث عن الكتاب باسمه أو برقمه في قسم التنزيل، ثم نزِّله.",
-        );
-        next_steps.push(
-            "أو افتح رابط صفحة الكتاب أدناه في المتصفح لقراءته مباشرةً على موقع الشاملة دون تنزيل.",
-        );
-        next_steps.push("بعد التنزيل تلتقطه الإضافة خلال ثوانٍ، فتابع بحثك في المحادثة نفسها.");
+        next_steps.push(L.stepDownloadInApp);
+        next_steps.push(L.stepReadOnline);
+        next_steps.push(L.stepPickedUpAutomatically);
     }
     if (unavailableCount) {
-        next_steps.push(
-            "ما وُصف بأنه «في الفهرس دون إتاحة للتنزيل» لن تجده في برنامج الشاملة؛ ابحث عنه في مصادر أخرى بعنوانه ومؤلفه كما هما هنا.",
-        );
+        next_steps.push(L.stepLookElsewhere);
     }
     if (!total) {
-        notes.push(
-            "لا مطابق في فهرس الشاملة الكامل. تحقَّق من صيغة العنوان أو اسم المؤلف، أو جرّب كلمةً واحدة مميِّزة من العنوان — وقد يكون الكتاب خارج المكتبة الشاملة أصلًا.",
-        );
+        notes.push(L.noteNoMatch);
     }
     if (downloadedCount && downloadedCount === total) {
-        notes.push("كل ما طابق منزَّلٌ عندك فعلًا — ابحث فيه مباشرةً.");
+        notes.push(L.noteAllDownloaded);
     }
-    notes.push("هذه الأداة لا تنزِّل شيئًا ولا تتصل بأي خادم؛ التنزيل يتولاه برنامج المكتبة الشاملة نفسه.");
+    notes.push(L.noteOffline);
 
     const out: SuggestDownloadOutput = {
         query: args.query ?? null,
@@ -208,32 +210,37 @@ export function runSuggestDownload(
     };
 
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, data.query ? `كتب مقترحة: «${data.query}»` : "حال الكتب في فهرس الشاملة")];
+        const lines = [header(1, data.query ? L.headingQuery(data.query) : L.headingAll)];
         lines.push(
-            `**${arabize(data.total)}** كتابًا مطابقًا — منزَّل عندك: ${arabize(data.downloaded_count)}، متاح للتنزيل: ${arabize(data.available_count)}، في الفهرس دون إتاحة: ${arabize(data.unavailable_count)}.`,
+            L.summary(
+                num(data.total),
+                num(data.downloaded_count),
+                num(data.available_count),
+                num(data.unavailable_count),
+            ),
         );
         for (const c of data.results) {
             const label =
                 c.status === "downloaded"
-                    ? "✔ منزَّل عندك"
+                    ? L.statusDownloaded
                     : c.status === "available_to_download"
-                      ? "⬇ متاح للتنزيل"
-                      : "— في الفهرس دون إتاحة للتنزيل";
+                      ? L.statusAvailable
+                      : L.statusUnavailable;
             lines.push("", header(2, c.book_name));
-            const meta = [c.author_name, c.death_year ? `ت ${arabize(c.death_year)}هـ` : null, c.category]
+            const meta = [c.author_name, c.death_year ? L.died(num(c.death_year)) : null, c.category]
                 .filter(Boolean)
                 .join(" — ");
             if (meta) lines.push(`*${meta}*`);
-            lines.push(`- **الحال**: ${label}`);
-            lines.push(`- **الرقم في الشاملة**: ${arabize(c.book_id)}`);
-            lines.push(`- **صفحته**: ${c.link}`);
+            lines.push(`- **${L.status}**: ${label}`);
+            lines.push(`- **${L.shamelaId}**: ${num(c.book_id)}`);
+            lines.push(`- **${L.bookPage}**: ${c.link}`);
         }
         if (data.next_steps.length) {
-            lines.push("", header(3, "الخطوات"));
+            lines.push("", header(3, L.stepsHeading));
             for (const s of data.next_steps) lines.push(`- ${s}`);
         }
         if (data.notes.length) {
-            lines.push("", "**ملاحظات**:");
+            lines.push("", `**${L.notesHeading}**:`);
             for (const n of data.notes) lines.push(`- ${n}`);
         }
         return lines.join("\n");

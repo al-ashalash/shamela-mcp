@@ -5,7 +5,9 @@ import { bookNotFound } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { renderResponse, type RenderedResponse, header, meta, arabize } from "../format.js";
+import { renderResponse, type RenderedResponse, header, meta } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getBookLabels } from "../i18n/tools/getBook.js";
 
 export const getBookInputShape = {
     book_id: z.number().int().positive().describe("The book id (e.g. 9942)."),
@@ -65,6 +67,9 @@ export interface GetBookOutput {
  * Only reports a value when a clear «تحقيق: …» / «الناشر: …» pattern matches —
  * never guesses (quality over breadth). Returns nulls otherwise.
  */
+// i18n:arabic-data — these patterns match Arabic text in Shamela's own
+// book titles («المحقق: …», «الناشر: …»). They are how the data is read,
+// not anything a reader sees; translating them would stop them matching.
 function extractPubInfo(text: string): { editor: string | null; publisher: string | null } {
     const t = text.replace(/<[^>]*>/g, " ").replace(/[ \t]+/g, " ");
     const grab = (re: RegExp): string | null => {
@@ -79,15 +84,6 @@ function extractPubInfo(text: string): { editor: string | null; publisher: strin
     const publisher = grab(/(?:الناشر|دار النشر)\s*[:：]\s*([^\n]{2,70})/);
     return { editor, publisher };
 }
-
-const TYPE_LABELS: Record<number, string> = {
-    1: "كتاب",
-    2: "مجلة",
-    3: "مخطوط",
-    4: "رسالة جامعية",
-    5: "إلكتروني",
-    6: "صوتي",
-};
 
 export async function runGetBook(
     catalog: Catalog,
@@ -123,6 +119,9 @@ export async function runGetBook(
     const nameParts = rec.book_name.split(/\s+-\s+/);
     const suffix = (rec.meta_data?.suffix?.trim() || (nameParts.length > 1 ? nameParts[nameParts.length - 1]!.trim() : "")) || "";
     const edition = suffix || null;
+    // i18n:arabic-data — «ت » and «ط » are the prefixes Shamela itself puts
+    // on the editor and edition parts of a book title. They are how the
+    // field is recognised, not anything shown to a reader.
     let editor: string | null = /^ت\s/.test(suffix) ? suffix.replace(/^ت\s+/, "").trim() : null;
     let publisher: string | null = /^ط\s/.test(suffix) ? suffix.replace(/^ط\s+/, "").trim() : null;
 
@@ -147,23 +146,20 @@ export async function runGetBook(
         }
     }
 
+    // `notes` rides in `structuredContent`, but its entries are sentences a
+    // reader reads — `content_status` is what a caller branches on. So they come
+    // from the slice and follow the language in force, and the slice is picked
+    // out here rather than in the renderer because they are written while the
+    // answer is being assembled.
+    const L = pick(getBookLabels);
     const notes: string[] = [];
-    if (content_status === "downloaded_no_pages")
-        notes.push(
-            "the book file is on disk but carries no text pages (an image/scan-only title) — do not quote from it",
-        );
-    if (content_status === "flagged_file_missing")
-        notes.push(
-            "the catalog flags this book as downloaded but its file is not on disk (interrupted download, or the library folder was moved) — do not quote from it",
-        );
-    if (catalog.isSessionDiscovered(rec.book_id))
-        notes.push(
-            "downloaded during this session: catalog data is available, but its text is not readable until Claude Desktop restarts",
-        );
-    if (!editor) notes.push("muḥaqqiq (editor) not found in the front-matter; may need the printed source");
-    if (!publisher) notes.push("publisher not found in the front-matter / not in master.db");
-    if (!edition) notes.push("edition descriptor not present in the Shamela name suffix");
-    notes.push("city of publication and edition number are not stored in master.db");
+    if (content_status === "downloaded_no_pages") notes.push(L.noteNoPages);
+    if (content_status === "flagged_file_missing") notes.push(L.noteFileMissing);
+    if (catalog.isSessionDiscovered(rec.book_id)) notes.push(L.noteSessionDiscovered);
+    if (!editor) notes.push(L.noteNoEditor);
+    if (!publisher) notes.push(L.noteNoPublisher);
+    if (!edition) notes.push(L.noteNoEdition);
+    notes.push(L.noteNoCityOrEditionNumber);
 
     const out: GetBookOutput = {
         book_id: rec.book_id,
@@ -171,7 +167,7 @@ export async function runGetBook(
         category_id: rec.book_category,
         category: catalog.categoryPath(rec.book_category)[0] ?? null,
         book_type: rec.book_type,
-        book_type_label: TYPE_LABELS[rec.book_type] ?? "غير معروف",
+        book_type_label: pick(getBookLabels).typeName(rec.book_type),
         book_date: rec.book_date,
         printed: rec.printed,
         available: rec.major_online > 0,
@@ -188,36 +184,38 @@ export async function runGetBook(
     };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [header(1, data.book_name)];
-        lines.push(`- **المعرِّف**: ${data.book_id}`);
+        lines.push(`- **${L.bookId}**: ${data.book_id}`);
         if (data.authors.length) {
             const main = data.authors.find((a) => a.role === "main") ?? data.authors[0]!;
             lines.push(
-                `- **المؤلف**: ${main.author_name}` +
-                    (main.death_year ? ` (ت ${arabize(main.death_year)}هـ)` : ""),
+                `- **${L.author}**: ${main.author_name}` +
+                    (main.death_year ? L.died(num(main.death_year)) : ""),
             );
             const cos = data.authors.filter((a) => a.role === "co");
             if (cos.length) {
-                lines.push(`- **مشاركون**: ${cos.map((a) => a.author_name).join("، ")}`);
+                lines.push(
+                    `- **${L.coAuthors(cos.length)}**: ${cos.map((a) => a.author_name).join(L.listSep)}`,
+                );
             }
         }
-        if (data.category) lines.push(`- **التصنيف**: ${data.category}`);
-        lines.push(`- **النوع**: ${data.book_type_label}`);
-        if (data.book_date) lines.push(`- **سنة التأليف**: ${arabize(data.book_date)}هـ`);
+        if (data.category) lines.push(`- **${L.category}**: ${data.category}`);
+        lines.push(`- **${L.bookType}**: ${data.book_type_label}`);
+        if (data.book_date) lines.push(`- **${L.authoredYear}**: ${L.hijri(num(data.book_date))}`);
         const csLabel =
             data.content_status === "readable"
-                ? "نعم (نصّه مقروء)"
+                ? L.statusReadable
                 : data.content_status === "downloaded_no_pages"
-                  ? "ملفه موجود لكن **بلا صفحات مقروءة** (لا يُنقَل عنه)"
+                  ? L.statusNoPages
                   : data.content_status === "flagged_file_missing"
-                    ? "مفهرس كمنزَّل لكن **ملفه غير موجود على القرص** (لا يُنقَل عنه)"
-                    : "لا";
-        lines.push(`- **منزَّل محليًّا**: ${csLabel}`);
-        if (data.edition) lines.push(`- **الطبعة/الناشر (من اسم الشاملة)**: ${data.edition}`);
-        if (data.editor) lines.push(`- **المحقق**: ${data.editor}`);
-        if (data.publisher) lines.push(`- **الناشر**: ${data.publisher}`);
-        if (data.publication_date) lines.push(`- **تاريخ النشر بالشاملة**: ${data.publication_date}`);
+                    ? L.statusFileMissing
+                    : L.statusNotDownloaded;
+        lines.push(`- **${L.downloadedLocally}**: ${csLabel}`);
+        if (data.edition) lines.push(`- **${L.edition}**: ${data.edition}`);
+        if (data.editor) lines.push(`- **${L.editor}**: ${data.editor}`);
+        if (data.publisher) lines.push(`- **${L.publisher}**: ${data.publisher}`);
+        if (data.publication_date) lines.push(`- **${L.publicationDate}**: ${data.publication_date}`);
         if (data.notes.length) {
-            lines.push("", "**ملاحظات على البيانات المتاحة**:");
+            lines.push("", `**${L.notesHeading}**:`);
             for (const n of data.notes) lines.push(`- ${n}`);
         }
         return lines.join("\n");

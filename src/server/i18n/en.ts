@@ -12,6 +12,7 @@
  */
 
 import type { Messages } from "./ar.js";
+import { guideEn } from "./guide.en.js";
 
 export const en: Messages = {
     instructions: `You are connected to the user's local Maktabah al-Shamela library, read-only. Observe the following:
@@ -38,6 +39,11 @@ export const en: Messages = {
 - **service/{tafseer,hadeeth,trajim}.db**: the linking tables — \`service(key_id, book_id, page_id)\` and \`inservice(book, user_excluded)\`. key_id is the aya_id for tafsir, and a hadith key for hadith.
 - **Lucene indexes**: page texts (body/foot/comment), chapter titles, authors and verses — read by the Java helper.
 - Read-only; Shamela's files are never written to.`,
+
+    guide: guideEn,
+
+    guideUnknownSection: (requested: string, available: string[]) =>
+        `No guide section called "${requested}"; the sections are: ${available.join(", ")} — the full guide is shown instead.`,
 
     toolTitles: {
         shamela_search_pages: "Search inside books (matn + footnotes)",

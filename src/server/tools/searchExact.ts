@@ -33,10 +33,15 @@ import { badArg, emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { searchExactLabels } from "../i18n/tools/searchExact.js";
 
 // --- Tunable exactness normalizer (pure, local — does NOT touch arabic.ts) ---
 
+// i18n:arabic-data — everything from here to ANY_ARABIC_INDIC_RE is the
+// alphabet this tool operates ON, not wording it shows. Translating any of
+// it would stop the normalisation matching, in every language.
 // Tashkeel, tatweel, dagger-alef, Quranic annotation marks. Mirrors arabic.ts's
 // DIACRITICS_RE so "stripped" behaviour is identical when preserve_diacritics is off.
 const DIACRITICS_RE = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
@@ -47,6 +52,7 @@ const HTML_TAG_RE = /<[^>]*>/g;
 
 // Western 0-9, Arabic-Indic ٠-٩ (U+0660..), Extended Arabic-Indic ۰-۹ (U+06F0..).
 const WESTERN_DIGIT_RE = /[0-9]/g;
+// i18n:arabic-data — the digit systems themselves, mapped to ASCII.
 const ARABIC_INDIC_MAP: Record<string, string> = {
     "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
     "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
@@ -81,7 +87,10 @@ export function normalizeExact(input: string, flags: PreserveFlags): string {
     }
     if (!flags.preserve_hamza) {
         s = s
-            .replace(/[آأإٱ]/g, "ا") // آأإٱ → ا
+            // i18n:arabic-data — the hamza and letter-folding table. This is the
+        // transformation the tool performs; translating it would change what
+        // the search matches, in every language.
+        .replace(/[آأإٱ]/g, "ا") // آأإٱ → ا
             .replace(/ى/g, "ي") // ى → ي
             .replace(/ة/g, "ه") // ة → ه
             .replace(/ؤ/g, "و") // ؤ → و
@@ -344,29 +353,26 @@ export async function runSearchExact(
     };
 
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(searchExactLabels);
         const on: string[] = [];
-        if (data.preserve.preserve_diacritics) on.push("التشكيل");
-        if (data.preserve.preserve_hamza) on.push("الهمزات");
-        if (data.preserve.preserve_digits) on.push("نظام الأرقام");
+        if (data.preserve.preserve_diacritics) on.push(L.diacritics);
+        if (data.preserve.preserve_hamza) on.push(L.hamza);
+        if (data.preserve.preserve_digits) on.push(L.digits);
         const lines = [
-            header(1, `بحث مطابق تمامًا (مع مراعاة ${on.join(" و")}): «${data.query}»`),
+            header(1, L.heading(L.joinFeatures(on), data.query)),
         ];
-        lines.push(
-            `**${arabize(data.returned)}** صفحة مطابقة بالضبط (من ${arabize(data.total_candidates_scanned)} صفحة مرشَّحة فُحصت).`,
-        );
+        lines.push(L.summary(num(data.returned), num(data.total_candidates_scanned)));
         if (data.candidate_cap_hit) {
-            lines.push(
-                "*ملاحظة: عدد الصفحات المرشَّحة تجاوز سقف الفحص؛ ضيِّق النطاق (scope) لتغطية أشمل. (النتائج الظاهرة مؤكَّدة، لكن قد تفوت مطابقاتٌ خارج النافذة.)*",
-            );
+            lines.push(L.capNote);
         }
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? ` (ص ${arabize(r.printed_page)})` : ""} — page_id=${r.page_id}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet) {
-                const label = r.matched_in.length === 1 && r.matched_in[0] === "foot" ? "_حاشية_: " : "";
+                const label = r.matched_in.length === 1 && r.matched_in[0] === "foot" ? L.footLabel : "";
                 lines.push("", `> ${label}${r.snippet}`);
             }
             lines.push("");

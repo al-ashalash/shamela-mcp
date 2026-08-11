@@ -5,7 +5,9 @@ import type { Helper } from "../helper.js";
 import { VERSION } from "../constants.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { renderResponse, type RenderedResponse, header, arabize } from "../format.js";
+import { renderResponse, type RenderedResponse, header } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { healthLabels } from "../i18n/tools/health.js";
 
 export const healthInputShape = { ...ResponseFormatInput };
 export const healthInput = z.object(healthInputShape).strict();
@@ -197,39 +199,51 @@ export async function runHealth(
         notes,
     };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(healthLabels);
         const lines = [
-            header(1, `فحص خادم الشاملة — ${data.status === "ok" ? "سليم ✅" : "متعثر ⚠️"}`),
-            `- **نسخة الخادم**: ${data.server_version}`,
-            `- **كتب الفهرس**: ${arabize(data.catalog_books)} — **المؤلفون**: ${arabize(data.catalog_authors)} — **التصنيفات**: ${arabize(data.categories)}`,
-            `- **الكتب المنزَّلة**: ${arabize(data.downloaded_books)} (ملفاتها موجودة على القرص)`,
+            header(1, L.heading(data.status === "ok" ? L.ok : L.degraded)),
+            L.serverVersion(data.server_version),
+            L.counts(num(data.catalog_books), num(data.catalog_authors), num(data.categories)),
+            L.downloaded(num(data.downloaded_books)),
         ];
         if (data.flagged_file_missing)
-            lines.push(
-                `- **معلَّمة في الفهرس بلا ملف**: ${arabize(data.flagged_file_missing)} — تنزيل مبتور أو مجلد مكتبة مُنقَل`,
-            );
+            lines.push(L.flaggedMissing(num(data.flagged_file_missing)));
         if (data.orphan_files)
-            lines.push(`- **ملفات كتب خارج الفهرس**: ${arabize(data.orphan_files)}`);
+            lines.push(L.orphanFiles(num(data.orphan_files)));
         if (data.disk_scan_fell_back)
-            lines.push("- ⚠️ **تعذَّرت قراءة مجلد الكتب**؛ الأعداد أعلاه من علامات الفهرس لا من الملفات");
+            lines.push(L.diskScanFellBack);
         if (data.readable_spot_check)
             lines.push(
-                `- **عيّنة قابلية القراءة**: ${arabize(data.readable_spot_check.readable)} من ${arabize(data.readable_spot_check.sampled)} مقروءة${data.readable_spot_check.unreadable_book_ids.length ? ` (غير المقروءة: ${data.readable_spot_check.unreadable_book_ids.join("، ")})` : ""}`,
+                L.spotCheck(
+                    num(data.readable_spot_check.readable),
+                    num(data.readable_spot_check.sampled),
+                    data.readable_spot_check.unreadable_book_ids.length
+                        ? L.unreadableIds(data.readable_spot_check.unreadable_book_ids.map(String).join(L.idSeparator))
+                        : "",
+                ),
             );
         if (data.search_index) {
             const si = data.search_index;
             lines.push(
-                `- **فهرس البحث**: ${si.page_docs === null ? "غير متاح" : `${arabize(si.page_docs)} وثيقة صفحات`}` +
-                    (si.book_docs !== null ? ` — ${arabize(si.book_docs)} كتب` : "") +
-                    (si.author_docs !== null ? ` — ${arabize(si.author_docs)} مؤلفين` : ""),
+                L.searchIndex(
+                    (si.page_docs === null ? L.unavailable : L.pageDocs(num(si.page_docs))) +
+                        (si.book_docs !== null ? L.bookDocs(num(si.book_docs)) : "") +
+                        (si.author_docs !== null ? L.authorDocs(num(si.author_docs)) : ""),
+                ),
             );
             lines.push(
-                `- **استعلام تجريبي** «${si.probe_query}»: ${
-                    si.error ? `أخفق (${si.error})` : si.probe_hits === null ? "غير متاح" : `${arabize(si.probe_hits)} نتيجة`
-                }`,
+                L.probe(
+                    si.probe_query,
+                    si.error
+                        ? L.probeFailed(si.error)
+                        : si.probe_hits === null
+                          ? L.unavailable
+                          : L.probeHits(num(si.probe_hits)),
+                ),
             );
         }
         if (data.notes.length) {
-            lines.push("", "**ملاحظات**:");
+            lines.push("", L.notesHeading);
             for (const n of data.notes) lines.push(`- ${n}`);
         }
         return lines.join("\n");

@@ -18,7 +18,8 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createServer, type Backend } from "../../src/server/index.js";
 import { ar } from "../../src/server/i18n/ar.js";
 import { en } from "../../src/server/i18n/en.js";
-import { resetLangForTesting } from "../../src/server/i18n/index.js";
+import { resetLangForTesting, SUPPORTED_LANGS } from "../../src/server/i18n/index.js";
+import { buildGuideText, resolveGuideSection } from "../../src/server/guide.js";
 
 /** A backend nobody is allowed to reach: registration must not need one. */
 const unusedBackend = async (): Promise<Backend> => {
@@ -96,6 +97,37 @@ describe("the server speaks the configured language", () => {
         // would ship a model that attributes text it never read.
         expect(instructions).toContain("shamela_get_citation");
         expect(instructions).toContain("footnote");
+    });
+
+    it("the guide names every registered tool, in every language", async () => {
+        // The drift guard that matters most for a translated guide: a tool
+        // added to the server and forgotten in one translation leaves that
+        // language's users unable to discover it, and nothing else would say so.
+        for (const lang of SUPPORTED_LANGS) {
+            const client = await connectWithLang(lang);
+            const { tools } = await client.listTools();
+            resetLangForTesting();
+            process.env.SHAMELA_LANG = lang;
+            const guide = buildGuideText();
+            for (const t of tools) {
+                expect(guide, `${lang} guide does not name ${t.name}`).toContain(t.name);
+            }
+        }
+    });
+
+    it("a guide section can be asked for in either language", async () => {
+        for (const [asked, expected] of [
+            ["الأدوات", "الأدوات"],
+            ["tools", "الأدوات"],
+            ["TIPS", "النصائح"],
+            ["all", "الكل"],
+            ["الكل", "الكل"],
+        ] as const) {
+            expect(resolveGuideSection(asked), `resolveGuideSection(${asked})`).toBe(expected);
+        }
+        // And something that means nothing still means nothing.
+        expect(resolveGuideSection("قوالب")).toBeNull();
+        expect(resolveGuideSection("templates")).toBeNull();
     });
 
     it("an unknown language setting still yields a working Arabic server", async () => {
