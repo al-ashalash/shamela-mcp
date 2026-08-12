@@ -1,0 +1,3323 @@
+{
+  "shamela_books_by_period": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "category_id": {
+          "description": "Optional: restrict to one category (use shamela_list_categories for IDs). Categories are flat in master.db.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "composed_from": {
+          "description": "Hijri year, inclusive LOWER bound on the BOOK's composition year (book.book_date). Distinct from author death year — use died_from for that. Pair with composed_to.",
+          "maximum": 2000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "composed_to": {
+          "description": "Hijri year, inclusive UPPER bound on the BOOK's composition year (book.book_date). Pair with composed_from.",
+          "maximum": 2000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "died_from": {
+          "description": "Hijri year, inclusive LOWER bound on the MAIN AUTHOR's death year (author.death_year). Distinct from the book's composition year — use composed_from for that. Pair with died_to.",
+          "maximum": 2000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "died_to": {
+          "description": "Hijri year, inclusive UPPER bound on the MAIN AUTHOR's death year (author.death_year). Pair with died_from.",
+          "maximum": 2000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "downloaded_only": {
+          "default": false,
+          "description": "If true, restrict to books whose file is actually present on this machine — the only ones with searchable page content.",
+          "type": "boolean"
+        },
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_ids": {},
+        "books": {
+          "items": {},
+          "type": "array"
+        },
+        "category_id": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "composed_from": {},
+        "composed_to": {},
+        "died_from": {},
+        "died_to": {},
+        "downloaded_only": {},
+        "filter": {},
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_offset": {},
+        "offset": {
+          "type": "number"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_dump_book": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book to export. Must be downloaded.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "include": {
+          "default": [
+            "body",
+            "foot"
+          ],
+          "description": "Which parts of each page to export. Drop 'foot' to halve the volume of a heavily annotated edition.",
+          "items": {
+            "enum": [
+              "body",
+              "foot",
+              "comment"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "include_titles": {
+          "default": true,
+          "description": "Attach the chapter title in force at each page, so a chunk carries its context. Costs one extra index read for the book.",
+          "type": "boolean"
+        },
+        "keep_html": {
+          "default": false,
+          "description": "Keep Shamela's inline markup. Off by default: a pipeline wants plain text.",
+          "type": "boolean"
+        },
+        "max_chars": {
+          "default": 18000,
+          "description": "Characters of page text per call (default 18000, max 60000). Above ~18000 the rendered text channel is truncated by the protocol; structuredContent is always complete.",
+          "maximum": 60000,
+          "minimum": 1000,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "start_page_id": {
+          "default": 1,
+          "description": "Resume cursor: the first page_id to include. Pass `next_start_page_id` from the previous call to continue. Defaults to the start of the book.",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "book_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "_display": {},
+        "author_death_year": {},
+        "author_name": {},
+        "book_id": {
+          "type": "number"
+        },
+        "book_name": {
+          "type": "string"
+        },
+        "category": {},
+        "chars": {
+          "type": "number"
+        },
+        "citation_auto_numbered": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_start_page_id": {},
+        "pages": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "start_page_id": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_pages": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_author": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "author_id": {
+          "description": "The author id (e.g. 57 for Ibn Uthaymeen).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "include_books": {
+          "default": true,
+          "description": "If true (default), include the list of books authored by this author. Includes co-authored books.",
+          "type": "boolean"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "author_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "author_id": {},
+        "author_name": {},
+        "book_count": {},
+        "books": {
+          "items": {},
+          "type": "array"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "death_text": {},
+        "death_year": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_aya": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "aya": {
+          "description": "Aya number within the surah, 1..N. Pair with `surah`.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "aya_id": {
+          "description": "Cumulative aya id, 1..6236. Mutually exclusive with surah/aya.",
+          "maximum": 6236,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "surah": {
+          "description": "Surah number 1..114. Pair with `aya`.",
+          "maximum": 114,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "amiri": {},
+        "aya": {},
+        "aya_id": {},
+        "body": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "majma": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "surah": {},
+        "surah_name": {},
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_book": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book id (e.g. 9942).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "book_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "authors": {},
+        "available": {},
+        "book_date": {},
+        "book_id": {
+          "type": "number"
+        },
+        "book_name": {
+          "type": "string"
+        },
+        "book_type": {},
+        "book_type_label": {},
+        "category": {},
+        "category_id": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "content_status": {
+          "type": "string"
+        },
+        "downloaded": {
+          "type": "boolean"
+        },
+        "edition": {},
+        "editor": {},
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pdf_links": {},
+        "printed": {},
+        "publication_date": {},
+        "publisher": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "sub_books": {},
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_book_parts": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "book_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "type": "number"
+        },
+        "book_name": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "is_multi_volume": {},
+        "parts": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_pages": {},
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_book_section": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "keep_html": {
+          "default": false,
+          "description": "Preserve inline HTML markers.",
+          "type": "boolean"
+        },
+        "max_pages": {
+          "default": 30,
+          "description": "Cap on pages to read (1–100, default 30). Sections longer than this are truncated with a flag.",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "title_id": {
+          "description": "The title id of the chapter / section to fetch (use shamela_get_toc to find IDs).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "book_id",
+        "title_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "_display": {},
+        "author_name": {},
+        "book_id": {
+          "type": "number"
+        },
+        "book_name": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "end_page_id": {},
+        "next_start_page_id": {},
+        "pages": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "start_page_id": {},
+        "title_id": {},
+        "title_text": {},
+        "total_count": {
+          "type": "number"
+        },
+        "total_pages_in_section": {},
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_books_for_hadith": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "downloaded_only": {
+          "default": true,
+          "description": "If true (default), only return books actually downloaded on this machine.",
+          "type": "boolean"
+        },
+        "hadith_key": {
+          "description": "Numeric hadith key (the normalized identifier Shamela uses across collections — e.g. 1234). Different collections of the same hadith share this key.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "hadith_key"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "hadith_key": {},
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_citation": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "page_id": {
+          "description": "Optional page_id. When omitted, the citation references the book without a specific page (e.g. for a book-level citation).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "style": {
+          "default": "shamela",
+          "description": "Citation style. 'shamela' replicates Shamela's UI copy-with-citation format (default). 'short' is a one-line inline reference. 'full' is the long form including author death year and book year, with notes listing missing fields (publisher/edition/etc are not in master.db).",
+          "enum": [
+            "shamela",
+            "short",
+            "full"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "description": "Optional quoted text. When provided in 'shamela' style, the output includes a two-line block: «<book>» (<part>/ <page>):\n«<text>».",
+          "type": "string"
+        }
+      },
+      "required": [
+        "book_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "components": {},
+        "formatted": {},
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "style": {},
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_page": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "body_part": {
+          "default": 1,
+          "description": "For long pages: when the body exceeds ~4000 characters it is split into parts. Pass the 1-based part to read (default 1). The response reports body_part/body_total_parts/body_has_more; request the next part by incrementing. The footnote/comment are returned with part 1.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "book_id": {
+          "description": "The book id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "keep_html": {
+          "default": false,
+          "description": "If true, preserve inline HTML markers (e.g. <span data-type='title'>). Default false strips them for plain Arabic display.",
+          "type": "boolean"
+        },
+        "page_id": {
+          "description": "The page id (Lucene/SQLite internal id, not the printed page number).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "book_id",
+        "page_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "_display": {},
+        "author_name": {},
+        "body": {
+          "type": "string"
+        },
+        "body_has_more": {},
+        "body_part": {},
+        "body_total_parts": {},
+        "book_id": {
+          "type": "number"
+        },
+        "book_name": {
+          "type": "string"
+        },
+        "category_path": {},
+        "citation": {
+          "type": "string"
+        },
+        "citation_auto_numbered": {
+          "type": "boolean"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "containing_titles": {},
+        "foot": {
+          "type": "string"
+        },
+        "next_page_id": {},
+        "page_id": {
+          "type": "number"
+        },
+        "part": {},
+        "prev_page_id": {},
+        "printed_page": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_page_services": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "page_id": {
+          "description": "The page id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "book_id",
+        "page_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "ayat": {},
+        "book_id": {
+          "type": "number"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "esnad": {},
+        "hadeeth": {},
+        "has_services": {},
+        "page_id": {
+          "type": "number"
+        },
+        "raw": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_pages_range": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "count": {
+          "default": 5,
+          "description": "How many consecutive pages to fetch (1–20, default 5). Use shamela_get_book_section for full chapter reads.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "keep_html": {
+          "default": false,
+          "description": "Preserve inline HTML markers.",
+          "type": "boolean"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "start_page_id": {
+          "description": "First page_id (inclusive).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "book_id",
+        "start_page_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "_display": {},
+        "author_name": {},
+        "book_id": {
+          "type": "number"
+        },
+        "book_name": {
+          "type": "string"
+        },
+        "citation_auto_numbered": {
+          "type": "boolean"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "count": {},
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_start_page_id": {},
+        "pages": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "start_page_id": {},
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_tafseer_of_aya": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "aya": {
+          "description": "Aya within surah.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "aya_id": {
+          "description": "Aya id 1..6236.",
+          "maximum": 6236,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "downloaded_only": {
+          "default": true,
+          "description": "If true (default), only return books the user has downloaded locally.",
+          "type": "boolean"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "surah": {
+          "description": "Surah number, paired with `aya`.",
+          "maximum": 114,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "aya": {},
+        "aya_id": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "coverage_note": {},
+        "index_rows": {
+          "type": "number"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "surah": {},
+        "surah_name": {},
+        "total": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_tafseer_texts": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "aya": {
+          "description": "Aya within surah.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "aya_id": {
+          "description": "Aya id 1..6236.",
+          "maximum": 6236,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "book_ids": {
+          "description": "Restrict to these tafsir books. Books not present in the curated index for this aya are reported with an explicit status instead of text. Use shamela_list_tafsirs_for_aya to see which books the index covers.",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "max_sources": {
+          "default": 5,
+          "description": "Maximum number of sources to fetch text for (1-10, default 5).",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "surah": {
+          "description": "Surah number, paired with `aya`.",
+          "maximum": 114,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "_display": {},
+        "aya": {},
+        "aya_id": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "fetched": {},
+        "note": {},
+        "remaining_book_ids": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "sources": {},
+        "surah": {},
+        "surah_name": {},
+        "total_count": {
+          "type": "number"
+        },
+        "total_from_service": {
+          "type": "number"
+        },
+        "total_from_titles": {
+          "type": "number"
+        },
+        "total_indexed": {},
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_get_toc": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_id": {
+          "description": "The book id.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "containing_page_id": {
+          "description": "Alternate mode: instead of returning a subtree, return the ancestor chain (root → leaf chapter) for this page.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "depth": {
+          "default": 1,
+          "description": "How many levels deep to recurse (1–5, default 1).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "parent_id": {
+          "default": 0,
+          "description": "Title id whose children to expand. 0 (default) returns top-level chapters.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "book_id"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "ancestor_chain": {},
+        "book_id": {
+          "type": "number"
+        },
+        "book_name": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "depth": {},
+        "mode": {},
+        "parent_id": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "titles": {},
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_guide": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "section": {
+          "default": "الكل",
+          "description": "Which part of the user guide to return. Either language is accepted: 'الكل' / 'all' (default — the whole guide), 'الأدوات' / 'tools' (every tool with example requests in plain language), or 'النصائح' / 'tips' (researcher tips). The guide is rendered in the extension's configured language. An unrecognized value falls back to the whole guide with a note.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "available_sections": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "section": {},
+        "text": {},
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_health": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "author_docs": {},
+        "aya_index": {},
+        "book_docs": {},
+        "catalog_authors": {},
+        "catalog_books": {},
+        "categories": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "disk_scan_fell_back": {},
+        "downloaded_books": {},
+        "error": {},
+        "flagged_books": {},
+        "flagged_file_missing": {},
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "orphan_files": {},
+        "page_docs": {},
+        "probe_hits": {},
+        "probe_query": {},
+        "readable": {},
+        "readable_spot_check": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "search_index": {},
+        "server_version": {},
+        "startup_error": {},
+        "status": {
+          "type": "string"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        },
+        "unreadable_book_ids": {}
+      },
+      "type": "object"
+    }
+  },
+  "shamela_list_categories": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "downloaded_only": {
+          "default": false,
+          "description": "If true, list only categories where the user has at least one book downloaded locally. Useful to see where this install's library is concentrated across the 41 categories.",
+          "type": "boolean"
+        },
+        "include_counts": {
+          "default": true,
+          "description": "If true (default), include book_count for each category. Costs nothing — counts are precomputed.",
+          "type": "boolean"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "categories": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "downloaded_total": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_list_downloaded_books": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "category_id": {
+          "description": "Optional: restrict to one category (use shamela_list_categories for IDs). Shamela is a multi-category library — e.g. tafsir spans category 3 (التفسير), 4 (علوم القرآن وأصول التفسير), and 5 (التجويد والقراءات).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "books": {
+          "items": {},
+          "type": "array"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "filtered_category_id": {},
+        "has_more": {
+          "type": "boolean"
+        },
+        "library_by_category": {},
+        "next_offset": {},
+        "offset": {
+          "type": "number"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_list_tafsirs_for_aya": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "aya": {
+          "description": "Aya within surah.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "aya_id": {
+          "description": "Aya id 1..6236.",
+          "maximum": 6236,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "surah": {
+          "description": "Surah number, paired with `aya`.",
+          "maximum": 114,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "aya": {},
+        "aya_id": {},
+        "books": {
+          "items": {},
+          "type": "array"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "index_pending_book_ids": {},
+        "indexed_covers": {},
+        "indexed_no_entry_for_this_aya": {},
+        "not_indexed_coverage_unknown": {},
+        "note": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "surah": {},
+        "surah_name": {},
+        "total_count": {
+          "type": "number"
+        },
+        "totals": {},
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_resolve": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 5,
+          "description": "Maximum results per type (1–20, default 5).",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Arabic name fragment to resolve. Use partial names: 'ابن قدامة' resolves Ibn Qudamah, 'الروضة' resolves books with that word in their title.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "type": {
+          "default": "any",
+          "description": "'book' searches the s_book/ index, 'author' searches s_author/, 'any' (default) searches both.",
+          "enum": [
+            "any",
+            "book",
+            "author"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "authors": {},
+        "books": {
+          "items": {},
+          "type": "array"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "normalized_tokens": {},
+        "query": {
+          "type": "string"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_root_stats": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "root": {
+          "description": "Arabic root or base word to profile morphologically (e.g. «صبر»، «رحم»، «علم»). Matched via the AlKhalil analyzer, so all derived forms (صابر، يصبر، اصطبار…) are counted, not just the literal string.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Restrict the profile to specific books, authors, categories, or a Hijri date range. Use shamela_list_categories / shamela_resolve to find IDs. Omit to profile the whole downloaded library.",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "book_ids": {
+              "description": "Restrict to these book IDs. Use `shamela_resolve` or `shamela_list_downloaded_books` to find IDs. Combine with other scope keys for intersection.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "madhhab": {
+              "description": "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+              "items": {
+                "enum": [
+                  "hanafi",
+                  "maliki",
+                  "shafii",
+                  "hanbali"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "period_basis": {
+              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "enum": [
+                "composed",
+                "died",
+                "either"
+              ],
+              "type": "string"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "root"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "accuracy_note": {},
+        "books_matched": {},
+        "by_author": {},
+        "by_book": {},
+        "by_category": {},
+        "by_century": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "coverage_basis": {},
+        "coverage_cap": {},
+        "coverage_capped": {},
+        "normalized_tokens": {},
+        "returned_count": {
+          "type": "number"
+        },
+        "root": {},
+        "scope_count": {},
+        "total_count": {
+          "type": "number"
+        },
+        "total_counted": {},
+        "total_hits": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_authors": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "options": {
+          "additionalProperties": false,
+          "description": "morphology / wildcards. No scope (authors aren't scoped by category/period).",
+          "properties": {
+            "morphology": {
+              "default": false,
+              "description": "Search Arabic root forms via the AlKhalil morphological analyzer. Useful when looking for all word forms (يكتب، كاتب، مكتوب…) of a root (كتب). Cannot be combined with `wildcards`.",
+              "type": "boolean"
+            },
+            "preserve_diacritics": {
+              "default": false,
+              "description": "[v1.1] Match diacritics exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer already strips all diacritics from both index and query.",
+              "type": "boolean"
+            },
+            "preserve_digits": {
+              "default": false,
+              "description": "[v1.1] Distinguish Arabic-Indic vs Western digits. Currently returns OPTION_NOT_SUPPORTED.",
+              "type": "boolean"
+            },
+            "preserve_hamza": {
+              "default": false,
+              "description": "[v1.1] Match hamza/alef variants exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer folds ٱآأإ→ا.",
+              "type": "boolean"
+            },
+            "search_in": {
+              "default": [
+                "body",
+                "foot"
+              ],
+              "description": "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. Narrowing to ['foot'] alone targets the editor's apparatus — where printed hadith referencing and source citations live — and keeps the matn out of the results. To search chapter titles use the separate `shamela_search_titles` tool.",
+              "items": {
+                "enum": [
+                  "body",
+                  "foot",
+                  "comment"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "wildcards": {
+              "default": false,
+              "description": "Interpret `*` (zero-or-more characters) and `?` (exactly-one character) within tokens. Examples: `صيا*` matches صيام/صيامهم, `ص?م` matches صام/صوم/صمم. Leading wildcards (`*ابن`) are slow. Cannot combine with `morphology`.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "query": {
+          "description": "Arabic search phrase matched against author name + biography.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_offset": {},
+        "normalized_tokens": {},
+        "offset": {
+          "type": "number"
+        },
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_hits": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_books": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "options": {
+          "additionalProperties": false,
+          "description": "morphology / wildcards / preserve_*.",
+          "properties": {
+            "morphology": {
+              "default": false,
+              "description": "Search Arabic root forms via the AlKhalil morphological analyzer. Useful when looking for all word forms (يكتب، كاتب، مكتوب…) of a root (كتب). Cannot be combined with `wildcards`.",
+              "type": "boolean"
+            },
+            "preserve_diacritics": {
+              "default": false,
+              "description": "[v1.1] Match diacritics exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer already strips all diacritics from both index and query.",
+              "type": "boolean"
+            },
+            "preserve_digits": {
+              "default": false,
+              "description": "[v1.1] Distinguish Arabic-Indic vs Western digits. Currently returns OPTION_NOT_SUPPORTED.",
+              "type": "boolean"
+            },
+            "preserve_hamza": {
+              "default": false,
+              "description": "[v1.1] Match hamza/alef variants exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer folds ٱآأإ→ا.",
+              "type": "boolean"
+            },
+            "search_in": {
+              "default": [
+                "body",
+                "foot"
+              ],
+              "description": "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. Narrowing to ['foot'] alone targets the editor's apparatus — where printed hadith referencing and source citations live — and keeps the matn out of the results. To search chapter titles use the separate `shamela_search_titles` tool.",
+              "items": {
+                "enum": [
+                  "body",
+                  "foot",
+                  "comment"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "wildcards": {
+              "default": false,
+              "description": "Interpret `*` (zero-or-more characters) and `?` (exactly-one character) within tokens. Examples: `صيا*` matches صيام/صيامهم, `ص?م` matches صام/صوم/صمم. Leading wildcards (`*ابن`) are slow. Cannot combine with `morphology`.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "query": {
+          "description": "Arabic search phrase matched against the book name + author + bibliography concatenation.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Optional: restrict to specific authors, categories, periods, or downloaded-only.",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "by_century": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "coverage": {},
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_offset": {},
+        "normalized_tokens": {},
+        "offset": {
+          "type": "number"
+        },
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_hits": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_boolean": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "all_of": {
+          "default": [],
+          "description": "AND — terms that must ALL appear on the page (each term is itself AND-searched, so a multi-word term must co-occur). Intersection of every term's hit set. Leave empty to rely on any_of.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "any_of": {
+          "default": [],
+          "description": "OR — at least ONE of these terms must appear on the page. Union of every term's hit set, then intersected with the all_of result. Leave empty to rely on all_of.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "none_of": {
+          "default": [],
+          "description": "NOT — pages containing ANY of these terms are excluded. Applied within the returned candidate window (see none_of_within_window in the output). Optional.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Restrict to books/authors/categories/period. STRONGLY recommended: an unscoped boolean search over a large downloaded library only sees a capped window per term and is best-effort. Use shamela_list_categories / shamela_resolve to find IDs.",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "book_ids": {
+              "description": "Restrict to these book IDs. Use `shamela_resolve` or `shamela_list_downloaded_books` to find IDs. Combine with other scope keys for intersection.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "madhhab": {
+              "description": "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+              "items": {
+                "enum": [
+                  "hanafi",
+                  "maliki",
+                  "shafii",
+                  "hanbali"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "period_basis": {
+              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "enum": [
+                "composed",
+                "died",
+                "either"
+              ],
+              "type": "string"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "search_in": {
+          "default": [
+            "body",
+            "foot"
+          ],
+          "description": "Which page sections each sub-search looks in: body (matn), foot (footnotes), comment. Default ['body','foot'].",
+          "items": {
+            "enum": [
+              "body",
+              "foot",
+              "comment"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "all_of": {},
+        "any_of": {},
+        "candidate_cap_hit": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_offset": {},
+        "none_of": {},
+        "none_of_within_window": {},
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "scope_count": {},
+        "subqueries": {},
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_in_window": {},
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_exact": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "preserve": {
+          "additionalProperties": false,
+          "description": "Which distinctions to enforce during stage-2 verification. At least one must be true.",
+          "properties": {
+            "preserve_diacritics": {
+              "default": false,
+              "description": "Enforce التشكيل exactly: «عِلْم» will not match «عَلَم». The query's own diacritics are honored verbatim.",
+              "type": "boolean"
+            },
+            "preserve_digits": {
+              "default": false,
+              "description": "Distinguish digit systems: Arabic-Indic «٢٥٥» will not match Western «255» (and vice-versa).",
+              "type": "boolean"
+            },
+            "preserve_hamza": {
+              "default": false,
+              "description": "Enforce hamza/alef forms exactly: «أحمد» will not match «احمد»; ٱآأإ, ؤ, ئ, ء, ى, ة are all kept distinct.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "query": {
+          "description": "The exact Arabic string to find. Type it WITH the diacritics / hamza form / digit system you want preserved (the query is NOT auto-diacritized). Multiple words are matched as written; the `preserve` flags decide which distinctions are enforced.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Restrict to books/authors/categories/period. Strongly recommended for large libraries so the candidate window covers the topic.",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "book_ids": {
+              "description": "Restrict to these book IDs. Use `shamela_resolve` or `shamela_list_downloaded_books` to find IDs. Combine with other scope keys for intersection.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "madhhab": {
+              "description": "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+              "items": {
+                "enum": [
+                  "hanafi",
+                  "maliki",
+                  "shafii",
+                  "hanbali"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "period_basis": {
+              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "enum": [
+                "composed",
+                "died",
+                "either"
+              ],
+              "type": "string"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "query",
+        "preserve"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "candidate_cap_hit": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "preserve": {},
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_candidates_scanned": {},
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_hadith": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_pages_scanned": {
+          "default": 20,
+          "description": "How many matching pages to scan for hadith service keys.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "The hadith text (or a distinctive part of it). AND-combines words across matn + footnotes.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "books": {
+          "items": {},
+          "type": "array"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "matches": {},
+        "pages_scanned": {},
+        "query": {
+          "type": "string"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "takhrij": {},
+        "total_count": {
+          "type": "number"
+        },
+        "total_text_matches": {},
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_pages": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "options": {
+          "additionalProperties": false,
+          "description": "Search options: morphology, wildcards, search_in (body/foot/comment), preserve_*. Defaults to body+foot, no toggles.",
+          "properties": {
+            "morphology": {
+              "default": false,
+              "description": "Search Arabic root forms via the AlKhalil morphological analyzer. Useful when looking for all word forms (يكتب، كاتب، مكتوب…) of a root (كتب). Cannot be combined with `wildcards`.",
+              "type": "boolean"
+            },
+            "preserve_diacritics": {
+              "default": false,
+              "description": "[v1.1] Match diacritics exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer already strips all diacritics from both index and query.",
+              "type": "boolean"
+            },
+            "preserve_digits": {
+              "default": false,
+              "description": "[v1.1] Distinguish Arabic-Indic vs Western digits. Currently returns OPTION_NOT_SUPPORTED.",
+              "type": "boolean"
+            },
+            "preserve_hamza": {
+              "default": false,
+              "description": "[v1.1] Match hamza/alef variants exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer folds ٱآأإ→ا.",
+              "type": "boolean"
+            },
+            "search_in": {
+              "default": [
+                "body",
+                "foot"
+              ],
+              "description": "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. Narrowing to ['foot'] alone targets the editor's apparatus — where printed hadith referencing and source citations live — and keeps the matn out of the results. To search chapter titles use the separate `shamela_search_titles` tool.",
+              "items": {
+                "enum": [
+                  "body",
+                  "foot",
+                  "comment"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "wildcards": {
+              "default": false,
+              "description": "Interpret `*` (zero-or-more characters) and `?` (exactly-one character) within tokens. Examples: `صيا*` matches صيام/صيامهم, `ص?م` matches صام/صوم/صمم. Leading wildcards (`*ابن`) are slow. Cannot combine with `morphology`.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "query": {
+          "description": "Arabic search phrase. Multiple words are AND-combined; each can match in body or footnotes.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Restrict the search to specific books, authors, categories, or a Hijri date range. Use shamela_list_categories / shamela_resolve to find IDs.",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "book_ids": {
+              "description": "Restrict to these book IDs. Use `shamela_resolve` or `shamela_list_downloaded_books` to find IDs. Combine with other scope keys for intersection.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "madhhab": {
+              "description": "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+              "items": {
+                "enum": [
+                  "hanafi",
+                  "maliki",
+                  "shafii",
+                  "hanbali"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "period_basis": {
+              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "enum": [
+                "composed",
+                "died",
+                "either"
+              ],
+              "type": "string"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "by_author": {},
+        "by_book": {},
+        "by_category": {},
+        "by_century": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "coverage": {},
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_offset": {},
+        "normalized_tokens": {},
+        "offset": {
+          "type": "number"
+        },
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "scope_count": {},
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_hits": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_phrase": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "distance": {
+          "default": 5,
+          "description": "For mode='near': maximum number of words between the query words. Ignored for mode='phrase'.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "mode": {
+          "default": "phrase",
+          "description": "'phrase' = exact consecutive words (default). 'near' = words within `distance` words, any order.",
+          "enum": [
+            "phrase",
+            "near"
+          ],
+          "type": "string"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Arabic phrase. In mode='phrase' the words must appear consecutively (exact phrase). In mode='near' the words must appear within `distance` words of each other in any order.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Restrict to books/authors/categories/period. Strongly recommended to scope large libraries.",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "book_ids": {
+              "description": "Restrict to these book IDs. Use `shamela_resolve` or `shamela_list_downloaded_books` to find IDs. Combine with other scope keys for intersection.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "madhhab": {
+              "description": "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+              "items": {
+                "enum": [
+                  "hanafi",
+                  "maliki",
+                  "shafii",
+                  "hanbali"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "period_basis": {
+              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "enum": [
+                "composed",
+                "died",
+                "either"
+              ],
+              "type": "string"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "search_in": {
+          "default": [
+            "body",
+            "foot"
+          ],
+          "description": "Which page sections to verify the phrase in: body (matn), foot (footnotes), comment.",
+          "items": {
+            "enum": [
+              "body",
+              "foot",
+              "comment"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "candidate_cap_hit": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "distance": {},
+        "has_more": {
+          "type": "boolean"
+        },
+        "mode": {},
+        "next_offset": {},
+        "offset": {
+          "type": "number"
+        },
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_candidates_scanned": {},
+        "total_count": {
+          "type": "number"
+        },
+        "total_hits": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_quran": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "options": {
+          "additionalProperties": false,
+          "description": "Currently only the `wildcards` flag is honored. The Quranic index ships pre-built and zero-config.",
+          "properties": {
+            "wildcards": {
+              "default": false,
+              "description": "Interpret `*` (zero-or-more characters) and `?` (exactly-one character) within tokens. Examples: `صيا*` matches صيام/صيامهم, `ص?م` matches صام/صوم/صمم. Leading wildcards (`*ابن`) are slow. Cannot combine with `morphology`.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "query": {
+          "description": "Arabic phrase. Searches against the Egyptian إملائي (writing-style) text of all 6,236 verses. Single-word queries also match prefixed forms (e.g. «الصبر» matches «بالصبر»); their results are ordered by mushaf position (aya_id), not relevance.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_offset": {},
+        "normalized_tokens": {},
+        "offset": {
+          "type": "number"
+        },
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_hits": {
+          "type": "number"
+        },
+        "total_hits_complete": {},
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_search_titles": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of results to return (1-100, default 20).",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of results to skip for pagination. Use with `limit` to page through large result sets. The response includes `has_more` and `next_offset` to drive paging.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "options": {
+          "additionalProperties": false,
+          "description": "morphology / wildcards / preserve_* (preserve_* deferred to v1.1). search_in is ignored — titles are a single field.",
+          "properties": {
+            "morphology": {
+              "default": false,
+              "description": "Search Arabic root forms via the AlKhalil morphological analyzer. Useful when looking for all word forms (يكتب، كاتب، مكتوب…) of a root (كتب). Cannot be combined with `wildcards`.",
+              "type": "boolean"
+            },
+            "preserve_diacritics": {
+              "default": false,
+              "description": "[v1.1] Match diacritics exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer already strips all diacritics from both index and query.",
+              "type": "boolean"
+            },
+            "preserve_digits": {
+              "default": false,
+              "description": "[v1.1] Distinguish Arabic-Indic vs Western digits. Currently returns OPTION_NOT_SUPPORTED.",
+              "type": "boolean"
+            },
+            "preserve_hamza": {
+              "default": false,
+              "description": "[v1.1] Match hamza/alef variants exactly. Currently returns OPTION_NOT_SUPPORTED. The default analyzer folds ٱآأإ→ا.",
+              "type": "boolean"
+            },
+            "search_in": {
+              "default": [
+                "body",
+                "foot"
+              ],
+              "description": "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. Narrowing to ['foot'] alone targets the editor's apparatus — where printed hadith referencing and source citations live — and keeps the matn out of the results. To search chapter titles use the separate `shamela_search_titles` tool.",
+              "items": {
+                "enum": [
+                  "body",
+                  "foot",
+                  "comment"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "wildcards": {
+              "default": false,
+              "description": "Interpret `*` (zero-or-more characters) and `?` (exactly-one character) within tokens. Examples: `صيا*` matches صيام/صيامهم, `ص?م` matches صام/صوم/صمم. Leading wildcards (`*ابن`) are slow. Cannot combine with `morphology`.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "query": {
+          "description": "Arabic search phrase. Matches against chapter / section title text.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Same scope filter as shamela_search_pages (book_ids, author_ids, category_ids, period_*, downloaded_only).",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "book_ids": {
+              "description": "Restrict to these book IDs. Use `shamela_resolve` or `shamela_list_downloaded_books` to find IDs. Combine with other scope keys for intersection.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "madhhab": {
+              "description": "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+              "items": {
+                "enum": [
+                  "hanafi",
+                  "maliki",
+                  "shafii",
+                  "hanbali"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "period_basis": {
+              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "enum": [
+                "composed",
+                "died",
+                "either"
+              ],
+              "type": "string"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_offset": {},
+        "normalized_tokens": {},
+        "offset": {
+          "type": "number"
+        },
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "total_hits": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "shamela_suggest_download": {
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "book_ids": {
+          "description": "Specific catalogue ids to report on. Use when the id is already known.",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "category_id": {
+          "description": "Narrow a title/author search to one category. See shamela_list_categories.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "limit": {
+          "default": 10,
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Title or author to look for in Shamela's full catalogue, downloaded or not. Use when a book was mentioned by name — in a citation, a footnote, or by the user.",
+          "minLength": 2,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "available_count": {},
+        "complete": {
+          "type": "boolean"
+        },
+        "downloaded_count": {},
+        "next_steps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "query": {
+          "type": "string"
+        },
+        "results": {
+          "items": {},
+          "type": "array"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        },
+        "unavailable_count": {}
+      },
+      "type": "object"
+    }
+  }
+}
