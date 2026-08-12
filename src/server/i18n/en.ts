@@ -122,4 +122,46 @@ export const en: Messages = {
         serviceKeyNotFound: (service: string, key: number) =>
             `No books are indexed for key ${key} in the ${service} service.`,
     },
+
+    startup: {
+        notFound: (probedLines: string) =>
+            `No Maktabah al-Shamela 4 installation was found. These paths were checked:\n${probedLines}\n\n` +
+            `If it is installed, set the "Shamela folder" field in the extension's settings ` +
+            `(or the SHAMELA_INSTALL_ROOT environment variable) to the installation folder — ` +
+            `the one containing the database and app subfolders.`,
+        probe: {
+            valid: "valid",
+            empty: "empty path",
+            notAbsolute: "could not be resolved to an absolute path",
+            missing: "does not exist",
+            unreadable: (detail: string) => `could not be inspected: ${detail}`,
+            notADirectory: "not a directory",
+            noDatabaseDir: "no database subfolder",
+            noAppDir: "no app subfolder",
+        },
+        jreOverrideInvalid: (value: string) =>
+            `SHAMELA_JRE is set to ${value}, which does not point at a usable Java executable.`,
+        jreNotFound: (appDir: string, probed: string) =>
+            `The Java that ships with the Shamela application could not be found in ${appDir}. Checked: ${probed}. ` +
+            `If the application is installed, update it to the latest version and restart Claude, ` +
+            `or set the SHAMELA_JRE environment variable to a Java executable (advanced).`,
+        luceneDirNotFound: (probed: string) =>
+            `The search engine folder that ships with the Shamela application could not be found. Checked: ${probed}. ` +
+            `Make sure the application is fully installed and up to date, then restart Claude.`,
+        luceneDirEmpty: (dir: string) =>
+            `The search engine folder ${dir} contains no .jar files, so the installation is incomplete. ` +
+            `Reinstall or update the Shamela application, then restart Claude.`,
+        helperCrashedTwice:
+            "The Java helper has crashed more than once and will not be restarted. Restart Claude to try again.",
+        javaTooOld:
+            "The Java that ships with the Shamela application is too old to run the search engine. " +
+            "Update the Shamela application, then restart Claude.",
+        helperExitedFinal: (reason: string) =>
+            `The Java helper stopped (${reason}). It has crashed more than once and will not be restarted.`,
+        helperExitedRetry: (reason: string) =>
+            `The Java helper stopped (${reason}). It will be restarted on the next request.`,
+        helperDead: "The Java helper is not running.",
+        helperTimeout: (cmd: string, timeoutMs: number) =>
+            `The helper did not answer the ${cmd} command within ${timeoutMs} ms.`,
+    },
 };

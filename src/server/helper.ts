@@ -9,6 +9,8 @@
  */
 
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+
+import { messages } from "./i18n/index.js";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import * as path from "node:path";
@@ -68,7 +70,7 @@ export class Helper extends EventEmitter {
         if (this.dead) {
             throw new HelperError(
                 "HELPER_DEAD",
-                "تعطَّل الخادم المساعد لجافا أكثر من مرة، ولن يُعاد تشغيله. أعد تشغيل Claude Desktop ليُعاد المحاولة.",
+                messages().startup.helperCrashedTwice,
             );
         }
         if (this.child && !this.child.killed) return;
@@ -111,9 +113,7 @@ export class Helper extends EventEmitter {
                     // exits with a bare code 1. Catch the sentence so the exit
                     // can be explained rather than merely reported.
                     if (chunk.includes("UnsupportedClassVersionError")) {
-                        this.startupFailure =
-                            "نسخة جافا المرفقة مع برنامج المكتبة الشاملة أقدم من أن تُشغِّل محرك البحث. " +
-                            "حدِّث برنامج المكتبة الشاملة ثم أعد تشغيل تطبيق كلود.";
+                        this.startupFailure = messages().startup.javaTooOld;
                     }
                 });
 
@@ -215,8 +215,8 @@ export class Helper extends EventEmitter {
             : new HelperError(
                   this.dead ? "HELPER_DEAD" : "HELPER_DIED",
                   this.dead
-                      ? `توقَّف الخادم المساعد لجافا (${reason}). تعطَّل أكثر من مرة، ولن يُعاد تشغيله.`
-                      : `توقَّف الخادم المساعد لجافا (${reason}). سيُعاد تشغيله عند الطلب التالي.`,
+                      ? messages().startup.helperExitedFinal(reason)
+                      : messages().startup.helperExitedRetry(reason),
               );
         for (const pending of this.pending.values()) {
             pending.reject(err);
@@ -229,7 +229,7 @@ export class Helper extends EventEmitter {
         await this.start();
         const child = this.child;
         if (!child || child.killed) {
-            throw new HelperError("HELPER_DEAD", "الخادم المساعد لجافا متوقِّف.");
+            throw new HelperError("HELPER_DEAD", messages().startup.helperDead);
         }
 
         const id = randomUUID();
@@ -246,7 +246,7 @@ export class Helper extends EventEmitter {
                     reject(
                         new HelperError(
                             "HELPER_TIMEOUT",
-                            `لم يستجِب الخادم المساعد للأمر ${cmd} خلال ${timeoutMs} مللي ثانية.`,
+                            messages().startup.helperTimeout(cmd, timeoutMs),
                         ),
                     );
                 }

@@ -22,11 +22,17 @@ import { resolveEngineGeneration } from "../../src/server/paths.js";
 
 let root: string;
 
-function makeInstall(luceneDirs: string[]): void {
-    for (const d of luceneDirs) {
-        fs.mkdirSync(path.join(root, "app", "lucene", d), { recursive: true });
-        fs.writeFileSync(path.join(root, "app", "lucene", d, "lucene-core.jar"), "x");
-    }
+/** The jars a real current engine folder carries — the marker that is read. */
+const V2_JARS = ["lucene-core-10.4.0.jar", "AlKhalil-Analyzer-2.1.jar", "shamela-misc-1.0.0.jar"];
+
+/** An older engine: Lucene, but none of the current generation's jars. */
+const V1_JARS = ["lucene-core-4.10.4.jar", "AlKhalil-Analyzer-1.0.jar"];
+
+/** Build one engine folder with the jars actually inside it. */
+function makeEngine(folder: string, jars: string[]): void {
+    const dir = path.join(root, "app", "lucene", folder);
+    fs.mkdirSync(dir, { recursive: true });
+    for (const jar of jars) fs.writeFileSync(path.join(dir, jar), "x");
 }
 
 beforeEach(() => {
@@ -43,22 +49,45 @@ afterEach(() => {
 
 describe("engine generation", () => {
     it("reports generation 2 for a current install", () => {
-        makeInstall(["2"]);
+        makeEngine("2", V2_JARS);
         expect(resolveEngineGeneration(root)).toBe("2");
     });
 
     it("reports generation 1 for an older install", () => {
-        makeInstall(["1"]);
+        makeEngine("1", V1_JARS);
         expect(resolveEngineGeneration(root)).toBe("1");
     });
 
     it("prefers the current generation when both are present", () => {
-        makeInstall(["1", "2"]);
+        makeEngine("1", V1_JARS);
+        makeEngine("2", V2_JARS);
         expect(resolveEngineGeneration(root)).toBe("2");
     });
 
     it("says unknown rather than guessing when neither is there", () => {
         expect(resolveEngineGeneration(root)).toBe("unknown");
+    });
+
+    // The workaround people actually try. Reading the folder name alone, this
+    // install passed the preflight and then died inside Java on a class-version
+    // error that named nothing the reader could act on. Reading the jars, it is
+    // recognised for what it is and gets the message it needed: update Shamela.
+    it("sees an old engine copied into a folder named 2", () => {
+        makeEngine("2", V1_JARS);
+        expect(resolveEngineGeneration(root)).toBe("1");
+    });
+
+    it("is not fooled by a folder named 1 that holds the current engine", () => {
+        makeEngine("1", V2_JARS);
+        expect(resolveEngineGeneration(root)).toBe("2");
+    });
+
+    it("treats a Lucene folder with no jars at all as the older generation", () => {
+        // Present but empty is still not the current engine, and calling it
+        // "unknown" would send the reader to the "no Shamela found" message
+        // instead of the one about updating it.
+        makeEngine("2", []);
+        expect(resolveEngineGeneration(root)).toBe("1");
     });
 });
 
