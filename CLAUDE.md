@@ -192,5 +192,15 @@ npm run smoke               # the legacy fast smoke check (stays for now)
 - **Don't test Shamela's behavior — test ours.** A test that asserts "Lucene tokenizes correctly" is testing Apache Lucene. We assume Lucene works. We test that *our* code calls Lucene correctly and handles the results correctly.
 - **Time-sensitive data:** none. No need for clock mocking. If a future feature needs time, mock with `vi.useFakeTimers()`.
 - **Coverage is a tool, not a goal.** ~80% line coverage on pure modules is a healthy floor. Don't chase 100% by writing tests for trivial getters; do chase coverage for any function with branching logic.
-- **CI status:** `.github/workflows/test.yml` runs unit tests on push. Integration tests need a Shamela install — deferred to a future runner spec.
+- **CI status:** `.github/workflows/test.yml` runs `test:unit` on push. That now
+  includes the catalogue, scope-resolution and page-reading paths, because
+  `tests/fixtures/synthetic-library.ts` fabricates a whole `database/` tree —
+  master.db, per-book files in every bucket spelling, the service DBs — at test
+  time. What still cannot run there is anything reading page TEXT or chapter
+  TITLES: those come from Shamela's Lucene indexes, read out of the user's own
+  install, and no fixture substitutes for them. The fixture's schema is pinned
+  from both sides: `tests/unit/synthetic-library.test.ts` checks the generated
+  files, `tests/integration/fixture-shape.test.ts` checks the real ones, so a
+  schema change in Shamela fails on a maintainer's machine before the fixture
+  can start lying to CI.
 - **The `.wasm` stub:** `vitest.config.ts` ships an inline plugin that returns an empty `Uint8Array` for any `.wasm` import. This shields tests from the esbuild-only `import sqlWasm from "sql.js/dist/sql-wasm.wasm"` in `src/server/index.ts`. Tests load the real wasm via `fs.readFileSync` in the shared fixture. Don't remove the plugin without understanding both code paths.
