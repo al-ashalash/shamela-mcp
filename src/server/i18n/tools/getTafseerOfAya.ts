@@ -21,7 +21,7 @@ export const getTafseerOfAyaLabels: Slice<{
         heading: (surahName, surah, aya) => `تفاسير الآية ${surahName} ${surah}:${aya}`,
         summary: (total, returned) =>
             `**${total}** كتابًا يعلِّق على هذه الآية في فهرس الشاملة، منها ${returned} في النطاق الحالي.`,
-        coverageNote: "هذه القائمة من فهرس الخدمة المنتقى (service/tafseer.db) وقد لا يشمل كل تفاسيرك المنزَّلة — كثير من التفاسير لا تحمل علامات آيات على صفحاتها فلا تظهر هنا. لاستيفاء تفاسيرك المنزَّلة، راجع تصنيفات التفسير عبر shamela_list_downloaded_books(category_id=3) و(category_id=4)، ثم تنقّل إليها بفهرسها (shamela_get_toc).",
+        coverageNote: "هذه القائمة من فهرس الخدمة المنتقى (service/tafseer.db) وحده، وهو لا يشمل إلا عددًا قليلًا من التفاسير. ولاستيفاء تفاسيرك المنزَّلة استعمل shamela_list_tafsirs_for_aya، فهي تحدّد موضع الآية أيضًا من عناوين الكتب نفسها فتبلغ أضعاف ما يبلغه هذا الفهرس، ثم shamela_get_tafseer_texts لجلب النصوص.",
         bookLine: (bookName, author, pageId, downloaded) =>
             `- **${bookName}**${author ? ` — ${author}` : ""} (page_id=${pageId}${downloaded ? ", منزَّل" : ""})`,
     },
@@ -30,7 +30,7 @@ export const getTafseerOfAyaLabels: Slice<{
         summary: (total, returned) =>
             `**${total}** ${plural(total, "book comments", "books comment")} on this aya in Shamela's index; ${returned} of them in the current scope.`,
         coverageNote:
-            "This list comes from the curated service index (service/tafseer.db) and may not include every tafsir you have downloaded — many tafsirs carry no aya markers on their pages, so they do not appear here. To cover all your downloaded tafsirs, go through the tafsir categories with shamela_list_downloaded_books(category_id=3) and (category_id=4), then navigate them by their table of contents (shamela_get_toc).",
+            "This list comes from the curated service index (service/tafseer.db) alone, which covers only a few tafsirs. For your downloaded tafsirs in full use shamela_list_tafsirs_for_aya, which also places the verse from the books' own chapter headings and so reaches many times as many books, then shamela_get_tafseer_texts to read them.",
         bookLine: (bookName, author, pageId, downloaded) =>
             `- **${bookName}**${author ? ` — ${author}` : ""} (page_id=${pageId}${downloaded ? ", downloaded" : ""})`,
     },

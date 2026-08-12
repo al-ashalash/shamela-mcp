@@ -1066,7 +1066,7 @@
           "type": "integer"
         },
         "book_ids": {
-          "description": "Restrict to these tafsir books. Books not present in the curated index for this aya are reported with an explicit status instead of text. Use shamela_list_tafsirs_for_aya to see which books the index covers.",
+          "description": "Restrict to these tafsir books. A book where the verse cannot be placed — by Shamela's index or by the book's own chapter headings — is reported with an explicit status instead of text. Omit to sweep the whole downloaded tafsir shelf. See shamela_list_tafsirs_for_aya for coverage.",
           "items": {
             "exclusiveMinimum": 0,
             "type": "integer"

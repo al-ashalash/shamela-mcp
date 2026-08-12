@@ -82,6 +82,17 @@ const run = (catalog: Catalog, services: ServiceStore, ayaIndex: AyaIndexStore |
         getTafseerTextsInput.parse({ ...AYAT_AL_KURSI, response_format: "json", max_sources: 10, ...extra }),
     ).then((r) => r.structuredContent);
 
+/** The same call, but keeping the rendered markdown a reader would actually see. */
+const render = (catalog: Catalog, services: ServiceStore, ayaIndex: AyaIndexStore | null, extra = {}) =>
+    runGetTafseerTexts(
+        helper,
+        catalog,
+        services,
+        pages,
+        ayaIndex,
+        getTafseerTextsInput.parse({ ...AYAT_AL_KURSI, max_sources: 10, ...extra }),
+    ).then((r) => r.content[0]!.text);
+
 describe("tafseer texts: where a page may come from", () => {
     it("uses the books' own markers for what Shamela's table does not cover", async () => {
         const out = await run(
@@ -138,5 +149,41 @@ describe("tafseer texts: where a page may come from", () => {
         const out = await run(makeCatalog([10]), makeServices([{ book_id: 10, page_id: 100 }]), null);
         expect(out.sources[0]!.status).toBe("ok");
         expect(out.total_from_titles).toBe(0);
+    });
+});
+
+describe("tafseer texts: the reader sees every text that was fetched", () => {
+    // Three statuses mean a page was fetched — one for Shamela's own table and
+    // two for the books' own markers — and the renderer printed only the first.
+    // So the books this release added came out as a heading, an author line and
+    // a note, with the commentary missing: present in the structured output,
+    // absent from what a person reads. The structured assertions above all
+    // passed throughout, which is why this test looks at the markdown.
+    it("prints the commentary for a book placed by its own chapter markers", async () => {
+        const md = await render(
+            makeCatalog([20]),
+            makeServices([]),
+            makeAyaIndex({ 20: { page: 337 } }),
+        );
+        expect(md).toContain("نص التفسير");
+        expect(md).toContain("page_id=337");
+    });
+
+    it("prints it for a marker covering a group of verses too", async () => {
+        const md = await render(
+            makeCatalog([30]),
+            makeServices([]),
+            makeAyaIndex({ 30: { page: 509, group: true } }),
+        );
+        expect(md).toContain("نص التفسير");
+        expect(md).toContain("page_id=509");
+    });
+
+    it("prints nothing for a book the verse could not be placed in", async () => {
+        // The refusal this tool exists for: no locus, no text, and no page id
+        // invented to stand in for one.
+        const md = await render(makeCatalog([40]), makeServices([]), makeAyaIndex({}));
+        expect(md).not.toContain("نص التفسير");
+        expect(md).not.toContain("page_id=");
     });
 });

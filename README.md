@@ -79,8 +79,8 @@ File -> Settings -> Extensions -> Advanced settings -> Install Extension
 | `shamela_search_quran`          | بحث في القرآن الكريم، ويشمل الكلمات ذات البادئات.           |
 | `shamela_get_aya`               | جلب آية بالرسم الإملائي والعثماني.                          |
 | `shamela_get_tafseer_of_aya`    | تفاسير آية بعينها.                                          |
-| `shamela_list_tafsirs_for_aya`  | تغطية التفاسير المنزَّلة لآية بحالة ثلاثية صريحة لكل كتاب.  |
-| `shamela_get_tafseer_texts`     | نصوص تفسير آية من عدة مصادر مفهرسة معزوَّةً إلى كتبها.      |
+| `shamela_list_tafsirs_for_aya`  | تغطية التفاسير المنزَّلة لآية: أين وُجد موضعها وأين لم يوجد.  |
+| `shamela_get_tafseer_texts`     | نصوص تفسير آية من كل كتابٍ تحدَّد فيه موضعها، معزوَّةً.      |
 | `shamela_get_books_for_hadith`  | كتب تروي حديثًا بعينه.                                      |
 | `shamela_list_downloaded_books` | الكتب المُنزَّلة فعليًّا على هذا الجهاز.                    |
 | `shamela_get_book_parts`        | أجزاء/مجلَّدات الكتاب.                                      |

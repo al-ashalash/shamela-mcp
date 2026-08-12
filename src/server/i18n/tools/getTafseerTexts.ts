@@ -45,7 +45,7 @@ export const getTafseerTextsLabels: Slice<{
         printedPage: (page) => `ص ${page}`,
         sep: "، ",
         coverageNote:
-            "النصوص المجلوبة هنا من الكتب التي يشملها فهرس التفسير المنتقى لهذه الآية فقط؛ فالتفاسير المنزَّلة غير المفهرسة لا تُجلب هنا وليس ذلك دليلًا على خلوّها من الكلام على الآية — استعرض التغطية بـ shamela_list_tafsirs_for_aya وتصفَّح غير المفهرس بفهرسه (shamela_get_toc).",
+            "لا يُجلب نصٌّ إلا حيث تحدَّد موضع الآية: إمّا من فهرس الشاملة المنتقى، وإمّا من فهرسٍ يُبنى من عناوين الكتاب نفسه — وهذا يبلغ أكثر تفاسيرك المنزَّلة لا القليل منها. وما لم يتحدَّد موضعه فيه لم يُجلب، وليس ذلك دليلًا على خلوّه من الكلام على الآية — استعرض التغطية بـ shamela_list_tafsirs_for_aya وتصفَّح الباقي بفهرسه (shamela_get_toc).",
         statusNote: {
             indexPending: "لم يُفهرس هذا الكتاب بعد في هذه الجلسة؛ أعد الطلب ليُستكمل.",
             noEntryForThisAya:
@@ -68,7 +68,7 @@ export const getTafseerTextsLabels: Slice<{
         printedPage: (page) => `p. ${page}`,
         sep: ", ",
         coverageNote:
-            "The texts fetched here come only from the books the curated tafsir index covers for this aya; downloaded tafsirs that are not in it are not fetched here, and that is no proof they say nothing about the aya — review the coverage with shamela_list_tafsirs_for_aya, and browse an unindexed tafsir by its table of contents (shamela_get_toc).",
+            "No text is fetched except where the verse was actually placed — from Shamela's curated index, or from an index built from the book's own chapter headings, which reaches most of your downloaded tafsirs rather than a few of them. A book the verse could not be placed in was not fetched, and that is no proof it says nothing about the verse — review the coverage with shamela_list_tafsirs_for_aya, and browse the rest by table of contents (shamela_get_toc).",
         statusNote: {
             indexPending: "This book has not been indexed yet in this session; ask again to finish it.",
             noEntryForThisAya:

@@ -16,21 +16,28 @@ import { listTafsirsForAyaLabels } from "../i18n/tools/listTafsirsForAya.js";
 /**
  * Per-aya tafsir coverage report (#18).
  *
- * Cross-references the DOWNLOADED tafsir shelves (categories 3 + 4 — tafsir
- * spans both) against the curated service/tafseer.db index and reports an
- * honest tri-state per book:
+ * Cross-references the DOWNLOADED tafsir shelves (TAFSIR_CATEGORY_IDS) against
+ * two indexes — Shamela's curated service/tafseer.db and the index built from
+ * each book's own chapter headings — and reports an honest state per book:
  *
- *   indexed_covers                — the index has an entry for this aya in this book.
- *   indexed_no_entry_for_this_aya — the book participates in the index but has
- *                                   no entry for this aya.
- *   not_indexed_coverage_unknown  — the book is absent from the curated index,
- *                                   so coverage CANNOT be determined. This is
- *                                   explicitly NOT evidence the book lacks
+ *   indexed_covers                — Shamela's table places the verse on a page.
+ *   title_index                   — the book's own headings place it.
+ *   title_index_group             — placed, but by a heading covering a range of
+ *                                   verses rather than this one alone.
+ *   covered_no_locus              — we indexed the book; it carries no marker for
+ *                                   this verse.
+ *   indexed_no_entry_for_this_aya — in Shamela's table with no entry for this
+ *                                   verse, and its headings place none either.
+ *   index_pending                 — not indexed yet: this call's build budget ran
+ *                                   out, or the search engine has not read the
+ *                                   book's titles. Calling again continues.
+ *   not_indexed_coverage_unknown  — nothing places verses in this book at all.
+ *                                   Explicitly NOT evidence that it lacks
  *                                   commentary on the verse.
  *
  * No text-search fallback: a text scan was prototyped and withdrawn for
- * misattributing verses (shared phrases, basmala). The unknown state stays
- * unknown until a per-book ayah→page index exists.
+ * misattributing verses (shared phrases, basmala). A verse that cannot be
+ * placed stays unplaced, and the report says so rather than guessing.
  */
 
 /**
@@ -71,7 +78,7 @@ export interface TafsirCoverageRow {
     death_year: number | null;
     category_id: number | null;
     category_name: string | null;
-    /** True when the book sits in the tafsir categories (3 or 4). Index hits from other shelves (e.g. mawsuʿat) are included with false. */
+    /** True when the book sits in the tafsir categories (3, 4 or 5). Index hits from other shelves (e.g. mawsuʿat) are included with false. */
     in_tafsir_categories: boolean;
     downloaded: boolean;
     status: TafsirCoverageStatus;
@@ -96,7 +103,7 @@ export interface ListTafsirsForAyaOutput {
     totals: Record<string, number>;
     /** Books left unindexed because this call's build budget ran out. */
     index_pending_book_ids: number[];
-    /** Honest coverage caveat: the index is curated; unknown-status books may well comment on the verse. */
+    /** Honest coverage caveat: a book neither index places may well comment on the verse. */
     note: string;
     books: TafsirCoverageRow[];
 }
@@ -140,7 +147,7 @@ export async function runListTafsirsForAya(
     for (const h of hits) if (!hitPageByBook.has(h.book_id)) hitPageByBook.set(h.book_id, h.page_id);
     const inService = new Set(await services.listInService("tafseer"));
 
-    // Downloaded tafsir shelves — categories 3 AND 4 (never assume one bucket).
+    // Downloaded tafsir shelves — all three of them (never assume one bucket).
     const shelfBookIds = new Set<number>();
     for (const cid of TAFSIR_CATEGORY_IDS) {
         for (const id of catalog.booksInCategory(cid)) {

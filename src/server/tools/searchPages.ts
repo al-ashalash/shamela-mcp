@@ -96,6 +96,23 @@ export interface SearchPagesOutput {
          * page was counted, "window" when only the fetched page of results was.
          */
         basis: "all_results" | "window";
+        /**
+         * How many hits the counting pass actually folded in — the population
+         * the buckets are drawn from, and not the same number as `total_hits`.
+         * On the "all_results" basis a match whose document carries no book
+         * number cannot be placed in a book; on the "window" basis only the
+         * fetched window was walked at all. The gap between this and
+         * `total_hits` is how much of the search the rollup does not speak for,
+         * and without it the buckets read as exhaustive.
+         */
+        total_counted: number;
+        /**
+         * True when counting stopped at the five-thousand-hit ceiling, so every
+         * bucket is a floor and the shares are indicative rather than exact.
+         * Only ever true on the "window" basis: a pass that finished had no
+         * ceiling to reach.
+         */
+        capped: boolean;
         by_category: Record<string, number>;
         by_century: Record<string, number>;
         by_book: Record<string, number>;
@@ -225,7 +242,7 @@ export async function runSearchPages(
     });
 }
 
-function enrichCoverage(raw: RawCoverage, catalog: Catalog) {
+export function enrichCoverage(raw: RawCoverage, catalog: Catalog) {
     const byCat: Record<string, number> = {};
     const byCentury: Record<string, number> = {};
     const byBook: Record<string, number> = {};
@@ -259,6 +276,13 @@ function enrichCoverage(raw: RawCoverage, catalog: Catalog) {
     }
     return {
         basis: raw.basis === "window" ? ("window" as const) : ("all_results" as const),
+        // The basis says HOW the numbers were arrived at; these two say how
+        // much they cover. Both were already on the wire and read into
+        // RawCoverage, and dropping them here left a reader of the rollup no
+        // way to tell five thousand counted out of eight hundred thousand from
+        // a count that finished.
+        total_counted: raw.total_seen,
+        capped: raw.at_cap,
         by_category: byCat,
         by_century: byCentury,
         by_book: byBook,

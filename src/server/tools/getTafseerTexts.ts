@@ -18,11 +18,17 @@ import { getTafseerTextsLabels } from "../i18n/tools/getTafseerTexts.js";
 /**
  * Fetch the actual tafsir texts for one aya across multiple sources (#18).
  *
- * Strictly index-driven: only pages the curated service/tafseer.db maps to
- * this aya are fetched. Requested book_ids absent from the index get an
- * explicit per-source status ("not_indexed" / "no_entry_for_this_aya") and
- * NO text — there is deliberately no text-search fallback (a prototype was
- * withdrawn for misattributing verses via shared phrases and the basmala).
+ * A page is fetched only where the verse was actually PLACED, by one of two
+ * indexes: Shamela's own service/tafseer.db, which is curated and answers for
+ * a handful of books, or the verse→page index built from a book's own chapter
+ * headings, which answers for most of a real downloaded shelf. With no
+ * book_ids the whole shelf (categories 3, 4, 5) is swept, Shamela-placed books
+ * first — their data about their own books outranks our reading of a title.
+ *
+ * There is deliberately no text-search fallback: a prototype was withdrawn for
+ * misattributing verses via shared phrasing and the basmala. A book the verse
+ * could not be placed in gets an explicit status and NO text, because a
+ * plausible wrong page is the one failure this tool exists to prevent.
  *
  * Each fetched source carries embedded attribution (book, author, death
  * year, printed page, page_id) plus the getPage continuation contract
@@ -38,7 +44,7 @@ export const getTafseerTextsInputShape = {
         .array(z.number().int().positive())
         .optional()
         .describe(
-            "Restrict to these tafsir books. Books not present in the curated index for this aya are reported with an explicit status instead of text. Use shamela_list_tafsirs_for_aya to see which books the index covers.",
+            "Restrict to these tafsir books. A book where the verse cannot be placed — by Shamela's index or by the book's own chapter headings — is reported with an explicit status instead of text. Omit to sweep the whole downloaded tafsir shelf. See shamela_list_tafsirs_for_aya for coverage.",
         ),
     max_sources: z
         .number()
@@ -97,7 +103,6 @@ export interface GetTafseerTextsOutput {
     surah: number;
     surah_name: string;
     aya: number;
-    /** Distinct books the curated index maps to this aya. */
     /**
      * Books whose commentary on this verse could be located, from either index.
      * Was the size of Shamela's curated table alone, which under-reported once
@@ -115,7 +120,7 @@ export interface GetTafseerTextsOutput {
     remaining_book_ids: number[];
     /** Display advice when the response was cut to stay within the char budget. */
     _display: string | null;
-    /** Honest coverage caveat: the index is curated and may omit downloaded tafsirs. */
+    /** Honest coverage caveat: a verse not placed by either index is not fetched, which is not the same as absent. */
     note: string;
 }
 
@@ -366,7 +371,15 @@ export async function runGetTafseerTexts(
             const attribution = `${s.author_name ?? ""}${s.death_year ? ` ${L.died(num(s.death_year))}` : ""}`;
             lines.push("", header(2, s.book_name));
             if (attribution.trim()) lines.push(`*${attribution.trim()}*`);
-            if (s.status === "ok") {
+            // Three statuses mean the text was fetched, not one. `ok` is a
+            // page Shamela's own table placed; `ok_titles` and `ok_group` are
+            // pages the book's own chapter headings placed — which is the
+            // whole of what this release added, and which reaches most of a
+            // real shelf where the curated table reached a handful. Rendering
+            // only `ok` printed those books as a heading, an author line and a
+            // note, with the commentary itself dropped on the floor: the
+            // structured output carried it, the reader never saw it.
+            if (s.status === "ok" || s.status === "ok_titles" || s.status === "ok_group") {
                 lines.push(
                     `${s.printed_page ? `${L.printedPage(num(s.printed_page))}${L.sep}` : ""}page_id=${s.page_id}${s.next_page_id !== null ? `${L.sep}next_page_id=${s.next_page_id}` : ""}`,
                     "",

@@ -50,11 +50,11 @@ You do not need to memorise tool names. Write your request in plain language, as
   Example: "Search the Qur'an for the word sabr."
 - **\`shamela_get_aya\`** — fetch a specific verse in imla'i and 'uthmani scripts and the Mushaf spelling.
   Example: "Give me Ayat al-Kursi in the 'uthmani script."
-- **\`shamela_get_tafseer_of_aya\`** — list the books that comment on a given verse, with the page number (from a curated index that may not cover every tafsir you have downloaded).
+- **\`shamela_get_tafseer_of_aya\`** — list the books that comment on a given verse, with the page number, from Shamela's curated index alone (which covers few books; for the full picture, see the next two).
   Example: "Which books have the tafsir of Ayat al-Kursi?"
-- **\`shamela_list_tafsirs_for_aya\`** — show how your downloaded tafsirs cover a particular verse, with an explicit status for each book: indexed and covers it, indexed with no entry for it, or not indexed so coverage is unknown.
+- **\`shamela_list_tafsirs_for_aya\`** — show how your downloaded tafsirs cover a particular verse, with an explicit status for each book: where the verse was located — from Shamela's index or from the book's own chapter headings — where it was not, and what has not been indexed yet (ask again to finish it).
   Example: "Which of my downloaded tafsirs covers verse 255 of al-Baqara?"
-- **\`shamela_get_tafseer_texts\`** — fetch the tafsir texts of one verse from several indexed sources at once, each attributed to its book, author and page.
+- **\`shamela_get_tafseer_texts\`** — fetch the tafsir texts of one verse at once from every book the verse could be located in, each attributed to its book, author and page.
   Example: "Get me the commentary on 'You alone we worship' from three tafsirs."
 
 ### 3. Hadith
@@ -126,7 +126,7 @@ You do not need to memorise tool names. Write your request in plain language, as
 **Know the extension's limits (this is its honesty).**
 - Search covers only the books downloaded on your machine; the absence of a result does not mean the absence of the opinion from books you have not downloaded.
 - The extension never rules a hadith sound or weak on its own authority; it reports what came back in a tool result (such as an editor's *takhrij* in a footnote), and a footnote is the editor's words, not the author's.
-- The index linking verses to tafsirs is curated and does not cover every tafsir you have downloaded; that is why the coverage tool states each book's status explicitly, and a book's absence from the index is no proof that it lacks commentary on the verse.
+- A verse is located in a tafsir either from Shamela's curated index or from an index built from the book's own chapter headings, which together reach most of your downloaded tafsirs rather than a few of them; where it could not be located the coverage tool says so explicitly, and that is no proof the book lacks commentary on the verse. A place is never inferred by matching the wording of the verse, because wording repeated across surahs yields a confident attribution to the wrong page.
 - Publication data (edition, publisher, editor) is often missing from Shamela's database, so citations declare what is missing rather than inventing it; and page numbering is declared as such when it is Shamela's own automatic count.
 
 **Fill the gaps in your library before concluding there is nothing.** If you are searching a discipline whose standard works you have not downloaded — the principles of *takhrij*, research method, the principles of tafsir — then an empty result describes your library, not the question. Ask: "Which books are available in Shamela's catalogue in this field?" and they will be listed by name and number; then download what you need from inside the Shamela application and carry on searching in the same session.
