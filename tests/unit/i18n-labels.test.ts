@@ -170,6 +170,20 @@ describe("tool label slices", () => {
         }
     });
 
+    it("a slice belonging to no single tool is still read by one", () => {
+        // A shared slice has no tool of its own name, so the guard above skips
+        // it — which is the one way a slice can exist, be translated, and reach
+        // nobody at all.
+        for (const f of sliceFiles) {
+            if (fs.existsSync(path.join(TOOLS, f))) continue;
+            const ref = `../i18n/tools/${f.replace(/\.ts$/, ".js")}`;
+            const readers = toolFiles.filter((t) =>
+                fs.readFileSync(path.join(TOOLS, t), "utf8").includes(ref),
+            );
+            expect(readers.length, `${f}: shared slice imported by no tool`).toBeGreaterThan(0);
+        }
+    });
+
     it("no renderer writes Arabic inline any more", () => {
         // The regression guard: this is what a future edit will get wrong.
         const offenders = toolFiles.flatMap((f) =>

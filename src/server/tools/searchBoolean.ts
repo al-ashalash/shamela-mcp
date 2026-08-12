@@ -29,6 +29,7 @@ import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
+import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { searchBooleanLabels } from "../i18n/tools/searchBoolean.js";
 
 export const searchBooleanInputShape = {
@@ -272,7 +273,12 @@ export async function runSearchBoolean(
             if (r.snippet_foot) lines.push("", `> ${L.footLabel}${r.snippet_foot}`);
             lines.push("");
         }
+        // The envelope calls the count total_in_window for history's sake; the
+        // window is the whole index now, so it is the total the ceiling is
+        // measured against.
+        const paged = { ...data, total_hits: data.total_in_window };
         if (data.has_more) lines.push(L.more(String(data.next_offset)));
+        else if (depthLimited(paged)) lines.push(depthNote(paged));
         return lines.join("\n");
     });
 }

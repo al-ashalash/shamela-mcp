@@ -6,6 +6,7 @@ import { surahAyaFromId } from "../quran.js";
 import { OptionsInputShape, PaginationInput, ResponseFormatInput } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
+import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { searchQuranLabels } from "../i18n/tools/searchQuran.js";
 
 export const searchQuranInputShape = {
@@ -153,7 +154,13 @@ export async function runSearchQuran(
                     return { hits, complete: false };
                 }
                 hits.push(...env.results);
-                if (!env.has_more || env.results.length === 0) return { hits, complete: true };
+                // Paging can stop before the matches do — the helper fetches at
+                // most five thousand rows per search. A variant cut off there
+                // has fewer ayat in hand than it matched, and the union built
+                // from it must not be called exhaustive.
+                if (!env.has_more || env.results.length === 0) {
+                    return { hits, complete: hits.length >= env.total_hits };
+                }
                 offset = env.next_offset ?? offset + PAGE_SIZE;
             }
             return { hits, complete: false };
@@ -226,6 +233,7 @@ export async function runSearchQuran(
             lines.push("");
         }
         if (data.has_more) lines.push(L.more(String(data.next_offset)));
+        else if (depthLimited(data)) lines.push(depthNote(data));
         return lines.join("\n");
     });
 }

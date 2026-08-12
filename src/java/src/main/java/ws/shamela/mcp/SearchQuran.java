@@ -69,7 +69,7 @@ public final class SearchQuran {
         int safeMax = Math.max(1, Math.min(maxResults, 100));
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
-        int fetch = Math.min(safeOffset + safeMax, 5_000);
+        int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
         TopDocs top = searcher.search(q, fetch);
 
         List<Map<String, Object>> results = new ArrayList<>();
@@ -93,8 +93,14 @@ public final class SearchQuran {
 
         envelope.put("total_hits", (int) Math.min(total, Integer.MAX_VALUE));
         envelope.put("returned", results.size());
-        envelope.put("has_more", (long) (safeOffset + results.size()) < total);
-        if ((long) (safeOffset + results.size()) < total) {
+        // Paging stops where fetching does. Computed against the exhaustive
+        // total, has_more stayed true past the 5,000-row ceiling and handed back
+        // the offset it was given — a caller following next_offset never
+        // finished. total_hits still reports every match, so the gap between the
+        // two is visible and the renderers name it.
+        long reachable = Math.min(total, SearchPages.PAGE_CEILING);
+        envelope.put("has_more", (long) (safeOffset + results.size()) < reachable);
+        if ((long) (safeOffset + results.size()) < reachable) {
             envelope.put("next_offset", safeOffset + results.size());
         }
         envelope.put("results", results);

@@ -25,6 +25,15 @@ public final class SearchPages {
 
     static final String INDEX = "page";
 
+    /**
+     * Rows any one search will fetch, and therefore how deep paging can go.
+     *
+     * A search over a million pages cannot hold them all in a result window,
+     * and nothing needs it to: what the ceiling costs is the hits past it, and
+     * what it must never cost is a caller that cannot tell it has arrived.
+     */
+    static final int PAGE_CEILING = 5_000;
+
     public static Map<String, Object> run(
             IndexCache indexCache,
             Analyzer morphologyAnalyzer,
@@ -93,7 +102,7 @@ public final class SearchPages {
         // Fetch enough hits to skip `offset`. Lucene's searchAfter is more efficient
         // for deep pagination but we rely on a single search with limit =
         // offset + safeMax, capped at COVERAGE_CAP so we don't OOM on huge totals.
-        int fetch = Math.min(safeOffset + safeMax, 5_000);
+        int fetch = Math.min(safeOffset + safeMax, PAGE_CEILING);
         TopDocs top = searcher.search(q, fetch);
 
         // Counting is cheap even for queries whose full traversal is not:
@@ -230,8 +239,14 @@ public final class SearchPages {
 
         envelope.put("total_hits", (int) Math.min(total, Integer.MAX_VALUE));
         envelope.put("returned", results.size());
-        envelope.put("has_more", (long) (safeOffset + results.size()) < total);
-        if ((long) (safeOffset + results.size()) < total) {
+        // Paging stops where fetching does. Computed against the exhaustive
+        // total, has_more stayed true past the 5,000-row ceiling and handed back
+        // the offset it was given — a caller following next_offset never
+        // finished. total_hits still reports every match, so the gap between the
+        // two is visible and the renderers name it.
+        long reachable = Math.min(total, PAGE_CEILING);
+        envelope.put("has_more", (long) (safeOffset + results.size()) < reachable);
+        if ((long) (safeOffset + results.size()) < reachable) {
             envelope.put("next_offset", safeOffset + results.size());
         }
         envelope.put("scope_count", scopeBookKeys == null ? -1 : scopeBookKeys.size());

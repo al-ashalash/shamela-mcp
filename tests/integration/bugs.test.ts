@@ -213,3 +213,80 @@ describe("Issue #47 — search must never point at pages that cannot be read", (
         expect(out.content[0]!.text).toContain("⚠️");
     }, 60_000);
 });
+
+describe("paging must end — the five-thousand-row ceiling", () => {
+    let helper: Helper;
+    let catalog: Catalog;
+    let pages: Awaited<ReturnType<typeof getPageStore>>;
+
+    beforeAll(async () => {
+        helper = await getHelper();
+        catalog = await getCatalog();
+        pages = await getPageStore();
+    });
+
+    /** Rows a single search will fetch — SearchPages.PAGE_CEILING. */
+    const CEILING = 5_000;
+    // Frequent enough that the ceiling is actually reachable; the first
+    // assertion in each test checks that premise rather than assuming it.
+    const COMMON = "قال";
+
+    // has_more and next_offset were computed from the exhaustive total while
+    // fetching stopped at the ceiling. Ask for offset 5000 and the answer was
+    // zero results, has_more true, and next_offset 5000 — the offset just sent.
+    // A caller following next_offset never finished.
+    it("at the ceiling, does not hand back the offset it was given", async () => {
+        const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
+            query: COMMON,
+            limit: 100,
+            offset: CEILING,
+            response_format: "json",
+        }));
+        const sc = out.structuredContent;
+        expect(sc.total_hits).toBeGreaterThan(CEILING);
+        expect(sc.returned).toBe(0);
+        expect(sc.has_more).toBe(false);
+        expect(sc.next_offset).toBeUndefined();
+    }, 120_000);
+
+    it("the last reachable page is the last page", async () => {
+        const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
+            query: COMMON,
+            limit: 100,
+            offset: CEILING - 50,
+            response_format: "json",
+        }));
+        const sc = out.structuredContent;
+        expect(sc.total_hits).toBeGreaterThan(CEILING);
+        // Exactly the rows between the offset and the ceiling, and no invitation
+        // to ask for more.
+        expect(sc.returned).toBe(50);
+        expect(sc.has_more).toBe(false);
+        expect(sc.next_offset).toBeUndefined();
+    }, 120_000);
+
+    // Ending the loop is half the fix. A caller that pages to the ceiling and
+    // reads `has_more: false` would otherwise conclude it had seen every match,
+    // which is exactly what it has not done.
+    it("tells the reader that matches remain past the ceiling", async () => {
+        const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
+            query: COMMON,
+            limit: 100,
+            offset: CEILING - 50,
+        }));
+        expect(out.structuredContent.has_more).toBe(false);
+        expect(out.content[0]!.text).toContain("بلغ التصفّح أقصى عمقه");
+    }, 120_000);
+
+    it("says nothing of the sort when paging really did reach the end", async () => {
+        const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
+            query: "الكلام",
+            scope: { book_ids: [FIXTURE_BOOK_ID] },
+            limit: 100,
+        }));
+        const sc = out.structuredContent;
+        expect(sc.has_more).toBe(false);
+        expect(sc.offset + sc.returned).toBe(sc.total_hits);
+        expect(out.content[0]!.text).not.toContain("بلغ التصفّح");
+    }, 60_000);
+});

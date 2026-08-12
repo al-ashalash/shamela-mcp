@@ -12,6 +12,7 @@ import {
 } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
+import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { searchTitlesLabels } from "../i18n/tools/searchTitles.js";
 
 export const searchTitlesInputShape = {
@@ -114,6 +115,7 @@ export async function runSearchTitles(
             lines.push(`- **${r.title_text}** — ${r.book_name}${r.author_name ? ` (${r.author_name})` : ""} — title_id=${String(r.title_id)}`);
         }
         if (data.has_more) lines.push("", L.more(String(data.next_offset)));
+        else if (depthLimited(data)) lines.push("", depthNote(data));
         return lines.join("\n");
     });
 }

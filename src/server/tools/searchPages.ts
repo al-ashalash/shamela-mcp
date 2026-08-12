@@ -13,6 +13,7 @@ import {
 } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
+import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { searchPagesLabels } from "../i18n/tools/searchPages.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
 
@@ -186,6 +187,7 @@ export async function runSearchPages(
             lines.push("");
         }
         if (data.has_more) lines.push(L.more(String(data.next_offset)));
+        else if (depthLimited(data)) lines.push(depthNote(data));
         return lines.join("\n");
     });
 }
