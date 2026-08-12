@@ -13,6 +13,7 @@ import {
 } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { searchPagesLabels } from "../i18n/tools/searchPages.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
@@ -82,6 +83,13 @@ export interface SearchPagesOutput {
     query: string;
     normalized_tokens: string[];
     scope_count: number;
+    /**
+     * Present only when nothing matched: what to try next, most likely cause
+     * first. A zero here does not mean the wording is absent from the tradition
+     * — only from the part of it on this machine — and saying nothing let the
+     * reader draw the larger conclusion.
+     */
+    suggestions?: string[];
     coverage: {
         /**
          * What the rollup below describes: "all_results" when every matching
@@ -168,6 +176,15 @@ export async function runSearchPages(
         query: raw.query,
         normalized_tokens: raw.normalized_tokens,
         scope_count: scopeCount,
+        ...(raw.total_hits === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      scopeCount,
+                      morphology: args.options?.morphology ?? false,
+                      tokenCount: raw.normalized_tokens.length,
+                  }),
+              }
+            : {}),
         coverage,
         results: enriched,
     };
@@ -176,6 +193,12 @@ export async function runSearchPages(
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset), data.total_hits));
         if (data.scope_count >= 0) lines.push(L.scopeLine(num(data.scope_count), data.scope_count));
+        // Only at a genuine zero. `returned === 0` with hits behind it is a
+        // reader who paged past the end, which is a different thing to say.
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
+        }
         lines.push("");
         for (const r of data.results) {
             lines.push(

@@ -48,6 +48,26 @@ const CALLS: Array<{ name: string; args: Record<string, unknown> }> = [
         name: "shamela_search_boolean",
         args: { all_of: ["الكلام"], any_of: ["خبر"], scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 3 },
     },
+    // search_exact and search_hadith were never called here, so a break in
+    // their declared shape would have surfaced in a user's session rather than
+    // in development — which is the one thing this file exists to prevent.
+    {
+        name: "shamela_search_exact",
+        args: {
+            query: "الكلام",
+            preserve: { preserve_hamza: true },
+            scope: { book_ids: [FIXTURE_BOOK_ID] },
+            limit: 3,
+        },
+    },
+    { name: "shamela_search_hadith", args: { query: "الكلام", max_pages_scanned: 2, limit: 2 } },
+    // A search that finds nothing carries `suggestions`, which no other call
+    // here exercises.
+    {
+        name: "shamela_search_pages",
+        args: { query: "زقنطوريةٌ", scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 3 },
+    },
+    { name: "shamela_search_books", args: { query: "زقنطوريةٌ", limit: 3 } },
     { name: "shamela_root_stats", args: { root: "كلم", scope: { book_ids: [FIXTURE_BOOK_ID] } } },
     { name: "shamela_search_titles", args: { query: "تعريف", limit: 3 } },
     { name: "shamela_search_books", args: { query: "علم", limit: 3 } },

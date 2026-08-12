@@ -30,6 +30,7 @@ import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputT
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchBooleanLabels } from "../i18n/tools/searchBoolean.js";
 
 export const searchBooleanInputShape = {
@@ -127,6 +128,8 @@ export interface SearchBooleanOutput {
     none_of_within_window: boolean;
     subqueries: SubqueryReport[];
     notes: string[];
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
     results: BooleanHit[];
 }
 
@@ -249,6 +252,15 @@ export async function runSearchBoolean(
         none_of_within_window: false,
         subqueries,
         notes,
+        ...(raw.total_hits === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      scopeCount,
+                      tokenCount: allOf.length + anyOf.length,
+                      toolSpecific: pick(noResultsLabels).booleanLoosen,
+                  }),
+              }
+            : {}),
         results,
     };
 
@@ -262,6 +274,10 @@ export async function runSearchBoolean(
         lines.push(L.summary(num(data.total_in_window), num(data.returned), num(data.offset), data.total_in_window));
         if (data.scope_count >= 0) lines.push(L.scope(num(data.scope_count), data.scope_count));
         for (const n of data.notes) lines.push(L.note(n));
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
+        }
         lines.push("");
         for (const r of data.results) {
             lines.push(

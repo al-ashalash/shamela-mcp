@@ -13,6 +13,7 @@ import {
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchTitlesLabels } from "../i18n/tools/searchTitles.js";
 
 export const searchTitlesInputShape = {
@@ -69,6 +70,8 @@ export interface SearchTitlesOutput {
     next_offset?: number;
     query: string;
     normalized_tokens: string[];
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
     results: SearchTitleHit[];
 }
 
@@ -122,12 +125,26 @@ export async function runSearchTitles(
         ...(raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
         query: raw.query,
         normalized_tokens: raw.normalized_tokens,
+        ...(raw.total_hits === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      scopeCount: scopeBookKeys?.length ?? -1,
+                      morphology: args.options?.morphology ?? false,
+                      tokenCount: raw.normalized_tokens.length,
+                      toolSpecific: pick(noResultsLabels).titlesUntitled,
+                  }),
+              }
+            : {}),
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchTitlesLabels);
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset)));
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
+        }
         lines.push("");
         for (const r of data.results) {
             // A suffix here rather than a line of its own: the hit is a list

@@ -320,6 +320,49 @@ describe("Issue #47 — search must never point at pages that cannot be read", (
     }, 60_000);
 });
 
+describe("a search that finds nothing says why it might have", () => {
+    // Three statistics and then nothing — including «عرض ٠ ابتداءً من ٠» — left
+    // the reader to choose between "this wording is not in the tradition" and
+    // "this wording is not in the part of it on my disk". Only the second is
+    // ever knowable from here, and it is usually the true one.
+    const ABSENT = "زقنطوريةٌ";
+
+    it("offers next steps, download state first, and names the scope it was given", async () => {
+        const out = await runSearchPages(await getHelper(), await getCatalog(), await getPageStore(),
+            searchPagesInput.parse({ query: ABSENT, scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 3 }));
+        const sc = out.structuredContent;
+        expect(sc.total_hits).toBe(0);
+        expect(sc.suggestions?.length).toBeGreaterThan(0);
+        // Capped: advice longer than the answer is advice a reader skips.
+        expect(sc.suggestions!.length).toBeLessThanOrEqual(4);
+        expect(sc.suggestions![0]).toContain("shamela_suggest_download");
+        expect(sc.suggestions!.join(" ")).toContain("النطاق");
+        const text = out.content[0]!.text;
+        expect(text).toContain("لا نتائج");
+        for (const s of sc.suggestions!) expect(text).toContain(s);
+    }, 60_000);
+
+    it("says nothing of the sort when the search actually found something", async () => {
+        const out = await runSearchPages(await getHelper(), await getCatalog(), await getPageStore(),
+            searchPagesInput.parse({ query: "الكلام", scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 2 }));
+        expect(out.structuredContent.total_hits).toBeGreaterThan(0);
+        expect(out.structuredContent.suggestions).toBeUndefined();
+        expect(out.content[0]!.text).not.toContain("لا نتائج");
+    }, 60_000);
+
+    // The catalogue searches cover every book Shamela knows of, downloaded or
+    // not, so the download line would be false comfort there.
+    it("does not blame the download state for an empty catalogue search", async () => {
+        const out = await runSearchBooks(await getHelper(), await getCatalog(),
+            { query: ABSENT, limit: 3, offset: 0, response_format: "json" });
+        const sc = out.structuredContent;
+        expect(sc.total_hits).toBe(0);
+        expect(sc.suggestions?.length).toBeGreaterThan(0);
+        expect(sc.suggestions!.join(" ")).not.toContain("shamela_suggest_download");
+        expect(sc.suggestions!.join(" ")).toContain("shamela_resolve");
+    }, 60_000);
+});
+
 describe("paging must end — the five-thousand-row ceiling", () => {
     let helper: Helper;
     let catalog: Catalog;

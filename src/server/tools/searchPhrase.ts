@@ -26,6 +26,7 @@ import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputT
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchPhraseLabels } from "../i18n/tools/searchPhrase.js";
 
 export const searchPhraseInputShape = {
@@ -105,6 +106,8 @@ export interface SearchPhraseOutput {
     offset: number;
     has_more: boolean;
     next_offset?: number;
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
     results: PhraseHit[];
 }
 
@@ -169,6 +172,15 @@ export async function runSearchPhrase(
         offset: args.offset,
         has_more: raw.has_more,
         ...(raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
+        ...(raw.total_hits === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      scopeCount: scopeBookKeys?.length ?? -1,
+                      tokenCount: qTokens.length,
+                      toolSpecific: pick(noResultsLabels).phraseLoosen,
+                  }),
+              }
+            : {}),
         results,
     };
 
@@ -183,6 +195,10 @@ export async function runSearchPhrase(
             ),
         ];
         lines.push(L.summary(num(data.total_hits), num(data.returned), data.total_hits));
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
+        }
         lines.push("");
         for (const r of data.results) {
             lines.push(

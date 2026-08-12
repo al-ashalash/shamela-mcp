@@ -6,6 +6,7 @@ import { OptionsInputShape, PaginationInput, ResponseFormatInput } from "../sche
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
+import { catalogueAdvice, noResultsLabels } from "../i18n/tools/noResults.js";
 import { searchAuthorsLabels } from "../i18n/tools/searchAuthors.js";
 
 export const searchAuthorsInputShape = {
@@ -35,6 +36,8 @@ export interface SearchAuthorsOutput {
     total_hits: number; returned: number; offset: number;
     has_more: boolean; next_offset?: number;
     query: string; normalized_tokens: string[];
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
     results: SearchAuthorHit[];
 }
 
@@ -64,12 +67,19 @@ export async function runSearchAuthors(
         has_more: raw.has_more,
         ...(raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
         query: raw.query, normalized_tokens: raw.normalized_tokens,
+        // No download line here: the author index is catalogue-wide, so an
+        // empty answer is about the spelling of the name.
+        ...(raw.total_hits === 0 ? { suggestions: catalogueAdvice("authors") } : {}),
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchAuthorsLabels);
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_hits), num(data.returned)));
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).headingCatalogue);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
+        }
         lines.push("");
         for (const r of data.results) {
             lines.push(`## ${r.author_name}${r.death_year ? L.died(num(r.death_year)) : ""}`);

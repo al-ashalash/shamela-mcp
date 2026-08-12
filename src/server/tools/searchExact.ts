@@ -35,6 +35,7 @@ import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchExactLabels } from "../i18n/tools/searchExact.js";
 
 // --- Tunable exactness normalizer (pure, local — does NOT touch arabic.ts) ---
@@ -251,6 +252,8 @@ export interface SearchExactOutput {
     total_candidates_scanned: number;
     candidate_cap_hit: boolean;
     returned: number;
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
     results: ExactHit[];
 }
 
@@ -373,6 +376,22 @@ export async function runSearchExact(
         total_candidates_scanned: candidates.length,
         candidate_cap_hit: candidateCapHit,
         returned: results.length,
+        // Two different emptinesses, and the reader needs to be told which one.
+        // No candidate at all means the wording is not in the library; candidates
+        // that all failed verification means it is there, but not in the form the
+        // caller insisted on preserving.
+        ...(results.length === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      scopeCount: scopeBookKeys?.length ?? -1,
+                      tokenCount: tokenizeArabic(args.query).length,
+                      toolSpecific:
+                          candidates.length === 0
+                              ? pick(noResultsLabels).exactNoCandidates
+                              : pick(noResultsLabels).exactTooStrict,
+                  }),
+              }
+            : {}),
         results,
     };
 
@@ -388,6 +407,10 @@ export async function runSearchExact(
         lines.push(L.summary(num(data.returned), num(data.total_candidates_scanned)));
         if (data.candidate_cap_hit) {
             lines.push(L.capNote);
+        }
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
         }
         lines.push("");
         for (const r of data.results) {

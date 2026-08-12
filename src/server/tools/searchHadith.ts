@@ -20,6 +20,7 @@ import { PaginationInput, ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchHadithLabels } from "../i18n/tools/searchHadith.js";
 
 export const searchHadithInputShape = {
@@ -65,6 +66,8 @@ export interface SearchHadithOutput {
     pages_scanned: number;
     matches: HadithMatch[];
     takhrij: Array<{ hadith_key: number; books: HadithTakhrijBook[] }>;
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
 }
 
 export async function runSearchHadith(
@@ -127,12 +130,25 @@ export async function runSearchHadith(
         pages_scanned: raw.results.length,
         matches: matches.slice(0, args.limit),
         takhrij,
+        ...(raw.total_hits === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      tokenCount: args.query.trim().split(/\s+/).filter(Boolean).length,
+                      toolSpecific: pick(noResultsLabels).hadithFragment,
+                  }),
+              }
+            : {}),
     };
 
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchHadithLabels);
         const lines = [header(1, L.heading(data.query))];
-        lines.push(L.summary(num(data.total_text_matches), num(data.pages_scanned)), "");
+        lines.push(L.summary(num(data.total_text_matches), num(data.pages_scanned)));
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
+        }
+        lines.push("");
         for (const m of data.matches) {
             lines.push(`## ${m.book_name} — page_id=${String(m.page_id)}`);
             // Under the heading, never in it, and the blank line is load-bearing
@@ -149,7 +165,9 @@ export async function runSearchHadith(
             for (const t of data.takhrij) {
                 lines.push(L.keyLine(String(t.hadith_key), t.books.map((b) => `${b.book_name}${b.downloaded ? L.downloadedTag : ""}`)));
             }
-        } else {
+        } else if (data.matches.length) {
+            // The sentence points at "the snippets above", so it must not be
+            // printed when there are none.
             lines.push(L.noKeys);
         }
         return lines.join("\n");
