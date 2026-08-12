@@ -114,7 +114,12 @@ export async function runGetPage(
     const nextBodyPart = chunk.part < chunk.total_parts ? chunk.part + 1 : chunk.total_parts;
     const display =
         chunk.total_parts > 1
-            ? pick(getPageLabels).longBody(num(chunk.total_parts), num(chunk.part), String(nextBodyPart))
+            ? pick(getPageLabels).longBody(
+                  num(chunk.total_parts),
+                  num(chunk.part),
+                  String(nextBodyPart),
+                  chunk.total_parts,
+              )
             : null;
 
     const printed = await pages.printedPage(args.book_id, args.page_id);

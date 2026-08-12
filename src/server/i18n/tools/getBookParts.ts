@@ -30,7 +30,12 @@ export const getBookPartsLabels: Slice<{
         totalPages: "Total pages",
         partsHeading: "Volumes",
         partLine: (part, pages, first, last) =>
-            `- **${part}**: ${pages} pages (page_id ${first}–${last})`,
+            `- **${part}**: ${pages} ${plural(pages, "page", "pages")} (page_id ${first}–${last})`,
         singleVolume: "_This book is in a single volume._",
     },
 };
+
+/** English agrees the noun with the count; the Arabic counted noun does not move. */
+function plural(count: string, one: string, many: string): string {
+    return count === "1" ? one : many;
+}

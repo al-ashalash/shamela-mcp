@@ -30,7 +30,17 @@ export const getBookLabels: Slice<{
     edition: string;
     editor: string;
     publisher: string;
+    /**
+     * Shamela's own stamp on the catalogue entry — NOT the date the edition was
+     * printed. It is labelled for what it is: every value in the shipped
+     * catalogue falls in 1431–1447 AH, and 4,836 of the 8,593 rows carry the
+     * single value 08121431, the day the v4 library was seeded. Ṭabarī's
+     * commentary carries it in two different printed editions; two presses do
+     * not share a publication day.
+     */
     publicationDate: string;
+    /** The stamp split into its parts, in the order each language reads a date. */
+    hijriDate: (day: string, month: string, year: string) => string;
     notesHeading: string;
     /**
      * The `notes` array. It travels in `structuredContent`, but every entry is a
@@ -38,13 +48,16 @@ export const getBookLabels: Slice<{
      * `content_status` code beside it is what a caller reads — so the entries
      * belong here with the rest of this tool's prose.
      *
-     * One thing to know before translating them: unlike every other line in this
-     * slice, the Arabic side of these seven was never written in Arabic. The
-     * tool has emitted this English to Arabic readers since it was written, and
-     * `tests/unit/bugs.test.ts` pins the Arabic-language output to it. Moving
-     * them here may not change what Arabic prints, so `ar` keeps them verbatim.
-     * The Arabic wording is a translation still owed, not a decision already
-     * taken — it wants a pass of its own, with the tests updated alongside.
+     * The Arabic side of these seven was English for as long as this tool has
+     * existed, kept verbatim when the slice was built because the tests pinned
+     * it and the translation was owed rather than decided. This is the pass it
+     * was owed. The one clause aimed at the model rather than the reader — «لا
+     * يُنقَل عنه» — already stands in Arabic on the status line printed above
+     * the notes, and `content_status` is what a caller actually branches on, so
+     * nothing that was doing work in English stopped doing it.
+     *
+     * `master.db` and «Claude Desktop» stay Latin inside the Arabic: they are
+     * the names of a file and of an application, not words.
      */
     noteNoPages: string;
     noteFileMissing: string;
@@ -75,19 +88,19 @@ export const getBookLabels: Slice<{
         edition: "الطبعة/الناشر (من اسم الشاملة)",
         editor: "المحقق",
         publisher: "الناشر",
-        publicationDate: "تاريخ النشر بالشاملة",
+        publicationDate: "تاريخ إضافته أو تحديثه بالشاملة",
+        hijriDate: (day, month, year) => `${day}/${month}/${year}هـ`,
         notesHeading: "ملاحظات على البيانات المتاحة",
-        // English, on purpose: see the note on `noteNoPages` above.
         noteNoPages:
-            "the book file is on disk but carries no text pages (an image/scan-only title) — do not quote from it",
+            "ملف الكتاب موجود على القرص لكن لا صفحات نصّية فيه (نسخة مصوَّرة) — فلا يُنقَل عنه.",
         noteFileMissing:
-            "the catalog flags this book as downloaded but its file is not on disk (interrupted download, or the library folder was moved) — do not quote from it",
+            "الفهرس يعدّ هذا الكتاب منزَّلًا وملفه غير موجود على القرص (تنزيل مبتور، أو مجلد المكتبة نُقل) — فلا يُنقَل عنه.",
         noteSessionDiscovered:
-            "downloaded during this session: catalog data is available, but its text is not readable until Claude Desktop restarts",
-        noteNoEditor: "muḥaqqiq (editor) not found in the front-matter; may need the printed source",
-        noteNoPublisher: "publisher not found in the front-matter / not in master.db",
-        noteNoEdition: "edition descriptor not present in the Shamela name suffix",
-        noteNoCityOrEditionNumber: "city of publication and edition number are not stored in master.db",
+            "نُزِّل في أثناء هذه الجلسة: بيانات الفهرس متاحة، أمّا نصّه فلا يُقرأ حتى يُعاد تشغيل Claude Desktop.",
+        noteNoEditor: "لم يُذكر المحقق في مقدمة الكتاب؛ وقد يُحتاج إلى المطبوع لمعرفته.",
+        noteNoPublisher: "لم يُذكر الناشر في مقدمة الكتاب، وليس في master.db.",
+        noteNoEdition: "لا وصف للطبعة في لاحقة اسم الكتاب بالشاملة.",
+        noteNoCityOrEditionNumber: "بلد النشر ورقم الطبعة غير محفوظين في master.db.",
     },
     en: {
         bookId: "ID",
@@ -110,7 +123,11 @@ export const getBookLabels: Slice<{
         edition: "Edition/publisher (from the Shamela name)",
         editor: "Muḥaqqiq (editor)",
         publisher: "Publisher",
-        publicationDate: "Publication date in Shamela",
+        publicationDate: "Added or updated in Shamela",
+        // Day-first in Arabic, which is how the stamp is already written and how
+        // an Arabic reader reads a date; year-first in English, because d/m/y
+        // would be read as m/d/y by half of its readers.
+        hijriDate: (day, month, year) => `${year}-${month}-${day} AH`,
         notesHeading: "Notes on the available data",
         noteNoPages:
             "the book file is on disk but carries no text pages (an image/scan-only title) — do not quote from it",

@@ -101,6 +101,11 @@ export async function runHealth(
     // access — so this is an exact count, not something a sample might miss.
     const flaggedMissing = catalog.flaggedFileMissingIds();
     const orphans = catalog.orphanFileIds();
+    // The reader's language, for the notes below. They travel in
+    // structuredContent as well as in the markdown, but they are sentences a
+    // person reads rather than values a caller branches on — every machine fact
+    // behind them is already in a typed field.
+    const L = pick(healthLabels);
     const notes: string[] = [];
     let spot: HealthOutput["readable_spot_check"] = null;
 
@@ -120,26 +125,16 @@ export async function runHealth(
             if (!(await pages.bookHasContent(id))) unreadable.push(id);
         }
         spot = { sampled: sampleIds.length, readable: sampleIds.length - unreadable.length, unreadable_book_ids: unreadable };
-        if (spot.readable === 0)
-            notes.push(
-                "NONE of the sampled downloaded books have readable pages — the Shamela database path may be wrong, or downloads are incomplete",
-            );
+        if (spot.readable === 0) notes.push(L.noteNoneReadable);
+        // Ids, so String() and a separator that follows the language.
         else if (unreadable.length)
-            notes.push(
-                `downloaded but carrying no text pages (ids: ${unreadable.join(", ")}) — image/scan-only titles, not a server fault; do not quote from them`,
-            );
+            notes.push(L.noteSomeUnreadable(unreadable.map(String).join(L.idSeparator)));
     } else {
-        notes.push("no downloaded books found — page searches will return nothing until books are downloaded in Shamela");
+        notes.push(L.noteNoDownloads);
     }
-    if (flaggedMissing.length)
-        notes.push(
-            `${flaggedMissing.length} book(s) are flagged as downloaded but have no file on disk — interrupted downloads, or the library folder moved; they are excluded from the counts above`,
-        );
-    if (catalog.diskScanFellBack())
-        notes.push(
-            "the book folder could not be read, so these counts come from master.db's flags rather than the files themselves — check the Shamela path",
-        );
-    notes.push("the Java search engine warms up lazily; run a small search to exercise it end-to-end");
+    if (flaggedMissing.length) notes.push(L.noteFlaggedMissing(num(flaggedMissing.length)));
+    if (catalog.diskScanFellBack()) notes.push(L.noteDiskScanFellBack);
+    notes.push(L.noteEngineWarmup);
 
     // Ask the search engine what it holds. `ping` already reports the document
     // counts, and one probe query turns "the index is open" into "the index
@@ -171,14 +166,8 @@ export async function runHealth(
                 probe_hits: probeHits,
                 error: probeError,
             };
-            if (searchIndex.page_docs === 0)
-                notes.push(
-                    "the page index reports zero documents — Shamela has not built its search index yet, or the library path points somewhere without one",
-                );
-            else if (probeHits === 0 && downloaded.size > 0)
-                notes.push(
-                    `the search index is open but a word as common as «${PROBE_QUERY}» matched nothing — searches will look empty rather than broken; please report this`,
-                );
+            if (searchIndex.page_docs === 0) notes.push(L.noteIndexEmpty);
+            else if (probeHits === 0 && downloaded.size > 0) notes.push(L.noteProbeNoHits(PROBE_QUERY));
         } catch (e) {
             searchIndex = {
                 page_docs: null,
@@ -188,7 +177,7 @@ export async function runHealth(
                 probe_hits: null,
                 error: e instanceof Error ? e.message : String(e),
             };
-            notes.push("the search engine did not respond — searches will fail until it starts");
+            notes.push(L.noteEngineDown);
         }
     }
 

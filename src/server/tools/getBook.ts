@@ -213,7 +213,22 @@ export async function runGetBook(
         if (data.edition) lines.push(`- **${L.edition}**: ${data.edition}`);
         if (data.editor) lines.push(`- **${L.editor}**: ${data.editor}`);
         if (data.publisher) lines.push(`- **${L.publisher}**: ${data.publisher}`);
-        if (data.publication_date) lines.push(`- **${L.publicationDate}**: ${data.publication_date}`);
+        // Shamela stores this as one 8-digit run, ddMMyyyy Hijri. Not a guess:
+        // all 8,593 rows of the shipped catalogue satisfy it — day 1..30, month
+        // 1..12, year 1431..1447 — while the yyyyMMdd reading fails on every
+        // one. Printed as a single run it read as a serial number, and in Arabic
+        // it read in Western digits beside «١٤٢١هـ» two lines up. The raw string
+        // stays in structuredContent for anyone already parsing it.
+        if (data.publication_date) {
+            const raw = String(data.publication_date);
+            const m = /^(\d{2})(\d{2})(\d{4})$/.exec(raw);
+            lines.push(
+                `- **${L.publicationDate}**: ` +
+                    // A shape the catalogue has never produced: show it as it
+                    // stands rather than force it into a date.
+                    (m ? L.hijriDate(num(Number(m[1])), num(Number(m[2])), num(Number(m[3]))) : raw),
+            );
+        }
         if (data.notes.length) {
             lines.push("", `**${L.notesHeading}**:`);
             for (const n of data.notes) lines.push(`- ${n}`);

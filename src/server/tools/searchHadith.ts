@@ -55,6 +55,8 @@ export interface HadithMatch {
     book_name: string;
     page_id: number;
     snippet: string;
+    /** False when the book's page file is not on disk (issue #47). */
+    readable: boolean;
     hadith_keys: number[];
 }
 export interface SearchHadithOutput {
@@ -94,6 +96,10 @@ export async function runSearchHadith(
             book_name: rec?.book_name ?? `(unknown ${hit.book_id})`,
             page_id: hit.page_id,
             snippet: hit.snippet_body || hit.snippet_foot,
+            // The same judgement search_pages makes about the same hit. This
+            // loop is bounded by max_pages_scanned and already awaits per
+            // iteration, so no memo is needed here.
+            readable: catalog.isDownloaded(hit.book_id) || catalog.confirmOnDisk(hit.book_id),
             hadith_keys: keys,
         });
     }
@@ -128,7 +134,10 @@ export async function runSearchHadith(
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_text_matches), num(data.pages_scanned)), "");
         for (const m of data.matches) {
-            lines.push(`## ${m.book_name} — page_id=${m.page_id}`);
+            lines.push(`## ${m.book_name} — page_id=${String(m.page_id)}`);
+            // Under the heading, never in it, and the blank line is load-bearing
+            // — see searchPages for both reasons.
+            if (!m.readable) lines.push(`**${L.unreadableHit}**`, "");
             if (m.snippet) lines.push("", `> ${m.snippet}`);
             // These keys exist to be handed to shamela_get_books_for_hadith,
             // so they are typed back and stay Latin.

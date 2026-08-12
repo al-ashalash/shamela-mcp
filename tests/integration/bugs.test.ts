@@ -12,8 +12,48 @@ import type { Helper } from "../../src/server/helper.js";
 import { runGetBook, getBookInput } from "../../src/server/tools/getBook.js";
 import { runGetPage, getPageInput } from "../../src/server/tools/getPage.js";
 import { runGetPagesRange, getPagesRangeInput } from "../../src/server/tools/getPagesRange.js";
+import { runSearchExact, searchExactInput } from "../../src/server/tools/searchExact.js";
+import { runSearchHadith, searchHadithInput } from "../../src/server/tools/searchHadith.js";
 import { runSearchPages, searchPagesInput } from "../../src/server/tools/searchPages.js";
-import { FIXTURE_BOOK_ID, getCatalog, getHelper, getPageStore } from "../fixtures/shared.js";
+import { runSearchTitles, searchTitlesInput } from "../../src/server/tools/searchTitles.js";
+import { FIXTURE_BOOK_ID, getCatalog, getHelper, getPageStore, getServiceStore } from "../fixtures/shared.js";
+
+/**
+ * The real catalogue, except every book's file is reported missing.
+ *
+ * The diverged state cannot be created against the real library — the extension
+ * never writes there — so the judgement is faked instead. Both halves of it:
+ * `isDownloaded` is the flag in master.db and `confirmOnDisk` is the filesystem,
+ * and a tool that consulted only one of them would still look correct here.
+ */
+async function missingFileCatalog(): Promise<Catalog> {
+    const real = await getCatalog();
+    return new Proxy(real, {
+        get(target, prop, receiver) {
+            if (prop === "isDownloaded" || prop === "confirmOnDisk") return () => false;
+            const v = Reflect.get(target, prop, receiver);
+            return typeof v === "function" ? v.bind(target) : v;
+        },
+    }) as Catalog;
+}
+
+/**
+ * The shape every page-hit renderer owes an unreadable hit: the heading is the
+ * hit's name and ends at its page id, and the warning is on the line under it.
+ */
+function expectWarnedUnderHeadings(text: string, hits: number): void {
+    const lines = text.split("\n");
+    const headings = lines.filter((l) => l.startsWith("## "));
+    expect(headings.length).toBe(hits);
+    for (const h of headings) {
+        expect(h, h).not.toContain("⚠️");
+        expect(h, h).toMatch(/ — page_id=\d+$/);
+    }
+    expect(lines.filter((l) => l.includes("⚠️")).length).toBe(headings.length);
+    for (const [i, l] of lines.entries()) {
+        if (l.startsWith("## ")) expect(lines[i + 1], `under ${l}`).toContain("⚠️");
+    }
+}
 
 describe("Bug #2 — search_books must honor scope in total_hits/has_more/next_offset", () => {
     let helper: Helper;
@@ -186,18 +226,7 @@ describe("Issue #47 — search must never point at pages that cannot be read", (
     it("marks hits readable:false when the index answers for a book whose file is gone", async () => {
         const helper = await getHelper();
         const pages = await getPageStore();
-        const realCatalog = await getCatalog();
-
-        // The diverged state cannot be created against the real library — the
-        // extension never writes there — so the judgement is faked instead:
-        // same catalog, except the book's file is reported missing.
-        const catalog = new Proxy(realCatalog, {
-            get(target, prop, receiver) {
-                if (prop === "isDownloaded" || prop === "confirmOnDisk") return () => false;
-                const v = Reflect.get(target, prop, receiver);
-                return typeof v === "function" ? v.bind(target) : v;
-            },
-        }) as typeof realCatalog;
+        const catalog = await missingFileCatalog();
 
         const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
             query: "الكلام",
@@ -229,6 +258,65 @@ describe("Issue #47 — search must never point at pages that cannot be read", (
         for (const [i, l] of lines.entries()) {
             if (l.startsWith("## ")) expect(lines[i + 1], `under ${l}`).toContain("⚠️");
         }
+    }, 60_000);
+
+    // The flag reached search_pages, search_phrase and search_boolean and
+    // stopped there. On one library state, one search warned that a hit could
+    // not be opened and another returned the same hit in silence — and the
+    // silent one is the one a reader is likeliest to quote from, because it
+    // looks like the more precise answer.
+    it("marks the same hit readable:false in search_exact, and warns under the heading", async () => {
+        const out = await runSearchExact(
+            await getHelper(),
+            await missingFileCatalog(),
+            await getPageStore(),
+            searchExactInput.parse({
+                query: "الكلام",
+                // The tool refuses a search that preserves nothing; hamza is the
+                // cheapest distinction to insist on and «الكلام» carries none,
+                // so it changes which pages match by nothing at all.
+                preserve: { preserve_hamza: true },
+                scope: { book_ids: [FIXTURE_BOOK_ID] },
+                limit: 2,
+            }),
+        );
+        const sc = out.structuredContent;
+        expect(sc.results.length).toBeGreaterThan(0);
+        for (const r of sc.results) expect(r.readable, `hit ${r.page_id}`).toBe(false);
+        expectWarnedUnderHeadings(out.content[0]!.text, sc.results.length);
+    }, 120_000);
+
+    // search_hadith takes no scope — it scans one window of the whole library —
+    // so the faked catalogue makes every book unreadable rather than one.
+    it("marks the same hit readable:false in search_hadith, and warns under the heading", async () => {
+        const out = await runSearchHadith(
+            await getHelper(),
+            await missingFileCatalog(),
+            await getPageStore(),
+            await getServiceStore(),
+            searchHadithInput.parse({ query: "الكلام", max_pages_scanned: 2, limit: 2 }),
+        );
+        const sc = out.structuredContent;
+        expect(sc.matches.length).toBeGreaterThan(0);
+        for (const m of sc.matches) expect(m.readable, `hit ${m.page_id}`).toBe(false);
+        expectWarnedUnderHeadings(out.content[0]!.text, sc.matches.length);
+    }, 120_000);
+
+    // A title hit is a list item, so its warning is a suffix rather than a line
+    // of its own — a bold line beneath a bullet would end the list.
+    it("marks a title hit readable:false and warns on the bullet itself", async () => {
+        const out = await runSearchTitles(
+            await getHelper(),
+            await missingFileCatalog(),
+            searchTitlesInput.parse({ query: "الأحكام", scope: { book_ids: [FIXTURE_BOOK_ID] }, limit: 3 }),
+        );
+        const sc = out.structuredContent;
+        expect(sc.results.length).toBeGreaterThan(0);
+        for (const r of sc.results) expect(r.readable, `title ${r.title_id}`).toBe(false);
+
+        const bullets = out.content[0]!.text.split("\n").filter((l) => l.startsWith("- "));
+        expect(bullets.length).toBe(sc.results.length);
+        for (const b of bullets) expect(b, b).toContain("⚠️");
     }, 60_000);
 });
 

@@ -15,6 +15,9 @@ export const searchExactLabels: Slice<{
     bookDate: (year: string) => string;
     /** Prefix on a snippet whose only match was in the footnote. */
     footLabel: string;
+    /** Said under a hit whose book file is missing (issue #47). Word for word
+     *  the sentence search_pages uses: one library state, one answer. */
+    unreadableHit: string;
 }> = {
     ar: {
         diacritics: "التشكيل",
@@ -29,6 +32,7 @@ export const searchExactLabels: Slice<{
         printedPage: (page) => ` (ص ${page})`,
         bookDate: (year) => ` — ${year}هـ`,
         footLabel: "_حاشية_: ",
+        unreadableHit: "⚠️ ملف الكتاب غير موجود على القرص — لن تنجح قراءته",
     },
     en: {
         diacritics: "diacritics",
@@ -43,6 +47,7 @@ export const searchExactLabels: Slice<{
         printedPage: (page) => ` (p. ${page})`,
         bookDate: (year) => ` — ${year} AH`,
         footLabel: "_hashiya_ (footnote): ",
+        unreadableHit: "⚠️ the book's file is not on disk — reading it will fail",
     },
 };
 

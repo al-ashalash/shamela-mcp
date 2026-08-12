@@ -50,6 +50,15 @@ export interface SearchTitleHit {
     title_id: number;
     title_text: string;
     parent_id: number | null;
+    /**
+     * False when the book's page file is not on disk (issue #47).
+     *
+     * A title hit quotes nothing, so nothing can be misattributed on the
+     * strength of it — but the tool's own description tells the model to chain
+     * into get_book_section, and a warning that arrives before the failed call
+     * is worth more than the error that arrives after it.
+     */
+    readable: boolean;
 }
 
 export interface SearchTitlesOutput {
@@ -85,8 +94,16 @@ export async function runSearchTitles(
         offset: args.offset,
         options: args.options ?? {},
     });
+    // Asked once per book: a page of title hits is often many chapters of one
+    // book, and confirmOnDisk goes to the filesystem.
+    const readableByBook = new Map<number, boolean>();
     const results: SearchTitleHit[] = raw.results.map((h) => {
         const rec = catalog.bookRecord(h.book_id);
+        let readable = readableByBook.get(h.book_id);
+        if (readable === undefined) {
+            readable = catalog.isDownloaded(h.book_id) || catalog.confirmOnDisk(h.book_id);
+            readableByBook.set(h.book_id, readable);
+        }
         return {
             book_id: h.book_id,
             book_name: rec?.book_name ?? `(unknown ${h.book_id})`,
@@ -94,6 +111,7 @@ export async function runSearchTitles(
             title_id: h.title_id,
             title_text: h.title_text,
             parent_id: h.parent_id ?? null,
+            readable,
         };
     });
     const out: SearchTitlesOutput = {
@@ -112,7 +130,11 @@ export async function runSearchTitles(
         lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset)));
         lines.push("");
         for (const r of data.results) {
-            lines.push(`- **${r.title_text}** — ${r.book_name}${r.author_name ? ` (${r.author_name})` : ""} — title_id=${String(r.title_id)}`);
+            // A suffix here rather than a line of its own: the hit is a list
+            // item, and a bold line beneath it would end the list.
+            lines.push(
+                `- **${r.title_text}** — ${r.book_name}${r.author_name ? ` (${r.author_name})` : ""} — title_id=${String(r.title_id)}${r.readable ? "" : L.unreadableTitleHit}`,
+            );
         }
         if (data.has_more) lines.push("", L.more(String(data.next_offset)));
         else if (depthLimited(data)) lines.push("", depthNote(data));

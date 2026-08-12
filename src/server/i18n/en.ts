@@ -81,7 +81,10 @@ export const en: Messages = {
     },
 
     resources: {
-        categories: { title: "Library categories", description: "Shamela's 41 categories with book counts." },
+        categories: {
+            title: "Library categories",
+            description: "Shamela's categories, with how many books each holds and how many are downloaded.",
+        },
         downloaded: {
             title: "Downloaded books",
             description: "The books actually on this machine (the ones search can reach).",

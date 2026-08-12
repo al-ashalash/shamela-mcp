@@ -231,6 +231,17 @@ export interface ExactHit {
     page_id: number;
     printed_page: string | null;
     matched_in: string[];
+    /**
+     * False when the book's page file is not on disk (issue #47).
+     *
+     * This tool looks as though it could not need the flag: stage 2 re-reads
+     * each candidate page and drops it unless the text is there. But the text
+     * it reads comes from Lucene's STORED fields, not from the book's own file,
+     * so a book whose file has gone still verifies and still comes back — and
+     * came back unmarked, while the same hit from search_pages carried a
+     * warning. One library state, two answers.
+     */
+    readable: boolean;
     snippet: string;
 }
 
@@ -311,6 +322,18 @@ export async function runSearchExact(
     // Stage 2: keep only pages whose RAW text contains the query at the requested
     // exactness. We verify against body + foot (the same fields stage 1 searched).
     const results: ExactHit[] = [];
+    // Asked once per book rather than once per hit: confirmOnDisk goes to the
+    // filesystem, and a window of a hundred hits from one missing book would
+    // otherwise stat it a hundred times.
+    const readableByBook = new Map<number, boolean>();
+    const isReadable = (bookId: number): boolean => {
+        let v = readableByBook.get(bookId);
+        if (v === undefined) {
+            v = catalog.isDownloaded(bookId) || catalog.confirmOnDisk(bookId);
+            readableByBook.set(bookId, v);
+        }
+        return v;
+    };
     for (const c of candidates) {
         if (results.length >= args.limit) break;
         const page = text.get(`${c.book_id}:${c.page_id}`);
@@ -339,6 +362,7 @@ export async function runSearchExact(
             page_id: c.page_id,
             printed_page: printed,
             matched_in: matchedFields,
+            readable: isReadable(c.book_id),
             snippet,
         });
     }
@@ -370,6 +394,9 @@ export async function runSearchExact(
             lines.push(
                 `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
+            // Under the heading, never in it, and the blank line is load-bearing
+            // — see searchPages for both reasons.
+            if (!r.readable) lines.push(`**${L.unreadableHit}**`, "");
             if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet) {
                 const label = r.matched_in.length === 1 && r.matched_in[0] === "foot" ? L.footLabel : "";

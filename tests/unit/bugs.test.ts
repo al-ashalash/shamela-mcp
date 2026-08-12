@@ -13,6 +13,7 @@ import type {
     Catalog,
 } from "../../src/server/catalog.js";
 import type { Helper } from "../../src/server/helper.js";
+import { resetLangForTesting } from "../../src/server/i18n/index.js";
 import type { PageStore } from "../../src/server/pages.js";
 import { runGetBook } from "../../src/server/tools/getBook.js";
 
@@ -134,45 +135,78 @@ describe("Bug #3 — get_book.downloaded must reflect readable content, not just
 });
 
 describe("get_book advice separates the ways a book can be unreadable", () => {
-    it("names an interrupted download / moved folder when the flag has no file", async () => {
-        const book = makeBook({ book_id: 9 }); // major_ondisk = 1
-        const r = await runGetBook(makeCatalog(book, /* onDisk */ false), makePages(false), makeHelper(), {
-            book_id: 9,
-            response_format: "json",
-        });
+    // The distinctive words of each note, per language. These assertions used to
+    // match English under the default Arabic, because the Arabic side of the
+    // notes was English — so they proved the wording was chosen while proving
+    // nothing about the language it reached the reader in. Both now.
+    const NOTE = {
+        ar: { fileMissing: "ملفه غير موجود على القرص", noPages: "نسخة مصوَّرة", session: "في أثناء هذه الجلسة" },
+        en: { fileMissing: "not on disk", noPages: "image/scan-only", session: "downloaded during this session" },
+    } as const;
+    const LANGS = ["ar", "en"] as const;
 
-        expect(r.structuredContent.content_status).toBe("flagged_file_missing");
-        const notes = r.structuredContent.notes.join(" | ");
-        expect(notes).toContain("not on disk");
-        // The old wording blamed image/scan-only books for a missing file.
-        expect(notes).not.toContain("image/scan-only");
+    async function inLang<T>(lang: (typeof LANGS)[number], fn: () => Promise<T>): Promise<T> {
+        process.env.SHAMELA_LANG = lang;
+        resetLangForTesting();
+        try {
+            return await fn();
+        } finally {
+            delete process.env.SHAMELA_LANG;
+            resetLangForTesting();
+        }
+    }
+
+    it("names an interrupted download / moved folder when the flag has no file", async () => {
+        for (const lang of LANGS) {
+            const book = makeBook({ book_id: 9 }); // major_ondisk = 1
+            const r = await inLang(lang, () =>
+                runGetBook(makeCatalog(book, /* onDisk */ false), makePages(false), makeHelper(), {
+                    book_id: 9,
+                    response_format: "json",
+                }),
+            );
+
+            expect(r.structuredContent.content_status).toBe("flagged_file_missing");
+            const notes = r.structuredContent.notes.join(" | ");
+            expect(notes, lang).toContain(NOTE[lang].fileMissing);
+            // The old wording blamed image/scan-only books for a missing file.
+            expect(notes, lang).not.toContain(NOTE[lang].noPages);
+        }
     });
 
     it("names an image/scan-only title when the file is present but page-less", async () => {
-        const book = makeBook({ book_id: 27 });
-        const r = await runGetBook(makeCatalog(book, /* onDisk */ true), makePages(true, 0), makeHelper(), {
-            book_id: 27,
-            response_format: "json",
-        });
+        for (const lang of LANGS) {
+            const book = makeBook({ book_id: 27 });
+            const r = await inLang(lang, () =>
+                runGetBook(makeCatalog(book, /* onDisk */ true), makePages(true, 0), makeHelper(), {
+                    book_id: 27,
+                    response_format: "json",
+                }),
+            );
 
-        expect(r.structuredContent.content_status).toBe("downloaded_no_pages");
-        const notes = r.structuredContent.notes.join(" | ");
-        expect(notes).toContain("image/scan-only");
-        expect(notes).not.toContain("not on disk");
+            expect(r.structuredContent.content_status).toBe("downloaded_no_pages");
+            const notes = r.structuredContent.notes.join(" | ");
+            expect(notes, lang).toContain(NOTE[lang].noPages);
+            expect(notes, lang).not.toContain(NOTE[lang].fileMissing);
+        }
     });
 
     it("warns that a book downloaded mid-session is not readable yet", async () => {
         // Its text lives in Shamela's Lucene index, which the helper opened at
         // startup — so the catalog knows the book while the reader does not.
-        const book = makeBook({ book_id: 30004 });
-        const r = await runGetBook(
-            makeCatalog(book, /* onDisk */ true, /* sessionDiscovered */ true),
-            makePages(true, 2012),
-            makeHelper(),
-            { book_id: 30004, response_format: "json" },
-        );
+        for (const lang of LANGS) {
+            const book = makeBook({ book_id: 30004 });
+            const r = await inLang(lang, () =>
+                runGetBook(
+                    makeCatalog(book, /* onDisk */ true, /* sessionDiscovered */ true),
+                    makePages(true, 2012),
+                    makeHelper(),
+                    { book_id: 30004, response_format: "json" },
+                ),
+            );
 
-        expect(r.structuredContent.content_status).toBe("readable");
-        expect(r.structuredContent.notes.join(" | ")).toContain("downloaded during this session");
+            expect(r.structuredContent.content_status).toBe("readable");
+            expect(r.structuredContent.notes.join(" | "), lang).toContain(NOTE[lang].session);
+        }
     });
 });

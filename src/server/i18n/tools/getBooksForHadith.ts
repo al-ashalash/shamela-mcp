@@ -21,8 +21,14 @@ export const getBooksForHadithLabels: Slice<{
     },
     en: {
         heading: (hadithKey) => `Books carrying hadith key ${hadithKey}`,
-        summary: (total, returned) => `**${total}** books, ${returned} of them within the current scope.`,
+        summary: (total, returned) =>
+            `**${total}** ${plural(total, "book", "books")}, ${returned} of them within the current scope.`,
         resultLine: (bookName, authorName, pageId, downloaded) =>
             `- **${bookName}**${authorName ? ` — ${authorName}` : ""} (page_id=${pageId}${downloaded ? ", downloaded" : ""})`,
     },
 };
+
+/** English agrees the noun with the count; the Arabic counted noun does not move. */
+function plural(count: string, one: string, many: string): string {
+    return count === "1" ? one : many;
+}

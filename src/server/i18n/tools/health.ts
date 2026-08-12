@@ -33,6 +33,26 @@ export const healthLabels: Slice<{
     probeFailed: (error: string) => string;
     probeHits: (count: string) => string;
     notesHeading: string;
+    /**
+     * The notes themselves — every sentence health can say about what it found.
+     *
+     * They were English literals in the renderer, so an Arabic reader met the
+     * translated heading «ملاحظات» and then nine English sentences. None of
+     * them is a diagnostic anyone needs verbatim: every machine fact a bug
+     * report would quote already travels in a typed field — `search_index.error`
+     * carries the engine's own message, `startup_error` its code, and
+     * `readable_spot_check.unreadable_book_ids` the very ids the note re-prints
+     * as prose. What is left is advice, and advice is read.
+     */
+    noteNoneReadable: string;
+    noteSomeUnreadable: (ids: string) => string;
+    noteNoDownloads: string;
+    noteFlaggedMissing: (count: string) => string;
+    noteDiskScanFellBack: string;
+    noteEngineWarmup: string;
+    noteIndexEmpty: string;
+    noteProbeNoHits: (query: string) => string;
+    noteEngineDown: string;
 }> = {
     ar: {
         notStartedHeading: "الإضافة لم تبدأ",
@@ -60,13 +80,35 @@ export const healthLabels: Slice<{
         idSeparator: "، ",
         searchIndex: (docs) => `- **فهرس البحث**: ${docs}`,
         unavailable: "غير متاح",
+        // «وثيقة» تمييز العدد و«صفحات» مضافٌ إليه، فالسطر الأول صحيح على حاله.
+        // أمّا «كتب» و«مؤلفين» فجمعان، والعدد لا يميَّز بالجمع إلا من ٣ إلى ١٠،
+        // وعدد وثائق الفهرس بالآلاف أبدًا — فكان يُقرأ «٨٥٩٣ كتب» دائمًا لا في
+        // الواحد وحده. والمفرد المنصوب هو صورة هذا الملف الثابتة، وهو الصواب في
+        // منزلة ١١–٩٩ التي ينتهي إليها كل رقم من هذا القبيل.
         pageDocs: (count) => `${count} وثيقة صفحات`,
-        bookDocs: (count) => ` — ${count} كتب`,
-        authorDocs: (count) => ` — ${count} مؤلفين`,
+        bookDocs: (count) => ` — ${count} كتابًا`,
+        authorDocs: (count) => ` — ${count} مؤلفًا`,
         probe: (query, result) => `- **استعلام تجريبي** «${query}»: ${result}`,
         probeFailed: (error) => `أخفق (${error})`,
         probeHits: (count) => `${count} نتيجة`,
         notesHeading: "**ملاحظات**:",
+        noteNoneReadable:
+            "لا صفحات مقروءة في أيٍّ من الكتب المنزَّلة التي فُحصت — قد يكون مسار مجلد الشاملة خاطئًا، أو التنزيلات مبتورة.",
+        noteSomeUnreadable: (ids) =>
+            `كتب منزَّلة لا صفحات نصّية فيها (أرقامها: ${ids}) — نسخ مصوَّرة، وليس ذلك عطلًا في الخادم؛ فلا يُنقَل عنها.`,
+        noteNoDownloads:
+            "لا كتب منزَّلة، فالبحث في المتون لن يُرجع شيئًا حتى تُنزَّل كتب من برنامج المكتبة الشاملة.",
+        noteFlaggedMissing: (count) =>
+            `${count} كتابًا معلَّمة في الفهرس أنها منزَّلة ولا ملف لها على القرص — تنزيل مبتور أو مجلد مكتبة مُنقَل؛ وهي مستثناة من الأعداد أعلاه.`,
+        noteDiskScanFellBack:
+            "تعذَّرت قراءة مجلد الكتب، فهذه الأعداد من علامات master.db لا من الملفات نفسها — تحقَّق من مسار الشاملة.",
+        noteEngineWarmup:
+            "محرك البحث (جافا) يُحمَّل عند أول طلب؛ فأجرِ بحثًا صغيرًا ليُختبر من طرفه إلى طرفه.",
+        noteIndexEmpty:
+            "فهرس الصفحات يُبلِّغ أنه بلا وثائق — إمّا أن الشاملة لم تبنِ فهرس البحث بعد، وإمّا أن المسار يشير إلى موضع لا فهرس فيه.",
+        noteProbeNoHits: (query) =>
+            `الفهرس مفتوح، لكن كلمة شائعة كـ«${query}» لم تطابق شيئًا — فالبحث سيبدو فارغًا لا معطوبًا؛ نرجو الإبلاغ عن هذا.`,
+        noteEngineDown: "محرك البحث لم يستجب، فالبحث سيُخفق حتى يبدأ.",
     },
     en: {
         notStartedHeading: "The extension did not start",
@@ -101,6 +143,22 @@ export const healthLabels: Slice<{
         probeFailed: (error) => `failed (${error})`,
         probeHits: (count) => `${count} ${plural(count, "result", "results")}`,
         notesHeading: "**Notes**:",
+        noteNoneReadable:
+            "NONE of the sampled downloaded books have readable pages — the Shamela database path may be wrong, or downloads are incomplete",
+        noteSomeUnreadable: (ids) =>
+            `downloaded but carrying no text pages (ids: ${ids}) — image/scan-only titles, not a server fault; do not quote from them`,
+        noteNoDownloads:
+            "no downloaded books found — page searches will return nothing until books are downloaded in Shamela",
+        noteFlaggedMissing: (count) =>
+            `${count} book(s) are flagged as downloaded but have no file on disk — interrupted downloads, or the library folder moved; they are excluded from the counts above`,
+        noteDiskScanFellBack:
+            "the book folder could not be read, so these counts come from master.db's flags rather than the files themselves — check the Shamela path",
+        noteEngineWarmup: "the Java search engine warms up lazily; run a small search to exercise it end-to-end",
+        noteIndexEmpty:
+            "the page index reports zero documents — Shamela has not built its search index yet, or the library path points somewhere without one",
+        noteProbeNoHits: (query) =>
+            `the search index is open but a word as common as «${query}» matched nothing — searches will look empty rather than broken; please report this`,
+        noteEngineDown: "the search engine did not respond — searches will fail until it starts",
     },
 };
 

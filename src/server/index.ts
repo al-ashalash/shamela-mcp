@@ -425,7 +425,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: L.toolTitles.shamela_get_book,
             description:
-                "Fetch full metadata for a book by book_id. Returns book_name, all authors (main + co), category, book_type (printed/manuscript/journal/thesis/electronic/audio), book_date (Hijri composition year), printed flag, downloaded flag (true ONLY when both master.db says so AND the per-book SQLite has page rows), publication_date (DDMMYYYY Hijri from meta_data), sub_books, and a `notes` array listing citation-grade fields master.db doesn't have (edition/publisher/city/editor — never fabricate these). Find ids via shamela_resolve('book name') or shamela_list_downloaded_books. Works on any catalog book whether downloaded or not.",
+                "Fetch full metadata for a book by book_id. Returns book_name, all authors (main + co), category, book_type (printed/manuscript/journal/thesis/electronic/audio), book_date (Hijri composition year), printed flag, downloaded flag (true ONLY when both master.db says so AND the per-book SQLite has page rows), publication_date (Shamela's own ddMMyyyy Hijri stamp for when the catalogue ENTRY was added or refreshed — NOT the print date of the edition; over half the library shares one seed value), sub_books, and a `notes` array listing citation-grade fields master.db doesn't have (edition/publisher/city/editor — never fabricate these). Find ids via shamela_resolve('book name') or shamela_list_downloaded_books. Works on any catalog book whether downloaded or not.",
             outputSchema: OUTPUT_SCHEMAS["shamela_get_book"] as never,
             inputSchema: getBookInputShape,
             annotations: COMMON_ANNOTATIONS,
@@ -745,7 +745,7 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         {
             title: L.toolTitles.shamela_health,
             description:
-                "Self-diagnostics. Returns server version, catalog/author/category counts, downloaded-book count, and a spot-check that the first downloaded book has readable pages. Reaching this tool at all proves the backend booted; the spot-check separates 'server fine' from 'library path / content problems'. Use it FIRST when Shamela tools seem missing, empty, or erroring. Cheap and read-only.",
+                "Self-diagnostics. Returns server version, catalog/author/category counts, downloaded-book count, and a spot-check that reads a sample of downloaded books, spread evenly across the library, to confirm their pages are readable. Reaching this tool at all proves the backend booted; the spot-check separates 'server fine' from 'library path / content problems'. Use it FIRST when Shamela tools seem missing, empty, or erroring. Cheap and read-only.",
             outputSchema: OUTPUT_SCHEMAS["shamela_health"] as never,
             inputSchema: healthInputShape,
             annotations: COMMON_ANNOTATIONS,

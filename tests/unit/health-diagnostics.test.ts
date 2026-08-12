@@ -13,6 +13,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import type { Catalog } from "../../src/server/catalog.js";
 import type { Helper } from "../../src/server/helper.js";
+import { resetLangForTesting } from "../../src/server/i18n/index.js";
 import type { PageStore } from "../../src/server/pages.js";
 import { healthInput, runHealth } from "../../src/server/tools/health.js";
 
@@ -58,33 +59,76 @@ function makeHelper(over: {
 
 const args = healthInput.parse({ response_format: "json" });
 
+/**
+ * The distinctive words of each note, per language.
+ *
+ * The notes used to be English literals, so these assertions passed under the
+ * default Arabic by matching text no Arabic reader would ever see. Asserting a
+ * language explicitly is what makes them mean anything: each case now proves
+ * both that the note fires and that it fires in the reader's language.
+ */
+const NOTE = {
+    ar: { indexEmpty: "بلا وثائق", probeNoHits: "لم تطابق شيئًا", engineDown: "لم يستجب" },
+    en: { indexEmpty: "zero documents", probeNoHits: "matched nothing", engineDown: "did not respond" },
+} as const;
+const LANGS = ["ar", "en"] as const;
+
+async function inLang<T>(lang: (typeof LANGS)[number], fn: () => Promise<T>): Promise<T> {
+    process.env.SHAMELA_LANG = lang;
+    resetLangForTesting();
+    try {
+        return await fn();
+    } finally {
+        delete process.env.SHAMELA_LANG;
+        resetLangForTesting();
+    }
+}
+
 describe("health reports the state of the search index", () => {
     it("reports document counts and a probe that matched", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({}), null, args);
-        const si = r.structuredContent.search_index!;
-        expect(si.page_docs).toBe(1_111_817);
-        expect(si.probe_hits).toBe(25_420);
-        expect(si.error).toBeNull();
-        expect(r.structuredContent.notes.join(" ")).not.toContain("matched nothing");
+        for (const lang of LANGS) {
+            const r = await inLang(lang, () =>
+                runHealth(makeCatalog(), readablePages, makeHelper({}), null, args),
+            );
+            const si = r.structuredContent.search_index!;
+            expect(si.page_docs).toBe(1_111_817);
+            expect(si.probe_hits).toBe(25_420);
+            expect(si.error).toBeNull();
+            expect(r.structuredContent.notes.join(" "), lang).not.toContain(NOTE[lang].probeNoHits);
+        }
     });
 
     it("calls out an index that holds nothing", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ pageDocs: 0 }), null, args);
-        expect(r.structuredContent.notes.join(" | ")).toContain("zero documents");
+        for (const lang of LANGS) {
+            const r = await inLang(lang, () =>
+                runHealth(makeCatalog(), readablePages, makeHelper({ pageDocs: 0 }), null, args),
+            );
+            expect(r.structuredContent.notes.join(" | "), lang).toContain(NOTE[lang].indexEmpty);
+        }
     });
 
     it("calls out an index that is open but answers nothing", async () => {
         // The shape of the normalization fault: the engine is fine, our query
         // is what fails to match — and it would otherwise look like an empty
         // library.
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ probeHits: 0 }), null, args);
-        expect(r.structuredContent.notes.join(" | ")).toContain("matched nothing");
+        for (const lang of LANGS) {
+            const r = await inLang(lang, () =>
+                runHealth(makeCatalog(), readablePages, makeHelper({ probeHits: 0 }), null, args),
+            );
+            expect(r.structuredContent.notes.join(" | "), lang).toContain(NOTE[lang].probeNoHits);
+        }
     });
 
     it("reports a search engine that never answered, without failing the check", async () => {
-        const r = await runHealth(makeCatalog(), readablePages, makeHelper({ pingThrows: true }), null, args);
-        expect(r.structuredContent.search_index!.error).toContain("helper did not start");
-        expect(r.structuredContent.notes.join(" | ")).toContain("did not respond");
+        for (const lang of LANGS) {
+            const r = await inLang(lang, () =>
+                runHealth(makeCatalog(), readablePages, makeHelper({ pingThrows: true }), null, args),
+            );
+            // The engine's own message is a diagnostic and stays verbatim in a
+            // typed field; the sentence about it is prose and is translated.
+            expect(r.structuredContent.search_index!.error).toContain("helper did not start");
+            expect(r.structuredContent.notes.join(" | "), lang).toContain(NOTE[lang].engineDown);
+        }
     });
 
     it("keeps the probe's failure separate from the engine's health", async () => {

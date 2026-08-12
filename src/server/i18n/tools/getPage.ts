@@ -12,8 +12,11 @@ export const getPageLabels: Slice<{
      * The advice that travels with a long body split across parts. Prose, so it
      * follows the reader's language even though it rides in structuredContent.
      * `nextPart` is a value the user types back, so it stays in Latin digits.
+     *
+     * `n` is the part count as a number: the Arabic counted noun changes shape
+     * with it, and cannot be read back out of «١٢».
      */
-    longBody: (totalParts: string, part: string, nextPart: string) => string;
+    longBody: (totalParts: string, part: string, nextPart: string, n: number) => string;
     hashiya: string;
     comment: string;
     citation: string;
@@ -25,8 +28,13 @@ export const getPageLabels: Slice<{
         path: "المسار",
         matn: "المتن",
         matnPart: (part, total) => `المتن (جزء ${part}/${total})`,
-        longBody: (totalParts, part, nextPart) =>
-            `النص طويل، قُسِّم إلى ${totalParts} أجزاء (هذا الجزء ${part}). اعرض المعروض كاملًا حرفيًّا أو اسأل المستخدم عن طريقة العرض؛ ولجلب التالي استخدم body_part=${nextPart}. (الحاشية والتعليق يظهران مع الجزء الأول.)`,
+        // الأجزاء اثنان فأكثر دائمًا (لا يُقسَّم النص إلا إذا زاد)، فلا حاجة إلى
+        // صورة الواحد؛ لكن «أجزاء» جمعٌ لا يصح تمييزًا إلا من ٣ إلى ١٠، فالاثنان
+        // مثنًّى وما فوق العشرة مفردٌ منصوب.
+        longBody: (totalParts, part, nextPart, n) =>
+            `النص طويل، قُسِّم إلى ${
+                n === 2 ? "جزأين" : n <= 10 ? `${totalParts} أجزاء` : `${totalParts} جزءًا`
+            } (هذا الجزء ${part}). اعرض المعروض كاملًا حرفيًّا أو اسأل المستخدم عن طريقة العرض؛ ولجلب التالي استخدم body_part=${nextPart}. (الحاشية والتعليق يظهران مع الجزء الأول.)`,
         hashiya: "الحاشية",
         comment: "التعليق",
         citation: "الإحالة",

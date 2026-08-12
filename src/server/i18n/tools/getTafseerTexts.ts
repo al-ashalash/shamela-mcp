@@ -45,7 +45,7 @@ export const getTafseerTextsLabels: Slice<{
         printedPage: (page) => `ص ${page}`,
         sep: "، ",
         coverageNote:
-            "النصوص أعلاه من الكتب التي يشملها فهرس التفسير المنتقى لهذه الآية فقط؛ فالتفاسير المنزَّلة غير المفهرسة لا تُجلب هنا وليس ذلك دليلًا على خلوّها من الكلام على الآية — استعرض التغطية بـ shamela_list_tafsirs_for_aya وتصفَّح غير المفهرس بفهرسه (shamela_get_toc).",
+            "النصوص المجلوبة هنا من الكتب التي يشملها فهرس التفسير المنتقى لهذه الآية فقط؛ فالتفاسير المنزَّلة غير المفهرسة لا تُجلب هنا وليس ذلك دليلًا على خلوّها من الكلام على الآية — استعرض التغطية بـ shamela_list_tafsirs_for_aya وتصفَّح غير المفهرس بفهرسه (shamela_get_toc).",
         statusNote: {
             indexPending: "لم يُفهرس هذا الكتاب بعد في هذه الجلسة؛ أعد الطلب ليُستكمل.",
             noEntryForThisAya:
@@ -68,7 +68,7 @@ export const getTafseerTextsLabels: Slice<{
         printedPage: (page) => `p. ${page}`,
         sep: ", ",
         coverageNote:
-            "The texts above come only from the books the curated tafsir index covers for this aya; downloaded tafsirs that are not in it are not fetched here, and that is no proof they say nothing about the aya — review the coverage with shamela_list_tafsirs_for_aya, and browse an unindexed tafsir by its table of contents (shamela_get_toc).",
+            "The texts fetched here come only from the books the curated tafsir index covers for this aya; downloaded tafsirs that are not in it are not fetched here, and that is no proof they say nothing about the aya — review the coverage with shamela_list_tafsirs_for_aya, and browse an unindexed tafsir by its table of contents (shamela_get_toc).",
         statusNote: {
             indexPending: "This book has not been indexed yet in this session; ask again to finish it.",
             noEntryForThisAya:

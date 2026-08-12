@@ -48,7 +48,14 @@ export interface BookRecord {
 }
 
 export interface BookMeta {
-    date?: string; // DDMMYYYY Hijri
+    /**
+     * Shamela's stamp for this catalogue entry: eight digits, ddMMyyyy Hijri
+     * (verified against all 8,593 shipped rows). NOT the book's publication
+     * date — every value falls in 1431–1447 AH, and 56% of them are the single
+     * value 08121431, the day the v4 library was seeded. It records when the
+     * entry was added or refreshed.
+     */
+    date?: string;
     group?: number;
     coauthor?: number[];
     prefix?: string;

@@ -179,7 +179,7 @@ export async function runSearchPhrase(
                 1,
                 data.mode === "phrase"
                     ? L.phraseHeading(data.query)
-                    : L.nearHeading(num(data.distance), data.query),
+                    : L.nearHeading(num(data.distance), data.query, data.distance),
             ),
         ];
         lines.push(L.summary(num(data.total_hits), num(data.returned), data.total_hits));
