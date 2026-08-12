@@ -179,8 +179,18 @@ export async function runSearchPages(
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}${r.readable ? "" : ` ${L.unreadableHit}`}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
+            // The heading is the hit's name — book, printed page, page id — and
+            // it is what gets copied whole in order to ask for the page. The
+            // #47 warning used to be concatenated onto it, which typeset a
+            // sentence as a level-2 heading and carried the caveat into every
+            // quotation of the name. It belongs under the heading instead:
+            // impossible to miss, attached to the hit it accuses, and out of
+            // the identifier. The blank line is load-bearing — without it
+            // CommonMark folds the warning into the author line below it and
+            // the caveat reads as part of the byline.
+            if (!r.readable) lines.push(`**${L.unreadableHit}**`, "");
             if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);
             if (r.snippet_foot) lines.push("", `> ${L.footLabel}${r.snippet_foot}`);

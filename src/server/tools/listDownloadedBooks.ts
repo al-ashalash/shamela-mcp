@@ -136,8 +136,11 @@ export async function runListDownloadedBooks(
             lines.push("");
         }
         for (const b of data.books) {
-            const status = b.content_status === "readable" ? "" : L.noPagesSuffix;
-            lines.push(`## ${b.book_name} (id=${String(b.book_id)})${status}`);
+            lines.push(`## ${b.book_name} (id=${String(b.book_id)})`);
+            // Under the name, not inside it — a heading is what a reader copies
+            // when they refer to the book, and a caveat welded to it travels
+            // wherever the name goes.
+            if (b.content_status !== "readable") lines.push(`**${L.noPagesWarning}**`);
             if (b.author_name) lines.push(`- ${L.author}: ${b.author_name}`);
             if (b.category) lines.push(`- ${L.category}: ${b.category} (id=${String(b.category_id)})`);
             if (b.book_date) lines.push(`- ${L.composedYear}: ${L.hijri(num(b.book_date))}`);

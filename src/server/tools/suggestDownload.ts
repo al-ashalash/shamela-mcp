@@ -150,7 +150,9 @@ export function runSuggestDownload(
         seen.add(id);
         const c = describe(id);
         if (c) matched.push(c);
-        else notes.push(L.noteUnknownId(num(id)));
+        // The id the caller passed in, echoed back so they can see which one
+        // missed. Echoed as they wrote it: «٩٩٩٩٩٩» is not what they sent.
+        else notes.push(L.noteUnknownId(String(id)));
     }
 
     if (args.query) {
@@ -232,7 +234,7 @@ export function runSuggestDownload(
                 .join(" — ");
             if (meta) lines.push(`*${meta}*`);
             lines.push(`- **${L.status}**: ${label}`);
-            lines.push(`- **${L.shamelaId}**: ${num(c.book_id)}`);
+            lines.push(`- **${L.shamelaId}**: ${String(c.book_id)}`);
             lines.push(`- **${L.bookPage}**: ${c.link}`);
         }
         if (data.next_steps.length) {

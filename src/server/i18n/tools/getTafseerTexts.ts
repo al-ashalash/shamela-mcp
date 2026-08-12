@@ -26,7 +26,15 @@ export const getTafseerTextsLabels: Slice<{
         hasMore: boolean,
         nextPageId: string | null,
     ) => string;
-    /** Said when sources were left out, by max_sources or by the char budget. */
+    /**
+     * Said when sources were left out, by max_sources or by the char budget.
+     *
+     * The id list is joined with an ASCII comma in both languages, and Arabic
+     * prose does not get its own «،» here: the sentence hands the reader a
+     * literal to paste back into `book_ids`, and «،» is not a separator that
+     * parameter accepts. It is the same reason ids are never arabized — what
+     * the reader copies has to be what the tool will read.
+     */
     trimmed: (fetched: string, budgetCut: boolean, remainingIds: readonly string[]) => string;
 }> = {
     ar: {
@@ -50,7 +58,7 @@ export const getTafseerTextsLabels: Slice<{
         continuation: (bookId, pageId, hasMore, nextPageId) =>
             `التفسير قد يمتد؛ ${hasMore ? `لبقية هذه الصفحة استخدم shamela_get_page(book_id=${bookId}, page_id=${pageId}, body_part=2)` : ""}${hasMore && nextPageId !== null ? "، و" : ""}${nextPageId !== null ? `للصفحة التالية next_page_id=${nextPageId}` : ""}.`,
         trimmed: (fetched, budgetCut, remainingIds) =>
-            `اقتُصِر على ${fetched} مصدرًا${budgetCut ? " لضبط الحجم" : ""}؛ لبقية المصادر أعد الاستدعاء بـ book_ids=[${remainingIds.join("، ")}].`,
+            `اقتُصِر على ${fetched} مصدرًا${budgetCut ? " لضبط الحجم" : ""}؛ لبقية المصادر أعد الاستدعاء بـ \`book_ids=[${remainingIds.join(", ")}]\`.`,
     },
     en: {
         heading: (surahName, surah, aya) => `Tafsir texts for aya ${surahName} ${surah}:${aya}`,
@@ -74,7 +82,7 @@ export const getTafseerTextsLabels: Slice<{
         continuation: (bookId, pageId, hasMore, nextPageId) =>
             `The commentary may run on; ${hasMore ? `for the rest of this page use shamela_get_page(book_id=${bookId}, page_id=${pageId}, body_part=2)` : ""}${hasMore && nextPageId !== null ? ", and " : ""}${nextPageId !== null ? `for the next page next_page_id=${nextPageId}` : ""}.`,
         trimmed: (fetched, budgetCut, remainingIds) =>
-            `Stopped at ${fetched} ${plural(fetched, "source", "sources")}${budgetCut ? " to stay within the size budget" : ""}; for the rest, call again with book_ids=[${remainingIds.join(", ")}].`,
+            `Stopped at ${fetched} ${plural(fetched, "source", "sources")}${budgetCut ? " to stay within the size budget" : ""}; for the rest, call again with \`book_ids=[${remainingIds.join(", ")}]\`.`,
     },
 };
 

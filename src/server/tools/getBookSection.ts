@@ -121,10 +121,21 @@ export async function runGetBookSection(
         const lines = [
             header(1, `${data.book_name} — ${data.title_text || L.untitled}`),
             data.author_name ? `*${data.author_name}*` : "",
-            L.range(num(data.start_page_id), num(data.end_page_id), num(data.total_pages_in_section)),
+            // The span is in page_ids — Latin, per the id rule in i18n/labels.ts
+            // — while the count of pages is prose and follows the language.
+            L.range(String(data.start_page_id), String(data.end_page_id), num(data.total_pages_in_section)),
         ].filter(Boolean);
         for (const p of data.pages) {
-            lines.push("", header(3, L.page(num(p.printed_page ?? p.page_id))));
+            // Two numbers, two jobs. The printed page is prose a reader quotes,
+            // so it follows the language; the page_id is what the next call is
+            // built from and stays Latin. One slot used to hold whichever of the
+            // two existed, which is how a range of ids ended up above pages
+            // labelled by their printed numbers — six of six outside the range
+            // it stated.
+            lines.push(
+                "",
+                header(3, L.page(p.printed_page !== null ? num(p.printed_page) : null, String(p.page_id))),
+            );
             if (p.body) lines.push(p.body);
             if (p.foot) lines.push("", `_${p.foot}_`);
         }

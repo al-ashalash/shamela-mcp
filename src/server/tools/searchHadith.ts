@@ -130,13 +130,15 @@ export async function runSearchHadith(
         for (const m of data.matches) {
             lines.push(`## ${m.book_name} — page_id=${m.page_id}`);
             if (m.snippet) lines.push("", `> ${m.snippet}`);
-            if (m.hadith_keys.length) lines.push(L.hadithKeys(m.hadith_keys.map((k) => num(k))));
+            // These keys exist to be handed to shamela_get_books_for_hadith,
+            // so they are typed back and stay Latin.
+            if (m.hadith_keys.length) lines.push(L.hadithKeys(m.hadith_keys.map((k) => String(k))));
             lines.push("");
         }
         if (data.takhrij.length) {
             lines.push(header(2, L.takhrijHeading));
             for (const t of data.takhrij) {
-                lines.push(L.keyLine(num(t.hadith_key), t.books.map((b) => `${b.book_name}${b.downloaded ? L.downloadedTag : ""}`)));
+                lines.push(L.keyLine(String(t.hadith_key), t.books.map((b) => `${b.book_name}${b.downloaded ? L.downloadedTag : ""}`)));
             }
         } else {
             lines.push(L.noKeys);

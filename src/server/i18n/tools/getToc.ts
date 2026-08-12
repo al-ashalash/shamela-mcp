@@ -10,21 +10,27 @@ export const getTocLabels: Slice<{
     chainLine: (title: string, titleId: string, pageId: string) => string;
     /** Stands in for a chapter the book gives no heading text for. */
     untitled: string;
-    /** One chapter of the subtree; the renderer supplies the indent. */
-    nodeLine: (title: string, titleId: string, page: string) => string;
+    /**
+     * One chapter of the subtree; the renderer supplies the indent.
+     *
+     * The id is named `page_id=` and not `page=`: no tool takes a `page`, and a
+     * reader handed a key that does not exist has to guess which one was meant.
+     * The chain line above has always spelled it correctly.
+     */
+    nodeLine: (title: string, titleId: string, pageId: string) => string;
 }> = {
     ar: {
         heading: (bookName) => `فهرس «${bookName}»`,
         chainHeading: "**سلسلة الأبواب** (الجذر → الحالي):",
         chainLine: (title, titleId, pageId) => `- ${title} (title_id=${titleId}, page_id=${pageId})`,
         untitled: "(بدون عنوان)",
-        nodeLine: (title, titleId, page) => `- **${title}** (title_id=${titleId}, page=${page})`,
+        nodeLine: (title, titleId, pageId) => `- **${title}** (title_id=${titleId}, page_id=${pageId})`,
     },
     en: {
         heading: (bookName) => `Table of contents: "${bookName}"`,
         chainHeading: "**Chapter chain** (root → current):",
         chainLine: (title, titleId, pageId) => `- ${title} (title_id=${titleId}, page_id=${pageId})`,
         untitled: "(untitled)",
-        nodeLine: (title, titleId, page) => `- **${title}** (title_id=${titleId}, page=${page})`,
+        nodeLine: (title, titleId, pageId) => `- **${title}** (title_id=${titleId}, page_id=${pageId})`,
     },
 };

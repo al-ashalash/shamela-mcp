@@ -63,7 +63,9 @@ export async function runGetBooksForHadith(
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(getBooksForHadithLabels);
         const lines = [
-            header(1, L.heading(num(data.hadith_key))),
+            // The key is this tool's own required input, so it is a number the
+            // reader types back — Latin digits, per the rule in i18n/labels.ts.
+            header(1, L.heading(String(data.hadith_key))),
             L.summary(num(data.total), num(data.returned)),
             "",
         ];

@@ -11,9 +11,13 @@ export const suggestDownloadLabels: Slice<{
     died: (year: string) => string;
     status: string;
     /**
-     * Labels `book_id`. The Arabic has always printed that id in Arabic-Indic
-     * digits, so the renderer keeps it on `num` rather than `String` — moving
-     * it would change the Arabic output, which this refactor may not do.
+     * Labels `book_id`, which stays in Latin digits in both languages.
+     *
+     * It was arabized here once, and left that way on the ground that changing
+     * it would change the Arabic output. It had to change: this line exists to
+     * be copied — into a request, or into the book's own page URL printed
+     * directly beneath it, which carries the same number as 9942 — and «٩٩٤٢»
+     * is not a number either of them will take.
      */
     shamelaId: string;
     bookPage: string;

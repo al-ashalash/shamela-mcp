@@ -184,6 +184,32 @@ describe("tool label slices", () => {
         }
     });
 
+    it("no identifier is rendered in Arabic-Indic digits", () => {
+        // The rule is stated in src/server/i18n/labels.ts: a number the reader
+        // types back has to come out the way they will type it. «٩٩٤٢» pasted
+        // into a request resolves to nothing, and a reader has no way of knowing
+        // that the id they were shown is not the id the tool wants.
+        //
+        // Matched by name, so it catches the shape the mistake actually takes —
+        // num(x.page_id). A bare variable holding an id (num(k) inside a map)
+        // slips through; that is a guard against the common case, not a proof.
+        const IDS =
+            /\bnum\(\s*[\w.?[\]]*\b(book_id|page_id|title_id|author_id|category_id|hadith_key)\b/;
+        const offenders: string[] = [];
+        for (const f of toolFiles) {
+            const lines = fs.readFileSync(path.join(TOOLS, f), "utf8").split(/\r?\n/);
+            for (const [i, raw] of lines.entries()) {
+                const line = raw.trim();
+                if (line.startsWith("//") || line.startsWith("*")) continue;
+                if (IDS.test(line)) offenders.push(`${f}:${i + 1}  ${line.slice(0, 100)}`);
+            }
+        }
+        expect(
+            offenders,
+            `identifiers arabized instead of printed as typed:\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
     it("no renderer writes Arabic inline any more", () => {
         // The regression guard: this is what a future edit will get wrong.
         const offenders = toolFiles.flatMap((f) =>

@@ -116,10 +116,19 @@ export async function runGetPagesRange(
         pages: pagesOut };
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(getPagesRangeLabels);
-        const lines = [header(1, L.heading(data.book_name, num(data.start_page_id)))];
+        const lines = [header(1, L.heading(data.book_name, String(data.start_page_id)))];
         if (data.author_name) lines.push(`*${data.author_name}*`);
         for (const p of data.pages) {
-            lines.push("", header(3, L.page(num(p.printed_page ?? p.page_id))));
+            // Two numbers, two jobs. The printed page is prose a reader quotes,
+            // so it follows the language into Arabic-Indic digits; the page_id
+            // is what the next call is built from and stays Latin, per the rule
+            // in i18n/labels.ts. One slot used to hold whichever of the two
+            // existed, which is how a range of ids ended up labelling pages by
+            // their printed numbers.
+            lines.push(
+                "",
+                header(3, L.page(p.printed_page !== null ? num(p.printed_page) : null, String(p.page_id))),
+            );
             if (p.body) lines.push(p.body);
             if (p.foot) lines.push("", `_${p.foot}_`);
         }

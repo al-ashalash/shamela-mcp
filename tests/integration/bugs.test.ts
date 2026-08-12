@@ -210,7 +210,25 @@ describe("Issue #47 — search must never point at pages that cannot be read", (
             expect(r.readable, `hit ${r.page_id}`).toBe(false);
         }
         // And the reader is warned in the rendered text, not only in a field.
-        expect(out.content[0]!.text).toContain("⚠️");
+        const lines = out.content[0]!.text.split("\n");
+        const headings = lines.filter((l) => l.startsWith("## "));
+        expect(headings.length).toBe(sc.results.length);
+
+        // A hit's heading is its name and nothing else: it ends at the page id,
+        // in Latin digits, with no prose after it. This is the assertion the
+        // bare toContain("⚠️") could not make — the warning used to be spliced
+        // onto exactly this line and the old test still passed.
+        for (const h of headings) {
+            expect(h, h).not.toContain("⚠️");
+            expect(h, h).toMatch(/ — page_id=\d+$/);
+        }
+
+        // Warned once per hit, on the line under the heading, where a reader
+        // meets it before quoting anything.
+        expect(lines.filter((l) => l.includes("⚠️")).length).toBe(headings.length);
+        for (const [i, l] of lines.entries()) {
+            if (l.startsWith("## ")) expect(lines[i + 1], `under ${l}`).toContain("⚠️");
+        }
     }, 60_000);
 });
 

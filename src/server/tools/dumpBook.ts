@@ -227,7 +227,10 @@ export async function runDumpBook(
         }
         lines.push("");
         lines.push(
-            L.summary(num(data.returned), num(data.chars), num(data.total_pages), num(data.start_page_id)),
+            // Three counts and an id. The counts are prose and follow the
+            // language; the id is what a caller resumes from — as `_display`
+            // twenty lines up already knew, printing it with String().
+            L.summary(num(data.returned), num(data.chars), num(data.total_pages), String(data.start_page_id)),
         );
         if (data.category) lines.push(L.category(data.category));
         if (data.citation_auto_numbered) {

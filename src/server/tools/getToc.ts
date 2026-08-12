@@ -102,10 +102,15 @@ export async function runGetToc(
         } else {
             const render = (nodes: TocNode[], indent: number) => {
                 for (const n of nodes) {
-                    // page_id is arabized in Arabic today, so it keeps num() rather
-                    // than String(): changing it would change the Arabic output.
+                    // Both numbers on this line are ids the reader types back, so
+                    // both are Latin. The page_id used to be arabized here, and
+                    // that was recorded as a decision to leave the Arabic output
+                    // alone — but the chain branch twelve lines up was already
+                    // printing the same id as page_id=1204, so one tool gave two
+                    // answers for one number, and «(title_id=11, page=١٢٠٤)» had
+                    // one line disagreeing with itself.
                     lines.push(
-                        `${"  ".repeat(indent)}${L.nodeLine(n.title_text || L.untitled, String(n.title_id), num(n.page_id))}`,
+                        `${"  ".repeat(indent)}${L.nodeLine(n.title_text || L.untitled, String(n.title_id), String(n.page_id))}`,
                     );
                     if (n.children) render(n.children, indent + 1);
                 }

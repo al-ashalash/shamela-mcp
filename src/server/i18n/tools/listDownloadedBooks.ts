@@ -19,8 +19,12 @@ export const listDownloadedBooksLabels: Slice<{
      * the line the reader sees is translated.
      */
     uncategorized: string;
-    /** Appended to a book's heading when the file is here but its text will not open. */
-    noPagesSuffix: string;
+    /**
+     * Said under a book's heading when the file is here but its text will not
+     * open. It sat inside the heading once, which made a warning sentence part
+     * of the book's name every time that name was quoted.
+     */
+    noPagesWarning: string;
     author: string;
     category: string;
     composedYear: string;
@@ -36,7 +40,7 @@ export const listDownloadedBooksLabels: Slice<{
         counts: (returned, total, offset) => `عرض ${returned} من ${total} ابتداءً من ${offset}`,
         byCategoryHeading: "توزيع المكتبة على التصنيفات",
         uncategorized: "(غير مصنَّف)",
-        noPagesSuffix: "  ⚠️ منزَّل بلا صفحات مقروءة",
+        noPagesWarning: "⚠️ منزَّل بلا صفحات مقروءة",
         author: "المؤلف",
         category: "التصنيف",
         composedYear: "سنة التأليف",
@@ -52,7 +56,7 @@ export const listDownloadedBooksLabels: Slice<{
         counts: (returned, total, offset) => `Showing ${returned} of ${total}, starting at ${offset}`,
         byCategoryHeading: "Library by category",
         uncategorized: "(uncategorized)",
-        noPagesSuffix: "  ⚠️ downloaded, no readable pages",
+        noPagesWarning: "⚠️ downloaded, no readable pages",
         author: "Author",
         category: "Category",
         composedYear: "Year written",

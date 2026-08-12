@@ -265,8 +265,11 @@ export async function runSearchBoolean(
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${r.page_id}${r.readable ? "" : ` ${L.unreadableHit}`}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
+            // Under the heading, not inside it — see searchPages for why, and
+            // for why the blank line has to be there.
+            if (!r.readable) lines.push(`**${L.unreadableHit}**`, "");
             if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.matched_terms.length) lines.push(L.matchedTerms(r.matched_terms));
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);
