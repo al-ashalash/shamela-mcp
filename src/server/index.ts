@@ -10,6 +10,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+import { withNeutralSchemas } from "./schemaCompat.js";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
@@ -298,6 +300,13 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         { name: "shamela", version: VERSION },
         { capabilities: { tools: {}, resources: {} }, instructions: L.instructions },
     );
+
+    // Whatever transport this server is given, its schemas go out without a
+    // dialect declaration — see schemaCompat.ts for the client that refused
+    // them otherwise. Hooked here rather than in main() so the tests' in-memory
+    // transport exercises the same wire the real client sees.
+    const originalConnect = server.connect.bind(server);
+    server.connect = (transport) => originalConnect(withNeutralSchemas(transport));
 
     // ----------- 1. shamela_search_pages -----------
     server.registerTool(

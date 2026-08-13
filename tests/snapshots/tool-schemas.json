@@ -1,7 +1,6 @@
 {
   "shamela_books_by_period": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "category_id": {
@@ -64,7 +63,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_ids": {},
@@ -113,7 +111,6 @@
   },
   "shamela_dump_book": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -176,7 +173,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "_display": {},
@@ -231,7 +227,6 @@
   },
   "shamela_get_author": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "author_id": {
@@ -260,7 +255,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "author_id": {},
@@ -293,7 +287,6 @@
   },
   "shamela_get_aya": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "aya": {
@@ -326,7 +319,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "amiri": {},
@@ -359,7 +351,6 @@
   },
   "shamela_get_book": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -383,7 +374,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "authors": {},
@@ -439,7 +429,6 @@
   },
   "shamela_get_book_parts": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -463,7 +452,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -496,7 +484,6 @@
   },
   "shamela_get_book_section": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -538,7 +525,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "_display": {},
@@ -577,7 +563,6 @@
   },
   "shamela_get_books_for_hadith": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "downloaded_only": {
@@ -606,7 +591,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "complete": {
@@ -641,7 +625,6 @@
   },
   "shamela_get_citation": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -684,7 +667,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "complete": {
@@ -717,7 +699,6 @@
   },
   "shamela_get_page": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "body_part": {
@@ -758,7 +739,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "_display": {},
@@ -822,7 +802,6 @@
   },
   "shamela_get_page_services": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -852,7 +831,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "ayat": {},
@@ -887,7 +865,6 @@
   },
   "shamela_get_pages_range": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -929,7 +906,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "_display": {},
@@ -971,7 +947,6 @@
   },
   "shamela_get_tafseer_of_aya": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "aya": {
@@ -1009,7 +984,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "aya": {},
@@ -1051,7 +1025,6 @@
   },
   "shamela_get_tafseer_texts": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "aya": {
@@ -1099,7 +1072,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "_display": {},
@@ -1139,7 +1111,6 @@
   },
   "shamela_get_toc": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_id": {
@@ -1181,7 +1152,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "ancestor_chain": {},
@@ -1216,7 +1186,6 @@
   },
   "shamela_guide": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "response_format": {
@@ -1237,7 +1206,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "available_sections": {},
@@ -1270,7 +1238,6 @@
   },
   "shamela_health": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "response_format": {
@@ -1286,7 +1253,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "author_docs": {},
@@ -1340,7 +1306,6 @@
   },
   "shamela_list_categories": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "downloaded_only": {
@@ -1366,7 +1331,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "categories": {},
@@ -1395,7 +1359,6 @@
   },
   "shamela_list_downloaded_books": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "category_id": {
@@ -1429,7 +1392,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "books": {
@@ -1472,7 +1434,6 @@
   },
   "shamela_list_tafsirs_for_aya": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "aya": {
@@ -1505,7 +1466,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "aya": {},
@@ -1543,7 +1503,6 @@
   },
   "shamela_resolve": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -1584,7 +1543,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "authors": {},
@@ -1617,7 +1575,6 @@
   },
   "shamela_root_stats": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "response_format": {
@@ -1711,7 +1668,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "accuracy_note": {},
@@ -1751,7 +1707,6 @@
   },
   "shamela_search_authors": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -1836,7 +1791,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "complete": {
@@ -1887,7 +1841,6 @@
   },
   "shamela_search_books": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -2012,7 +1965,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "by_century": {},
@@ -2065,7 +2017,6 @@
   },
   "shamela_search_boolean": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "all_of": {
@@ -2207,7 +2158,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "all_of": {},
@@ -2265,7 +2215,6 @@
   },
   "shamela_search_exact": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -2395,7 +2344,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "candidate_cap_hit": {},
@@ -2438,7 +2386,6 @@
   },
   "shamela_search_hadith": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -2476,7 +2423,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "books": {
@@ -2517,7 +2463,6 @@
   },
   "shamela_search_pages": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -2672,7 +2617,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "by_author": {},
@@ -2729,7 +2673,6 @@
   },
   "shamela_search_phrase": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "distance": {
@@ -2868,7 +2811,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "candidate_cap_hit": {},
@@ -2922,7 +2864,6 @@
   },
   "shamela_search_quran": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -2971,7 +2912,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "complete": {
@@ -3023,7 +2963,6 @@
   },
   "shamela_search_titles": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "limit": {
@@ -3178,7 +3117,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "complete": {
@@ -3229,7 +3167,6 @@
   },
   "shamela_suggest_download": {
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "book_ids": {
@@ -3270,7 +3207,6 @@
       "type": "object"
     },
     "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "available_count": {},
