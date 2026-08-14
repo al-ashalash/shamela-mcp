@@ -144,3 +144,59 @@ describe("health reports the state of the search index", () => {
         expect(r.structuredContent.status).toBe("ok");
     });
 });
+
+describe("health says which library answered", () => {
+    // The field test that found this: point the settings field at an empty
+    // folder, restart — and nothing happens. Resolution rejects the folder,
+    // recovers via the registry, and the extension reads the discovered
+    // library while the user believes it is reading the one they named. The
+    // recovery is right; recovering in silence was the fault. Health is the
+    // one surface that can say it, so it must.
+    const fakePaths = (rejected: boolean) =>
+        ({
+            installRoot: "D:\\shamela4",
+            installRootSource: rejected ? ("registry" as const) : ("setting" as const),
+            ...(rejected
+                ? { rejectedSetting: { path: "C:\\empty-folder", reason: "ينقصه المجلد الفرعي database" } }
+                : {}),
+            database: "D:\\shamela4\\database",
+            jre: "",
+            jars: [],
+            helperJar: "",
+            engineGeneration: "2" as const,
+        }) as unknown as import("../../src/server/paths.js").ShamelaPaths;
+
+    it("reports the root and its source", async () => {
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({}), null, args, undefined, fakePaths(false));
+        expect(r.structuredContent.install_root).toBe("D:\\shamela4");
+        expect(r.structuredContent.install_root_source).toBe("setting");
+    });
+
+    it("warns, first, when the explicit setting was rejected and another library answered", async () => {
+        for (const lang of LANGS) {
+            const r = await inLang(lang, () =>
+                runHealth(makeCatalog(), readablePages, makeHelper({}), null, args, undefined, fakePaths(true)),
+            );
+            const notes = r.structuredContent.notes;
+            // First: nothing else in the card matters more than "this is not
+            // the library you asked for".
+            expect(notes[0], lang).toContain("C:\\empty-folder");
+            expect(notes[0], lang).toContain("D:\\shamela4");
+            // And in the reader's language — the rejection reason itself stays
+            // as recorded at startup.
+            if (lang === "en") expect(notes[0]).toContain("was rejected");
+            else expect(notes[0]).toContain("رُفض");
+        }
+    });
+
+    it("says nothing of the sort when the setting won or was never given", async () => {
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({}), null, args, undefined, fakePaths(false));
+        expect(r.structuredContent.notes.join(" ")).not.toContain("empty-folder");
+    });
+
+    it("carries null rather than inventing a root when paths are absent", async () => {
+        const r = await runHealth(makeCatalog(), readablePages, makeHelper({}), null, args);
+        expect(r.structuredContent.install_root).toBeNull();
+        expect(r.structuredContent.install_root_source).toBeNull();
+    });
+});

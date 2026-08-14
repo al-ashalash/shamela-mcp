@@ -237,6 +237,12 @@ export const OUTPUT_SCHEMAS = {
         // protocol's additionalProperties:false would reject the very response
         // that explains the failure.
         startup_error: z.unknown().optional(),
+        // Which library answered and how it was found — including the case
+        // where the user's explicit setting was rejected and resolution fell
+        // back. New top-level fields, so they must be declared or the call
+        // fails for every user.
+        install_root: z.unknown().optional(),
+        install_root_source: z.unknown().optional(),
         aya_index: z.unknown().optional(),
         server_version: z.unknown().optional(),
         status: z.string().optional(),

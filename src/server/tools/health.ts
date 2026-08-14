@@ -5,6 +5,7 @@ import type { Helper } from "../helper.js";
 import { VERSION } from "../constants.js";
 import { errorCode, formatErrorMessage } from "../errors.js";
 import type { PageStore } from "../pages.js";
+import type { ShamelaPaths } from "../paths.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { renderResponse, type RenderedResponse, header } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
@@ -23,6 +24,18 @@ export interface HealthOutput {
      * to say why rather than fail with them.
      */
     startup_error?: { code: string; message: string; install_root: string | null };
+    /**
+     * Which Shamela installation is actually being read, and how it was found.
+     *
+     * Resolution can recover from a bad explicit setting by falling back to
+     * the registry and the common locations — deliberately, so a typo in the
+     * settings field does not brick the extension. But a recovery nobody is
+     * told about is how someone with two Shamela copies reads from the one
+     * they did not ask for. This is the only place that says which library
+     * answered, so it has to say it.
+     */
+    install_root: string | null;
+    install_root_source: "setting" | "registry" | "auto" | null;
     catalog_books: number;
     catalog_authors: number;
     categories: number;
@@ -92,6 +105,12 @@ export async function runHealth(
     args: z.infer<typeof healthInput>,
     /** Set when createBackend threw: what failed, and how far setup got. */
     diagnosis?: { startupError: unknown; paths: { installRoot: string } | null },
+    /**
+     * The resolved paths, for saying which library is being read. Trailing and
+     * optional so the ten existing callers stand unchanged; absent on the
+     * not-started path, where resolution itself may be what failed.
+     */
+    paths?: ShamelaPaths | null,
 ): Promise<RenderedResponse<HealthOutput>> {
     if (diagnosis || catalog === null || pages === null) {
         return notStarted(catalog, diagnosis, args);
@@ -107,6 +126,18 @@ export async function runHealth(
     // behind them is already in a typed field.
     const L = pick(healthLabels);
     const notes: string[] = [];
+    // The most load-bearing note goes first: the user pointed the extension at
+    // a folder, the folder was rejected, and a different library answered. The
+    // fallback itself is right — a typo must not brick the extension — but the
+    // field test proved the recovery was invisible: the reader had no way to
+    // learn, from any surface, that they were not reading the library they
+    // named (issue #42's cousin, found by pointing the setting at an empty
+    // folder and seeing nothing happen at all).
+    if (paths?.rejectedSetting) {
+        notes.push(
+            L.noteSettingRejected(paths.rejectedSetting.path, paths.rejectedSetting.reason, paths.installRoot),
+        );
+    }
     let spot: HealthOutput["readable_spot_check"] = null;
 
     // Evenly-spread sample across the whole downloaded set — the low-id head of
@@ -187,6 +218,8 @@ export async function runHealth(
     const out: HealthOutput = {
         server_version: VERSION,
         status,
+        install_root: paths?.installRoot ?? null,
+        install_root_source: paths?.installRootSource ?? null,
         catalog_books: catalog.bookCount(),
         catalog_authors: catalog.authorCount(),
         categories: catalog.categoryCount(),
@@ -208,6 +241,17 @@ export async function runHealth(
             L.counts(num(data.catalog_books), num(data.catalog_authors), num(data.categories)),
             L.downloaded(num(data.downloaded_books)),
         ];
+        // Which library answered, and on whose word. The paths stay Latin —
+        // they are typed back into the settings field.
+        if (data.install_root && data.install_root_source) {
+            const sourceLabel =
+                data.install_root_source === "setting"
+                    ? L.sourceSetting
+                    : data.install_root_source === "registry"
+                      ? L.sourceRegistry
+                      : L.sourceAuto;
+            lines.push(L.installRootUsed(data.install_root, sourceLabel));
+        }
         if (data.flagged_file_missing)
             lines.push(L.flaggedMissing(num(data.flagged_file_missing)));
         if (data.orphan_files)
@@ -277,6 +321,8 @@ function notStarted(
             message: formatErrorMessage(err),
             install_root: diagnosis?.paths?.installRoot ?? null,
         },
+        install_root: diagnosis?.paths?.installRoot ?? null,
+        install_root_source: null,
         catalog_books: catalog?.bookCount() ?? 0,
         catalog_authors: catalog?.authorCount() ?? 0,
         categories: catalog?.categoryCount() ?? 0,

@@ -16,6 +16,21 @@ export const healthLabels: Slice<{
     ok: string;
     degraded: string;
     serverVersion: (version: string) => string;
+    /**
+     * Which Shamela folder answered, and on whose word. The path stays Latin
+     * in both languages: it is typed back into the settings field.
+     */
+    installRootUsed: (root: string, source: string) => string;
+    sourceSetting: string;
+    sourceRegistry: string;
+    sourceAuto: string;
+    /**
+     * Said when the folder the user set was rejected and resolution fell back
+     * to a discovered install. The fallback is deliberate — a typo must not
+     * brick the extension — but recovering in silence is how someone with two
+     * Shamela copies reads from the one they did not ask for.
+     */
+    noteSettingRejected: (setPath: string, reason: string, used: string) => string;
     counts: (books: string, authors: string, categories: string) => string;
     downloaded: (count: string) => string;
     flaggedMissing: (count: string) => string;
@@ -66,6 +81,12 @@ export const healthLabels: Slice<{
         ok: "سليم ✅",
         degraded: "متعثر ⚠️",
         serverVersion: (version) => `- **نسخة الخادم**: ${version}`,
+        installRootUsed: (root, source) => `- **مجلد الشاملة المقروء**: \`${root}\` (${source})`,
+        sourceSetting: "من إعدادات الإضافة",
+        sourceRegistry: "من سجل النظام",
+        sourceAuto: "اكتُشف تلقائيًّا",
+        noteSettingRejected: (setPath, reason, used) =>
+            `المجلد المضبوط في إعدادات الإضافة (${setPath}) رُفض: ${reason}. واستُعمل بدلًا منه التثبيت المكتشف في ${used} — صحِّح الحقل أو أفرغه ليزول هذا التنبيه.`,
         counts: (books, authors, categories) =>
             `- **كتب الفهرس**: ${books} — **المؤلفون**: ${authors} — **التصنيفات**: ${categories}`,
         downloaded: (count) => `- **الكتب المنزَّلة**: ${count} (ملفاتها موجودة على القرص)`,
@@ -122,6 +143,12 @@ export const healthLabels: Slice<{
         ok: "Healthy ✅",
         degraded: "Degraded ⚠️",
         serverVersion: (version) => `- **Server version**: ${version}`,
+        installRootUsed: (root, source) => `- **Shamela folder in use**: \`${root}\` (${source})`,
+        sourceSetting: "from the extension's settings",
+        sourceRegistry: "from the Windows registry",
+        sourceAuto: "auto-detected",
+        noteSettingRejected: (setPath, reason, used) =>
+            `The folder set in the extension's settings (${setPath}) was rejected: ${reason}. The installation found at ${used} was used instead — correct the field, or clear it, and this warning goes away.`,
         counts: (books, authors, categories) =>
             `- **Catalogue books**: ${books} — **Authors**: ${authors} — **Categories**: ${categories}`,
         downloaded: (count) => `- **Downloaded books**: ${count} (files present on disk)`,

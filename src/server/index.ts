@@ -771,7 +771,15 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
                     partial = await createPartialBackend(startupError);
                 }
                 const r = b
-                    ? await runHealth(b.catalog, b.pages, b.helper, b.ayaIndex, args as Parameters<typeof runHealth>[4])
+                    ? await runHealth(
+                          b.catalog,
+                          b.pages,
+                          b.helper,
+                          b.ayaIndex,
+                          args as Parameters<typeof runHealth>[4],
+                          undefined,
+                          b.paths,
+                      )
                     : await runHealth(
                           partial!.catalog,
                           partial!.pages,
@@ -1028,7 +1036,15 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         { title: L.resources.status.title, description: L.resources.status.description, mimeType: "application/json" },
         async (uri) => {
             const b = await getBackend();
-            const r = await runHealth(b.catalog, b.pages, b.helper, b.ayaIndex, healthInput.parse({ response_format: "json" }));
+            const r = await runHealth(
+                b.catalog,
+                b.pages,
+                b.helper,
+                b.ayaIndex,
+                healthInput.parse({ response_format: "json" }),
+                undefined,
+                b.paths,
+            );
             return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(r.structuredContent, null, 2) }] };
         },
     );

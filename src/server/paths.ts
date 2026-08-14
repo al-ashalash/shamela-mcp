@@ -25,6 +25,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface ShamelaPaths {
     installRoot: string;
+    /**
+     * How the root was found: the user's explicit setting, the Windows
+     * registry, or one of the common locations. Carried so shamela_health can
+     * SAY which library it is reading — resolution can recover from a bad
+     * explicit setting, and a recovery nobody is told about is how someone
+     * with two Shamela copies reads from the one they did not ask for.
+     */
+    installRootSource: "setting" | "registry" | "auto";
+    /**
+     * Present when the user's explicit setting was rejected and resolution
+     * fell back. The fallback is deliberate — a typo in the settings field
+     * should not brick the extension — but it must never be silent: this is
+     * the record health turns into a warning the user actually sees.
+     */
+    rejectedSetting?: { path: string; reason: string };
     database: string;
     jre: string;
     jars: string[];
@@ -350,11 +365,28 @@ function resolveHelperJar(): string {
 }
 
 export async function resolveAll(): Promise<ShamelaPaths> {
-    const { installRoot } = findInstallRoot();
+    const { installRoot, probed } = findInstallRoot();
+    // The winning probe is the last one; when the explicit setting won, it is
+    // the only one. An env probe that appears without winning was rejected —
+    // that is the fact health must be able to report.
+    const winner = probed[probed.length - 1]!;
+    const installRootSource: ShamelaPaths["installRootSource"] =
+        winner.source === "env" ? "setting" : winner.source === "registry" ? "registry" : "auto";
+    const rejectedEnv =
+        winner.source !== "env" ? probed.find((p) => p.source === "env") : undefined;
     const database = path.join(installRoot, "database");
     const jre = resolveJre(installRoot);
     const jars = resolveJars(installRoot);
     const helperJar = resolveHelperJar();
     const engineGeneration = resolveEngineGeneration(installRoot);
-    return { installRoot, database, jre, jars, helperJar, engineGeneration };
+    return {
+        installRoot,
+        installRootSource,
+        ...(rejectedEnv ? { rejectedSetting: { path: rejectedEnv.path, reason: rejectedEnv.reason } } : {}),
+        database,
+        jre,
+        jars,
+        helperJar,
+        engineGeneration,
+    };
 }

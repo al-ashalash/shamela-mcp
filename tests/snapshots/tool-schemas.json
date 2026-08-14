@@ -1269,6 +1269,8 @@
         "error": {},
         "flagged_books": {},
         "flagged_file_missing": {},
+        "install_root": {},
+        "install_root_source": {},
         "notes": {
           "items": {
             "type": "string"
