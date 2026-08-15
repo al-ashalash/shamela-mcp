@@ -108,9 +108,7 @@ You do not need to memorise tool names. Write your request in plain language, as
 - **\`shamela_guide\`** — show the extension's user guide (this guide) inside the conversation, whole or by section: the tools or the tips.
   Example: "What can the Shamela extension do?"
 - **\`shamela_suggest_download\`** — look a book up in Shamela's full catalogue (downloaded or not) and say what can be done about it: already on your machine, offered for download with its id and its page link, or in the catalogue but not offered, so you must look elsewhere. Useful when a downloaded book cites one you cannot find.
-  Example: "The book the editor cited is not in my library — is it available in Shamela?"
-- **\`shamela_dump_book\`** — export a whole book as ordered text for indexing or machine processing rather than reading: every page with its *matn*, its footnote, its chapter heading and its ready citation, in batches that resume until the end of the book. For reading, use \`shamela_get_page\` and \`shamela_get_pages_range\`.
-  Example: "Export the full text of book 9942 so I can index it in my own system."`,
+  Example: "The book the editor cited is not in my library — is it available in Shamela?"`,
 
     tips: `## Tips for the researcher
 

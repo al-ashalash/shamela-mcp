@@ -74,7 +74,6 @@ File -> Settings -> Extensions -> Advanced settings -> Install Extension
 | `shamela_resolve`               | تحويل اسم عربي جزئي إلى معرِّف كتاب أو مؤلف.                |
 | `shamela_get_pages_range`       | قراءة نطاق متتابع من الصفحات (1–20).                        |
 | `shamela_get_book_section`      | قراءة باب كامل بمعرِّف عنوانه.                              |
-| `shamela_dump_book`             | تفريغ كتاب كاملًا نصًّا مهيكلًا مع عزو كل صفحة.             |
 | `shamela_get_citation`          | إحالة بثلاثة أنماط (الشاملة، مختصر، موسَّع).                |
 | `shamela_search_quran`          | بحث في القرآن الكريم، ويشمل الكلمات ذات البادئات.           |
 | `shamela_get_aya`               | جلب آية بالرسم الإملائي والعثماني.                          |

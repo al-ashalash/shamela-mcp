@@ -64,7 +64,7 @@ describe("what actually goes over the wire", () => {
 
         try {
             const { tools } = await client.listTools();
-            expect(tools.length).toBe(32);
+            expect(tools.length).toBe(31);
             // The assertion the field test would have made for us, had it run
             // before release: nothing on the wire declares draft-07.
             expect(JSON.stringify(tools)).not.toContain(DRAFT_07);

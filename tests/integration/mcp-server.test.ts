@@ -56,7 +56,6 @@ const EXPECTED_TOOL_NAMES = [
     "shamela_get_tafseer_texts",
     "shamela_guide",
     "shamela_suggest_download",
-    "shamela_dump_book",
 ] as const;
 
 

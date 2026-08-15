@@ -77,7 +77,6 @@ export const ar = {
         shamela_get_tafseer_texts: "جلب نصوص تفسير آية",
         shamela_guide: "دليل استخدام الإضافة",
         shamela_suggest_download: "إرشاد لتنزيل كتاب غير موجود",
-        shamela_dump_book: "تصدير الكتاب كاملًا",
     },
 
     resources: {
