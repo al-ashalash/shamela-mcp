@@ -78,7 +78,7 @@ export const getBookLabels: Slice<{
         typeName: (bookType) =>
             ({ 1: "كتاب", 2: "مجلة", 3: "مخطوط", 4: "رسالة جامعية", 5: "إلكتروني", 6: "صوتي" })[bookType] ??
             "غير معروف",
-        authoredYear: "سنة التأليف",
+        authoredYear: "سنة تأريخ الكتاب في الشاملة (وفاة مؤلِّف الأصل)",
         hijri: (year) => `${year}هـ`,
         downloadedLocally: "منزَّل محليًّا",
         statusReadable: "نعم (نصّه مقروء)",
@@ -113,7 +113,7 @@ export const getBookLabels: Slice<{
         typeName: (bookType) =>
             ({ 1: "Book", 2: "Journal", 3: "Manuscript", 4: "Thesis", 5: "Electronic", 6: "Audio" })[bookType] ??
             "Unknown",
-        authoredYear: "Year written",
+        authoredYear: "Shamela dating year (original author's death)",
         hijri: (year) => `${year} AH`,
         downloadedLocally: "Downloaded locally",
         statusReadable: "Yes (its text is readable)",

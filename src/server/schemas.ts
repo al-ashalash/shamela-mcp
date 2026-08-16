@@ -63,7 +63,7 @@ export const ScopeInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+            "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
         ),
     period_to: z
         .number()
@@ -76,7 +76,7 @@ export const ScopeInputShape = {
         .enum(["composed", "died", "either"])
         .optional()
         .describe(
-            "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+            "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
         ),
     madhhab: z
         .array(z.enum(["hanafi", "maliki", "shafii", "hanbali"]))

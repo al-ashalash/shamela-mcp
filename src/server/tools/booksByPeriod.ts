@@ -1,17 +1,28 @@
 /**
  * shamela_books_by_period — catalog-only temporal filter that keeps the two
- * temporal dimensions DISTINCT (#21):
+ * date FIELDS as separate AND-combined constraints (#21):
  *
- *   - composed_from / composed_to  → book.book_date  (year the BOOK was composed)
- *   - died_from    / died_to       → author.death_year (year the MAIN AUTHOR died)
+ *   - composed_from / composed_to  → book.book_date      (Shamela's dating year)
+ *   - died_from    / died_to       → author.death_year   (MAIN AUTHOR's death)
  *
  * The legacy `scope.period_from`/`period_to` (see CatalogScope.resolveBookIds)
- * CONFLATES these — it unions books whose composition year OR whose author's
- * death year falls in a single range. That is wrong for real research: a book
- * composed in 800h by an author who died in 850h answers a different question
- * than a book whose author died in 800h. This tool separates them: a book
- * matches only if it satisfies ALL provided constraints simultaneously
- * (composition-year AND death-year AND category AND downloaded), never a union.
+ * unions the two into one range; this tool intersects them, so a book matches
+ * only if it satisfies ALL provided constraints at once (dating-year AND
+ * death-year AND category AND downloaded).
+ *
+ * WHAT book_date IS NOT — measured, 15 Aug 2026, against this machine's
+ * master.db: it is NOT the year the book was written. It equals the main
+ * author's death year for **8,467 of 8,593** catalogue books, and the 126
+ * exceptions are abridgements and commentaries carrying the ORIGINAL author's
+ * death year (id 171 «صحيح الترغيب والترهيب» → 656, المنذري's death, not
+ * الألباني's). Books published posthumously carry the death year too.
+ *
+ * So the two fields are separate, but they are not the two temporal
+ * DIMENSIONS this file used to claim: neither answers "what was composed in
+ * this century". Every label, description and note now says so, because a
+ * filter that reads as a composition filter and is not one produces
+ * confident, wrong period claims — the worst kind for an argument that rests
+ * on when something was written.
  *
  * Pure Node / master.db logic — deterministic, read-only, no Java helper.
  * Returns matching book_ids the caller then passes as scope.book_ids to the
@@ -36,7 +47,7 @@ export const booksByPeriodInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive LOWER bound on the BOOK's composition year (book.book_date). Distinct from author death year — use died_from for that. Pair with composed_to.",
+            "Hijri year, inclusive LOWER bound on book.book_date — Shamela's DATING year for the work, which is NOT the year it was written: it tracks the original author's death year and equals the main author's death year for 8,467 of 8,593 catalogue books. Use died_from for the main author's death. Pair with composed_to.",
         ),
     composed_to: z
         .number()
@@ -45,7 +56,7 @@ export const booksByPeriodInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive UPPER bound on the BOOK's composition year (book.book_date). Pair with composed_from.",
+            "Hijri year, inclusive UPPER bound on book.book_date — Shamela's dating year for the work, not the year it was written. Pair with composed_from.",
         ),
     died_from: z
         .number()
@@ -54,7 +65,7 @@ export const booksByPeriodInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive LOWER bound on the MAIN AUTHOR's death year (author.death_year). Distinct from the book's composition year — use composed_from for that. Pair with died_to.",
+            "Hijri year, inclusive LOWER bound on the MAIN AUTHOR's death year (author.death_year). This is the dimension the catalogue actually records well. Pair with died_to.",
         ),
     died_to: z
         .number()

@@ -42,7 +42,7 @@ export const PER_BOOK_CACHE_LIMIT = 120;
 /** Total verses in the Qur'an. Used for AYA_NOT_FOUND validation. */
 export const QURAN_AYA_COUNT = 6236;
 
-/** master.db sentinel for books with no known composition year. */
+/** master.db sentinel for books with no known dating year. Normalised to null in Catalog.loadBooks. */
 export const UNDATED_BOOK_DATE = 99999;
 
 /** Bucket label for undated books in century breakdowns. */

@@ -5,7 +5,7 @@
  *             «<book>» (<part>/ <page>):
  *             «<text>»
  *   short   — <author>، <book>، (ج <part>،) ص <page>.
- *   full    — long form with death year + book composition year, with notes
+ *   full    — long form with the author's death year, with notes
  *             listing missing citation-grade metadata that master.db doesn't have.
  */
 
@@ -124,7 +124,14 @@ export function formatFullCitation(
     head.push(c.book_name);
 
     const tail: string[] = [];
-    if (c.book_date) tail.push(`${arabize(c.book_date)}هـ`);
+    // `book_date` deliberately does NOT appear here. It is not the year the
+    // book was written: on this catalogue it equals the main author's death
+    // year for 8,467 of 8,593 books, and for the remaining 126 — abridgements
+    // and commentaries — it is the ORIGINAL author's death year. Printed bare
+    // after the author it produced citations that contradicted themselves on
+    // one line: «ناصر الدين الألباني (ت ١٤٢٠هـ). صحيح الترغيب والترهيب.
+    // ٦٥٦هـ.» — a man dead in 1420 credited with writing in 656. It stays in
+    // `components.book_date` for callers who know what it is.
     if (c.part) tail.push(`ج ${arabize(c.part)}`);
     if (c.printed_page) tail.push(`ص ${arabize(c.printed_page)}`);
     if (c.auto_numbered) tail.push("بترقيم الشاملة آليا");
@@ -135,7 +142,9 @@ export function formatFullCitation(
     const notes: string[] = [];
     if (!c.author_name) notes.push("author name not available in master.db for this book");
     if (!c.death_year && c.author_name) notes.push("author death year not available");
-    if (!c.book_date) notes.push("book composition year (book_date) not available");
+    notes.push(
+        "composition year not available in master.db — book_date is Shamela's dating stamp (the death year of the work's original author), not the year the book was written",
+    );
     notes.push("edition number not available in master.db");
     notes.push("publisher not available in master.db");
     notes.push("city of publication not available in master.db");

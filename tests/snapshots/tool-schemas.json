@@ -9,19 +9,19 @@
           "type": "integer"
         },
         "composed_from": {
-          "description": "Hijri year, inclusive LOWER bound on the BOOK's composition year (book.book_date). Distinct from author death year — use died_from for that. Pair with composed_to.",
+          "description": "Hijri year, inclusive LOWER bound on book.book_date — Shamela's DATING year for the work, which is NOT the year it was written: it tracks the original author's death year and equals the main author's death year for 8,467 of 8,593 catalogue books. Use died_from for the main author's death. Pair with composed_to.",
           "maximum": 2000,
           "minimum": 1,
           "type": "integer"
         },
         "composed_to": {
-          "description": "Hijri year, inclusive UPPER bound on the BOOK's composition year (book.book_date). Pair with composed_from.",
+          "description": "Hijri year, inclusive UPPER bound on book.book_date — Shamela's dating year for the work, not the year it was written. Pair with composed_from.",
           "maximum": 2000,
           "minimum": 1,
           "type": "integer"
         },
         "died_from": {
-          "description": "Hijri year, inclusive LOWER bound on the MAIN AUTHOR's death year (author.death_year). Distinct from the book's composition year — use composed_from for that. Pair with died_to.",
+          "description": "Hijri year, inclusive LOWER bound on the MAIN AUTHOR's death year (author.death_year). This is the dimension the catalogue actually records well. Pair with died_to.",
           "maximum": 2000,
           "minimum": 1,
           "type": "integer"
@@ -1524,7 +1524,7 @@
               "type": "array"
             },
             "period_basis": {
-              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "description": "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
               "enum": [
                 "composed",
                 "died",
@@ -1533,7 +1533,7 @@
               "type": "string"
             },
             "period_from": {
-              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
               "maximum": 2000,
               "minimum": 1,
               "type": "integer"
@@ -1830,7 +1830,7 @@
               "type": "boolean"
             },
             "period_from": {
-              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
               "maximum": 2000,
               "minimum": 1,
               "type": "integer"
@@ -2001,7 +2001,7 @@
               "type": "array"
             },
             "period_basis": {
-              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "description": "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
               "enum": [
                 "composed",
                 "died",
@@ -2010,7 +2010,7 @@
               "type": "string"
             },
             "period_from": {
-              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
               "maximum": 2000,
               "minimum": 1,
               "type": "integer"
@@ -2199,7 +2199,7 @@
               "type": "array"
             },
             "period_basis": {
-              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "description": "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
               "enum": [
                 "composed",
                 "died",
@@ -2208,7 +2208,7 @@
               "type": "string"
             },
             "period_from": {
-              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
               "maximum": 2000,
               "minimum": 1,
               "type": "integer"
@@ -2473,7 +2473,7 @@
               "type": "array"
             },
             "period_basis": {
-              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "description": "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
               "enum": [
                 "composed",
                 "died",
@@ -2482,7 +2482,7 @@
               "type": "string"
             },
             "period_from": {
-              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
               "maximum": 2000,
               "minimum": 1,
               "type": "integer"
@@ -2651,7 +2651,7 @@
               "type": "array"
             },
             "period_basis": {
-              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "description": "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
               "enum": [
                 "composed",
                 "died",
@@ -2660,7 +2660,7 @@
               "type": "string"
             },
             "period_from": {
-              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
               "maximum": 2000,
               "minimum": 1,
               "type": "integer"
@@ -2973,7 +2973,7 @@
               "type": "array"
             },
             "period_basis": {
-              "description": "Which date the period bounds apply to. 'composed' = the book's own composition year; 'died' = its author's death year; 'either' (default) = the union, which is broader and can pull in a book composed outside the window by an author who died inside it. The two answer different questions — when a period matters to the argument, say which one.",
+              "description": "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
               "enum": [
                 "composed",
                 "died",
@@ -2982,7 +2982,7 @@
               "type": "string"
             },
             "period_from": {
-              "description": "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
               "maximum": 2000,
               "minimum": 1,
               "type": "integer"

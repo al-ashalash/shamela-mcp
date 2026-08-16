@@ -27,8 +27,8 @@ export const booksByPeriodLabels: Slice<{
 }> = {
     ar: {
         needRange:
-            "حدِّد نطاقًا زمنيًّا واحدًا على الأقل: composed_from/composed_to (سنة التأليف) أو died_from/died_to (سنة وفاة المؤلف). هذه الأداة تفصل سنة التأليف عن سنة الوفاة.",
-        composedRange: (from, to) => `سنة التأليف ${from}–${to}هـ`,
+            "حدِّد نطاقًا زمنيًّا واحدًا على الأقل: composed_from/composed_to (سنة تأريخ الكتاب في الشاملة) أو died_from/died_to (سنة وفاة المؤلف الرئيس).",
+        composedRange: (from, to) => `سنة تأريخ الكتاب ${from}–${to}هـ`,
         diedRange: (from, to) => `سنة وفاة المؤلف ${from}–${to}هـ`,
         categoryFilter: (name) => `التصنيف ${name}`,
         downloadedOnly: "المنزَّلة فقط",
@@ -38,16 +38,16 @@ export const booksByPeriodLabels: Slice<{
         downloadedSuffix: " — منزَّل",
         author: "المؤلف",
         died: (year) => ` (ت ${year}هـ)`,
-        composedYear: "سنة التأليف",
+        composedYear: "سنة تأريخ الكتاب في الشاملة (وفاة مؤلِّف الأصل)",
         hijri: (year) => `${year}هـ`,
         category: "التصنيف",
         more: (offset) => `*للمزيد، استخدم \`offset=${offset}\`.*`,
-        note: "*تنبيه: هذه الأداة تفصل سنة التأليف (book_date) عن سنة وفاة المؤلف الرئيس (death_year)، بخلاف scope.period القديم الذي يخلط بينهما. مرِّر `book_ids` الناتجة إلى scope.book_ids في أدوات البحث.*",
+        note: "*تنبيه مهمّ: `book_date` في الشاملة **ليس سنة تأليف الكتاب**، بل سنة تأريخه عندهم، وهي سنة وفاة مؤلِّف الأصل: تطابق سنةَ وفاة المؤلف الرئيس في ٨٬٤٦٧ كتابًا من ٨٬٥٩٣ في الفهرس، والباقي — وهي المختصرات والشروح — تحمل سنة وفاة صاحب الأصل لا المختصِر. فالفرق بين `composed_*` و`died_*` في هذا الفهرس ضيّق، ولا يصلح `composed_*` جوابًا عن «ما أُلِّف في هذا القرن». مرِّر `book_ids` الناتجة إلى scope.book_ids في أدوات البحث.*",
     },
     en: {
         needRange:
-            "Give at least one date range: composed_from/composed_to (the year the book was composed) or died_from/died_to (the year its author died). This tool keeps the composition year and the death year apart.",
-        composedRange: (from, to) => `composed ${from}–${to} AH`,
+            "Give at least one date range: composed_from/composed_to (Shamela's dating year for the book) or died_from/died_to (the year its main author died).",
+        composedRange: (from, to) => `dated ${from}–${to} AH`,
         diedRange: (from, to) => `author died ${from}–${to} AH`,
         categoryFilter: (name) => `category ${name}`,
         downloadedOnly: "downloaded only",
@@ -57,10 +57,10 @@ export const booksByPeriodLabels: Slice<{
         downloadedSuffix: " — downloaded",
         author: "Author",
         died: (year) => ` (d. ${year} AH)`,
-        composedYear: "Year composed",
+        composedYear: "Shamela dating year (original author's death)",
         hijri: (year) => `${year} AH`,
         category: "Category",
         more: (offset) => `*For more, use \`offset=${offset}\`.*`,
-        note: "*Note: this tool keeps the year a book was composed (book_date) separate from its main author's death year (death_year), unlike the old scope.period, which conflates the two. Pass the resulting `book_ids` to scope.book_ids in the search tools.*",
+        note: "*Important: Shamela's `book_date` is **not** the year the book was written. It is their dating stamp for the work, and it tracks the original author's death: it equals the main author's death year for 8,467 of the catalogue's 8,593 books, and the remainder — abridgements and commentaries — carry the year the ORIGINAL author died, not the abridger. So `composed_*` and `died_*` separate very little in this catalogue, and `composed_*` will not answer \"what was written in this century\". Pass the resulting `book_ids` to scope.book_ids in the search tools.*",
     },
 };

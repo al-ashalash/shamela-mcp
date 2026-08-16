@@ -194,13 +194,41 @@ describe("formatShortCitation", () => {
 // --- formatFullCitation -----------------------------------------------------
 
 describe("formatFullCitation", () => {
-    it("includes author with death year + book name + book_date + page", () => {
+    it("includes author with death year + book name + page", () => {
         const result = formatFullCitation(makeBook(), makeAuthor(), PAGE_17);
         expect(result.formatted).toContain("محمد بن صالح العثيمين");
         expect(result.formatted).toContain("ت ١٤٢١هـ");
         expect(result.formatted).toContain("الأصول من علم الأصول");
-        expect(result.formatted).toContain("١٤١٠هـ");
         expect(result.formatted).toContain("ص ١٧");
+    });
+
+    it("never prints book_date as the work's date", () => {
+        // book_date is not a composition year: on the real catalogue it equals
+        // the main author's death year for 8,467 of 8,593 books, and for the
+        // rest it is the ORIGINAL author's. Printed bare it produced citations
+        // that contradicted themselves in one line — «ناصر الدين الألباني
+        // (ت ١٤٢٠هـ). صحيح الترغيب والترهيب. ٦٥٦هـ.» — and «أبو عبد الله
+        // الفاكهي (ت ٢٧٢هـ) … ٢٧٣هـ.», written a year after its author died.
+        const abridgement = formatFullCitation(
+            makeBook({ book_name: "صحيح الترغيب والترهيب", book_date: 656 }),
+            makeAuthor({ author_name: "ناصر الدين الألباني", death_year: 1420 }),
+            PAGE_17,
+        );
+        expect(abridgement.formatted).not.toContain("٦٥٦هـ");
+        expect(abridgement.formatted).toContain("ت ١٤٢٠هـ"); // the author's own year stays
+        // and the value is still available to a caller who knows what it is
+        expect(abridgement.components.book_date).toBe(656);
+    });
+
+    it("never prints the undated sentinel, whatever reaches it", () => {
+        // Belt to the loader's braces: 99999 is normalised to null in
+        // Catalog.loadBooks, and it is not printed here either way.
+        const result = formatFullCitation(
+            makeBook({ book_date: 99999 }),
+            makeAuthor(),
+            PAGE_17,
+        );
+        expect(result.formatted).not.toContain("٩٩٩٩٩");
     });
 
     it("returns components alongside the formatted string", () => {
@@ -232,13 +260,16 @@ describe("formatFullCitation", () => {
         expect(result.notes.some((n) => n.includes("death year"))).toBe(true);
     });
 
-    it("flags missing book composition year when book_date is null", () => {
-        const result = formatFullCitation(
-            makeBook({ book_date: null }),
-            makeAuthor(),
-            PAGE_17,
-        );
-        expect(result.notes.some((n) => n.includes("book composition year"))).toBe(true);
+    it("says the composition year is unavailable, and why, on every citation", () => {
+        // Unconditional now: master.db has no composition year for ANY book,
+        // so the honest note is not a special case — it is the standing state,
+        // and it names what book_date actually is so nobody reads it as one.
+        for (const book of [makeBook(), makeBook({ book_date: null })]) {
+            const result = formatFullCitation(book, makeAuthor(), PAGE_17);
+            const note = result.notes.find((n) => n.includes("composition year"));
+            expect(note).toBeDefined();
+            expect(note).toContain("dating stamp");
+        }
     });
 
     it("never fabricates publisher or edition values", () => {

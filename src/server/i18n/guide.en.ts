@@ -85,8 +85,8 @@ You do not need to memorise tool names. Write your request in plain language, as
   Example: "Show me the library's categories and how many downloaded books I have in each."
 - **\`shamela_list_downloaded_books\`** — the books actually on this machine, filterable by category and content status.
   Example: "Which books do I have downloaded in the creed category?"
-- **\`shamela_get_book\`** — a book's details: author, category, type, year of composition, and content status.
-  Example: "Give me the details of Majmu' al-Fatawa: its author, when it was written, and whether I have it."
+- **\`shamela_get_book\`** — a book's details: author, category, type, content status, and Shamela's dating year (which tracks the original author's death, not when the book was written).
+  Example: "Give me the details of Majmu' al-Fatawa: its author, its category, and whether I have it."
 - **\`shamela_get_author\`** — an author's details and the list of their books, with the download status of each.
   Example: "Who was Ibn Qudama, and which of his books are in my library?"
 - **\`shamela_resolve\`** — turn a partial Arabic name into the book or author it means in Shamela's catalogues.
@@ -98,7 +98,7 @@ You do not need to memorise tool names. Write your request in plain language, as
 
 - **\`shamela_root_stats\`** — measure how far an Arabic root reaches across your downloaded library through a morphological search, broken down by category, Hijri century, book and author.
   Example: "How widely does the root sabr spread across my library, by century?"
-- **\`shamela_books_by_period\`** — filter the book catalogue by date, distinguishing the year a book was composed from the year its principal author died.
+- **\`shamela_books_by_period\`** — filter the book catalogue by date, on Shamela's dating year or the principal author's death year. Note the catalogue's dating year is not a composition year — it tracks the original author's death.
   Example: "Show me books by authors who died in the eighth Hijri century."
 
 ### 7. Diagnostics and the guide
