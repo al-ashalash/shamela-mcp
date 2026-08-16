@@ -50,6 +50,10 @@ const helper = {
 const pages = {
     printedPage: vi.fn(async () => "1/ 10"),
     pageCount: vi.fn(async () => 500),
+    // No titles on the page, so no marker is found and the page comes back
+    // whole — which is what these tests are about. The slicing itself has its
+    // own suite in aya-slice.test.ts.
+    allTitleRows: vi.fn(async () => []),
 } as unknown as PageStore;
 
 /** An index store that places the verse on a fixed page for the given books. */

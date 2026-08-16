@@ -63,3 +63,11 @@ export const TITLES_BATCH_CHUNK = 2_000;
  * search engine has not read yet rather than one without titles.
  */
 export const AYA_INDEX_MIN_TITLE_TEXT_RATIO = 0.5;
+/**
+ * Below this many characters, what follows a verse's marker on its page is a
+ * heading and the verses themselves, not commentary — so the tafsir runs on to
+ * the next page and the fetch follows it there. Sized from the observed
+ * failures: ابن كثير's سورة الكوثر heading block is ~200 characters, and
+ * الطبري's «القول في تأويل قوله» line is shorter still.
+ */
+export const VERSE_TAIL_MIN_CHARS = 400;

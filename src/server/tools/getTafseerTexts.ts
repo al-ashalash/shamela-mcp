@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { MULTIPAGE_CHAR_BUDGET, PAGE_BODY_BUDGET } from "../constants.js";
+import { MULTIPAGE_CHAR_BUDGET, PAGE_BODY_BUDGET, VERSE_TAIL_MIN_CHARS } from "../constants.js";
 import { ayaNotFound, badArg } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { getChunk } from "../longtext.js";
@@ -9,6 +9,7 @@ import type { PageStore } from "../pages.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { locateAya } from "../ayaIndex/build.js";
+import { findVerseByQuotation, findVerseMarker, type PageTitle } from "../ayaIndex/slice.js";
 import type { AyaIndexStore } from "../ayaIndex/store.js";
 import type { ServiceStore } from "../services.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
@@ -88,6 +89,19 @@ export interface TafseerSourceText {
     text_part: number;
     text_total_parts: number;
     text_has_more: boolean;
+    /**
+     * True when the text begins at the verse's own marker rather than at the
+     * top of the page. False means no marker could be located on the page and
+     * the whole page is returned — in which case some of it may precede the
+     * verse, and the reader is told so.
+     */
+    text_starts_at_verse: boolean;
+    /**
+     * Set when the verse's marker sat at the foot of `page_id` and the text
+     * runs on into the following page — so a citation drawn from the tail of
+     * this text belongs to the next page, not this one.
+     */
+    continued_from_page_id: number | null;
     /** Which index placed this text: Shamela's table, or the book's own titles. */
     locus_source: "service" | "titles" | null;
     /** The chapter title that placed it, so the reader can check it directly. */
@@ -221,6 +235,9 @@ export async function runGetTafseerTexts(
         text_part: 1,
         text_total_parts: 1,
         text_has_more: false,
+        // No text was fetched, so there is nothing to have started at a verse.
+        text_starts_at_verse: false,
+        continued_from_page_id: null,
         note,
     });
 
@@ -280,6 +297,73 @@ export async function runGetTafseerTexts(
     const capped = fetchQueue.slice(0, args.max_sources);
     const remaining: number[] = fetchQueue.slice(args.max_sources);
 
+    /**
+     * The chapter titles that start on one page, with their text.
+     *
+     * Cached per book: allTitleRows reads the book's SQLite once, and the
+     * helper round-trip is only for the handful of titles on this page.
+     */
+    const titleRowsCache = new Map<number, Array<{ title_id: number; page_id: number }>>();
+
+    /**
+     * The verse's own words, for the books that head a section by quoting the
+     * verse instead of by the bracketed marker grammar (الطبري does this
+     * throughout). Fetched at most once per call, and never fatal: without it
+     * those pages simply come back whole and say so.
+     */
+    let verseTextOnce: string | null | undefined;
+    const verseText = async (): Promise<string | null> => {
+        if (verseTextOnce !== undefined) return verseTextOnce;
+        try {
+            const r = await helper.request<{ found: boolean; body: string | null }>("get_aya", {
+                aya_id: resolvedId,
+            });
+            verseTextOnce = r.found ? r.body : null;
+        } catch {
+            verseTextOnce = null;
+        }
+        return verseTextOnce;
+    };
+
+    const findMarker = async (
+        bookId: number,
+        pageId: number,
+        body: string,
+    ): Promise<{ offset: number } | null> => {
+        if (!body.trim()) return null;
+        // Failing to locate the marker is a degraded answer, not a failed one:
+        // the page comes back whole and `text_starts_at_verse` says false, so
+        // the reader knows the text may open before the verse. Losing the
+        // whole tafsir fetch because a title lookup faltered would be worse.
+        try {
+            let rows = titleRowsCache.get(bookId);
+            if (!rows) {
+                rows = await pages.allTitleRows(bookId);
+                titleRowsCache.set(bookId, rows);
+            }
+            const ids = rows.filter((r) => r.page_id === pageId).map((r) => r.title_id);
+            let titles: PageTitle[] = [];
+            if (ids.length) {
+                const res = await helper.request<{
+                    results?: Array<{ title_id?: number; title_text?: string }>;
+                }>("get_titles_batch", { book_id: bookId, title_ids: ids });
+                titles = (res.results ?? [])
+                    .filter((r) => r.title_id && r.title_text)
+                    .map((r) => ({ title_id: r.title_id as number, text: r.title_text as string }));
+            }
+            const locus = locusFor.get(bookId);
+            const byTitle = findVerseMarker(body, titles, sa.surah, sa.aya, locus?.title_id ?? null);
+            if (byTitle) return byTitle;
+            // Some books carry no title rows at all on the page that holds the
+            // verse — الطبري's 2936 is one — so the marker has to be read off
+            // the page itself.
+            const offset = findVerseByQuotation(body, await verseText());
+            return offset === null ? null : { offset };
+        } catch {
+            return null;
+        }
+    };
+
     // Fetch each source's page, paginate the body, respect the overall budget.
     let budgetUsed = 0;
     let budgetCut = false;
@@ -299,12 +383,36 @@ export async function runGetTafseerTexts(
         }>("get_pages_batch", { book_id: bookId, page_ids: [pageId] });
         const content = batch.results[0];
         const strip = (s: string) => s.replace(HTML_TAG_RE, "").replace(/\r/g, "\n");
-        const fullBody = strip(content?.body ?? "");
+        const pageBody = strip(content?.body ?? "");
         const foot = strip(content?.foot ?? "");
-        const chunk = getChunk(fullBody, 1, PAGE_BODY_BUDGET);
         const printed = await pages.printedPage(bookId, pageId);
         const totalPages = await pages.pageCount(bookId);
         const nextPageId = pageId < totalPages ? pageId + 1 : null;
+
+        // Cut the page down to the verse's own section. The index names the
+        // page, never the offset in it, so a section starting near the foot
+        // used to arrive under a whole page of the PREVIOUS passage's tafsir.
+        const marker = await findMarker(bookId, pageId, pageBody);
+        let fullBody = pageBody;
+        let slicedAt: number | null = null;
+        let continuedOnto: number | null = null;
+        if (marker && marker.offset > 0) {
+            fullBody = pageBody.slice(marker.offset);
+            slicedAt = marker.offset;
+            // A marker at the very foot means the commentary itself is on the
+            // next page: a heading and three verses are not an answer.
+            if (fullBody.trim().length < VERSE_TAIL_MIN_CHARS && nextPageId !== null) {
+                const nextBatch = await helper.request<{
+                    results: Array<{ page_id: number; body: string }>;
+                }>("get_pages_batch", { book_id: bookId, page_ids: [nextPageId] });
+                const nextBody = strip(nextBatch.results[0]?.body ?? "");
+                if (nextBody.trim()) {
+                    fullBody = `${fullBody.trimEnd()}\n\n${nextBody}`;
+                    continuedOnto = nextPageId;
+                }
+            }
+        }
+        const chunk = getChunk(fullBody, 1, PAGE_BODY_BUDGET);
         const contNote =
             chunk.has_more || nextPageId !== null
                 ? L.continuation(
@@ -330,7 +438,14 @@ export async function runGetTafseerTexts(
             text_part: chunk.part,
             text_total_parts: chunk.total_parts,
             text_has_more: chunk.has_more,
-            note: [groupNote, contNote].filter(Boolean).join(" ") || null,
+            /** True when the text begins at the verse's own marker, not at the top of the page. */
+            text_starts_at_verse: slicedAt !== null,
+            /** Set when the verse's section began at the page's foot and the text runs on. */
+            continued_from_page_id: continuedOnto === null ? null : pageId,
+            note:
+                [slicedAt !== null ? L.slicedToVerse(String(continuedOnto ?? "")) : null, groupNote, contNote]
+                    .filter(Boolean)
+                    .join(" ") || null,
         });
         budgetUsed += chunk.text.length + foot.length;
         fetched++;
