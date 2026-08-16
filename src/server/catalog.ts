@@ -16,6 +16,7 @@
 import * as fs from "node:fs";
 import initSqlJs, { type Database } from "sql.js";
 
+import { UNDATED_BOOK_DATE } from "./constants.js";
 import { DiskIndex } from "./diskIndex.js";
 
 function toArrayBuffer(view: Uint8Array): ArrayBuffer {
@@ -208,7 +209,9 @@ export class Catalog {
                 const id = r[0] as number;
                 const death = r[2];
                 const deathYear =
-                    typeof death === "number" && death > 0 && death !== 99999 ? death : null;
+                    typeof death === "number" && death > 0 && death !== UNDATED_BOOK_DATE
+                        ? death
+                        : null;
                 this.authors.set(id, {
                     author_id: id,
                     author_name: (r[1] as string) ?? "",
@@ -238,7 +241,15 @@ export class Catalog {
                     book_name: (r[1] as string) ?? "",
                     book_category: typeof r[2] === "number" ? r[2] : null,
                     book_type: (r[3] as number) ?? 1,
-                    book_date: typeof r[4] === "number" && r[4] > 0 ? r[4] : null,
+                    // 99999 is Shamela's "no date" sentinel, exactly as it is
+                    // for an author's death year above. It used to survive into
+                    // BookRecord, so three call sites filtered it and three did
+                    // not — and a citation printed «٩٩٩٩٩هـ» as a Hijri year.
+                    // Normalised here, once, so no consumer has to know.
+                    book_date:
+                        typeof r[4] === "number" && r[4] > 0 && r[4] !== UNDATED_BOOK_DATE
+                            ? r[4]
+                            : null,
                     authors_csv: (r[5] as string) ?? null,
                     main_author: typeof r[6] === "number" ? r[6] : null,
                     printed: (r[7] as number) ?? 0,

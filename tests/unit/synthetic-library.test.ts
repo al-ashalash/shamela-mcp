@@ -103,7 +103,7 @@ describe("nothing in the fixture reads as a real book", () => {
 
 describe("the catalogue reads it", () => {
     it("knows the books, authors and categories it was given", () => {
-        expect(catalog.bookCount()).toBe(7);
+        expect(catalog.bookCount()).toBe(8);
         expect(catalog.authorCount()).toBe(3);
         expect(catalog.categoryCount()).toBe(3);
     });
@@ -130,6 +130,15 @@ describe("the catalogue reads it", () => {
         expect(catalog.authorRecord(SYN_AUTHOR.UNDATED)?.death_year).toBeNull();
     });
 
+    it("reads the same sentinel in a book's date as no date", () => {
+        // The author side was normalised from the start; the book side was
+        // not, so three call sites filtered 99999 and three printed it. A
+        // real citation read «عادل مصطفى. المغالطات المنطقية. ٩٩٩٩٩هـ.»
+        // Normalising in the loader is what makes every consumer safe.
+        expect(catalog.bookRecord(SYN.BUCKET_000)?.book_date).toBe(300);
+        expect(catalog.bookRecord(SYN.UNDATED)?.book_date).toBeNull();
+    });
+
     it("finds a co-author the authors column never mentions", () => {
         expect(catalog.booksByAuthorId(SYN_AUTHOR.COAUTHOR)).toContain(SYN.PADDED);
     });
@@ -139,7 +148,7 @@ describe("scope resolution against real SQLite", () => {
     const scope = () => new CatalogScope(catalog);
 
     it("an empty scope is every book", () => {
-        expect(scope().resolveBookIds({ downloaded_only: false }).book_ids.length).toBe(7);
+        expect(scope().resolveBookIds({ downloaded_only: false }).book_ids.length).toBe(8);
     });
 
     it("a school filter takes that school's category and not the general one", () => {

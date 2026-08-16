@@ -3113,7 +3113,10 @@
           "type": "array"
         },
         "query": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "results": {
           "items": {},

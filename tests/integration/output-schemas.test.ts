@@ -78,6 +78,14 @@ const CALLS: Array<{ name: string; args: Record<string, unknown> }> = [
     { name: "shamela_resolve", args: { query: "ابن قدامة", type: "author" } },
     { name: "shamela_books_by_period", args: { composed_from: 600, composed_to: 700, limit: 3 } },
     { name: "shamela_suggest_download", args: { query: "المغني", limit: 3 } },
+    // suggest_download has three entry paths and only the `query` one was ever
+    // called here, so the other two shipped broken: with no query the tool emits
+    // `query: null`, the declared shape said `z.string()`, and the protocol
+    // rejected the whole response. The tool's own description advertises
+    // `{book_ids:[6658]}` as an example, so the documented call was the failing
+    // one. Both paths are exercised from now on.
+    { name: "shamela_suggest_download", args: { book_ids: [6658] } },
+    { name: "shamela_suggest_download", args: { category_id: 26, limit: 3 } },
 ];
 
 beforeAll(async () => {

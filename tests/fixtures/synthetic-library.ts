@@ -90,6 +90,8 @@ export const SYN = {
     MISSING: 777,
     /** a file with no catalogue row */
     ORPHAN: 888,
+    /** carries Shamela's 99999 "no date" sentinel in book_date */
+    UNDATED: 1234,
 } as const;
 
 export const SYN_AUTHOR = { DATED: 700001, UNDATED: 700002, COAUTHOR: 700003 } as const;
@@ -179,6 +181,10 @@ export async function createSyntheticLibrary(): Promise<SyntheticLibrary> {
         [SYN.MULTI, SYN_CATEGORY.SHAFII, 500, String(SYN_AUTHOR.DATED), SYN_AUTHOR.DATED, 1],
         [SYN.EMPTY, SYN_CATEGORY.GENERAL, 0, String(SYN_AUTHOR.DATED), SYN_AUTHOR.DATED, 1],
         [SYN.MISSING, SYN_CATEGORY.GENERAL, 0, String(SYN_AUTHOR.DATED), SYN_AUTHOR.DATED, 1],
+        // book_date 99999 — the same "no date" sentinel the author table uses.
+        // It reached citations as «٩٩٩٩٩هـ» because only the author side was
+        // being normalised.
+        [SYN.UNDATED, SYN_CATEGORY.GENERAL, 99999, String(SYN_AUTHOR.DATED), SYN_AUTHOR.DATED, 1],
     ];
     for (const [id, cat, date, csv, main, ondisk] of books) {
         master.run(

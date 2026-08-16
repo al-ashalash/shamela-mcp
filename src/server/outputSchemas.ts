@@ -428,7 +428,11 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_suggest_download: {
-        query: z.string().optional(),
+        // Nullable, not merely optional: the tool's own TS type is `string |
+        // null`, and it emits null on the book_ids and category_id paths. A
+        // bare z.string() rejected the whole response there — including the
+        // {book_ids:[…]} call the tool's description gives as its example.
+        query: z.string().nullable().optional(),
         total: z.number().optional(),
         returned: z.number().optional(),
         downloaded_count: z.unknown().optional(),
