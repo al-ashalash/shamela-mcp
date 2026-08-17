@@ -378,6 +378,8 @@ export const OUTPUT_SCHEMAS = {
         query: z.string().optional(),
         normalized_tokens: z.unknown().optional(),
         scope_count: z.unknown().optional(),
+        /** Qualifications on a NON-zero count — see SearchPagesOutput.caveats. */
+        caveats: z.array(z.string()).optional(),
         coverage: z.unknown().optional(),
         by_category: z.unknown().optional(),
         by_century: z.unknown().optional(),

@@ -101,6 +101,38 @@ export function normalizeArabicAya(input: string): string {
     return runPasses(foldChars(input), true);
 }
 
+/**
+ * Words in a query whose hamza the index DISSOLVES, merging them with a
+ * different word.
+ *
+ * «يء» → «ئ» → «ي» loses a letter, so «بريء» and «بريّ» are one term in
+ * Shamela's index and «شيء» and «شي» are another. Measured: a search for
+ * «بريء» reports 9,714 hits and returns «الهِنْدباء: نبات بري معمّر» among
+ * them — a page where «بريء» does not occur at all.
+ *
+ * This is NOT ours to correct. `normalizeArabic` mirrors the analyzer Shamela
+ * built its indexes with, and the fold happens on THEIR side: the term in the
+ * index is «بري». Keeping the hamza in our query would ask for a term that
+ * does not exist there and return a clean, confident zero for a load-bearing
+ * fiqh word — the precise failure decisions.md §4 records twice already.
+ *
+ * What is ours is to stop presenting a contaminated count as an exact one. The
+ * caller surfaces this so the reader can reach for shamela_search_exact, which
+ * re-reads the raw page text and does separate them.
+ *
+ * Only «يء» is reported. «ئ» → «ي» inside a word («المسائل» → «المسايل») keeps
+ * a letter in place and lands on a form that is not itself a word, so it
+ * merges nothing.
+ */
+export function hamzaCollisionWords(query: string): string[] {
+    if (!query) return [];
+    const out: string[] = [];
+    for (const word of query.split(/[\s،,؛;.:!؟?()«»"']+/)) {
+        if (word && word.includes("يء") && !out.includes(word)) out.push(word);
+    }
+    return out;
+}
+
 /** Strip inline HTML tags (e.g. <span data-type='title'>) before tokenizing. */
 function stripHtml(s: string): string {
     return s.replace(/<[^>]*>/g, " ");

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { hamzaCollisionWords } from "../arabic.js";
 import { CatalogScope, type Catalog } from "../catalog.js";
 import { emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
@@ -90,6 +91,13 @@ export interface SearchPagesOutput {
      * reader draw the larger conclusion.
      */
     suggestions?: string[];
+    /**
+     * Present when the query contains a word whose hamza Shamela's index
+     * dissolves, so the count above includes a different lexeme. Distinct from
+     * `suggestions`, which fires only on a zero: this fires on a HIT count that
+     * looks exact and is not.
+     */
+    caveats?: string[];
     coverage: {
         /**
          * What the rollup below describes: "all_results" when every matching
@@ -184,6 +192,9 @@ export async function runSearchPages(
     });
 
     const coverage = enrichCoverage(raw.coverage, catalog);
+    // Words the index folds into a different lexeme. Read off the query the
+    // user typed, not the normalized tokens — by then the evidence is gone.
+    const hamzaWords = hamzaCollisionWords(args.query);
     const out: SearchPagesOutput = {
         total_hits: raw.total_hits,
         returned: raw.returned,
@@ -202,6 +213,7 @@ export async function runSearchPages(
                   }),
               }
             : {}),
+        ...(hamzaWords.length ? { caveats: [pick(searchPagesLabels).hamzaFold(hamzaWords)] } : {}),
         coverage,
         results: enriched,
     };
@@ -210,6 +222,9 @@ export async function runSearchPages(
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset), data.total_hits));
         if (data.scope_count >= 0) lines.push(L.scopeLine(num(data.scope_count), data.scope_count));
+        // Directly under the count it qualifies. A caveat printed at the foot,
+        // after twenty results, is a caveat nobody reads.
+        for (const c of data.caveats ?? []) lines.push("", `> *${c}*`);
         // Only at a genuine zero. `returned === 0` with hits behind it is a
         // reader who paged past the end, which is a different thing to say.
         if (data.suggestions?.length) {

@@ -2509,6 +2509,12 @@
         "by_book": {},
         "by_category": {},
         "by_century": {},
+        "caveats": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "complete": {
           "type": "boolean"
         },

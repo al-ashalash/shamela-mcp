@@ -18,6 +18,11 @@ export const searchPagesLabels: Slice<{
     /** Prefix on the snippet taken from the footnote. */
     footLabel: string;
     more: (offset: string) => string;
+    /**
+     * The count above is inflated: Shamela's index dissolves «يء», so these
+     * words share a term with a different lexeme.
+     */
+    hamzaFold: (words: string[]) => string;
 }> = {
     ar: {
         unreadableHit: "⚠️ ملف الكتاب غير موجود على القرص — لن تنجح قراءته",
@@ -29,6 +34,8 @@ export const searchPagesLabels: Slice<{
         bookDate: (year) => ` — ${year}هـ`,
         footLabel: "_حاشية_: ",
         more: (offset) => `*للمزيد، استخدم \`offset=${offset}\`.*`,
+        hamzaFold: (words) =>
+            `تنبيه: فهرس الشاملة يُذيب الهمزة في «يء»، فيصير ${words.map((w) => `«${w}»`).join(" و")} في الفهرس لفظًا واحدًا مع نظيره بلا همزة (فـ«بريء» تُطابِق «بريّ»). فالعدد أعلاه يشمل اللفظين، ولا يخصّه هذا البحث. وللفصل بينهما استعمل \`shamela_search_exact\` بـ \`preserve_hamza\`، فهو يعيد قراءة نصّ الصفحة نفسه.`,
     },
     en: {
         unreadableHit: "⚠️ the book's file is not on disk — reading it will fail",
@@ -40,5 +47,12 @@ export const searchPagesLabels: Slice<{
         bookDate: (year) => ` — ${year} AH`,
         footLabel: "_hashiya_ (footnote): ",
         more: (offset) => `*For more, use \`offset=${offset}\`.*`,
+        // The caveat is ABOUT two Arabic spellings collapsing into one index
+        // term, and no English sentence can say which spellings without
+        // printing them; transliterating would hide the very distinction being
+        // warned about.
+        // i18n:arabic-intentional
+        hamzaFold: (words) =>
+            `Note: Shamela's index dissolves the hamza in «يء», so ${words.map((w) => `«${w}»`).join(" and ")} share one index term with the hamza-less word («بريء» matches «بريّ»). The count above covers both, not this search alone. To separate them use \`shamela_search_exact\` with \`preserve_hamza\`, which re-reads the page text itself.`,
     },
 };
