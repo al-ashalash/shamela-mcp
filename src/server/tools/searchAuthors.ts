@@ -8,6 +8,8 @@ import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { catalogueAdvice, noResultsLabels } from "../i18n/tools/noResults.js";
 import { searchAuthorsLabels } from "../i18n/tools/searchAuthors.js";
+import { RERANK_POOL, rankByName } from "./authorRanking.js";
+import { COVERAGE_CAP } from "../constants.js";
 
 export const searchAuthorsInputShape = {
     query: z.string().min(1).describe("Arabic search phrase matched against author name + biography."),
@@ -46,13 +48,31 @@ export async function runSearchAuthors(
     catalog: Catalog,
     args: z.infer<typeof searchAuthorsInput>,
 ): Promise<RenderedResponse<SearchAuthorsOutput>> {
+    // Re-ranking needs a pool to re-rank. The engine scores biographies, and
+    // the name — the thing the caller actually typed — is not a field it has,
+    // so the right answer can sit anywhere in the first page or two. Fetch the
+    // pool from the top, re-order it here, then cut the window the caller
+    // asked for. Past the pool the engine's own order stands: that is deep
+    // paging through biographies, not disambiguating a name.
+    const windowEnd = args.offset + args.limit;
+    const rerank = windowEnd <= RERANK_POOL;
     const raw = await helper.request<RawEnvelope>("search_authors", {
         query: args.query,
-        max_results: args.limit,
-        offset: args.offset,
+        max_results: rerank ? RERANK_POOL : args.limit,
+        offset: rerank ? 0 : args.offset,
         options: args.options ?? {},
     });
-    const results: SearchAuthorHit[] = raw.results.map((h) => {
+    const ordered = rerank
+        ? rankByName(
+              raw.results.map((h) => ({
+                  ...h,
+                  author_name: catalog.authorRecord(h.author_id)?.author_name ?? "",
+              })),
+              args.query,
+              raw.normalized_tokens,
+          ).slice(args.offset, windowEnd)
+        : raw.results;
+    const results: SearchAuthorHit[] = ordered.map((h) => {
         const rec = catalog.authorRecord(h.author_id);
         return {
             author_id: h.author_id,
@@ -62,10 +82,17 @@ export async function runSearchAuthors(
             snippet: h.snippet,
         };
     });
+    // The envelope has to describe the window that was CUT, not the pool that
+    // was fetched: with rerank on, raw.returned is up to 100 and raw.offset 0.
+    const shown = args.offset + results.length;
+    // COVERAGE_CAP is the same 5,000-row ceiling the engine pages against.
+    const more = rerank ? shown < Math.min(raw.total_hits, COVERAGE_CAP) : raw.has_more;
     const out: SearchAuthorsOutput = {
-        total_hits: raw.total_hits, returned: raw.returned, offset: raw.offset,
-        has_more: raw.has_more,
-        ...(raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
+        total_hits: raw.total_hits,
+        returned: results.length,
+        offset: args.offset,
+        has_more: more,
+        ...(more ? { next_offset: shown } : rerank ? {} : raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
         query: raw.query, normalized_tokens: raw.normalized_tokens,
         // No download line here: the author index is catalogue-wide, so an
         // empty answer is about the spelling of the name.
