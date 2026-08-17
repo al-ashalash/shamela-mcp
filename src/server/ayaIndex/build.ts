@@ -274,6 +274,40 @@ export async function buildBookIndex(
     };
 }
 
+/**
+ * Is this verse's placement a group placement — a marker covering several
+ * verses, of which this is one?
+ *
+ * Two ways to be one, and for a long time only the second was consulted:
+ *
+ *  - **The marker itself covered a span.** `ranges` has recorded this since the
+ *    index was first built and nothing ever read it. Its key is the span's
+ *    FIRST verse, so membership is a containment test, not a lookup.
+ *  - **The surah's markers are too sparse to mean a verse**, which the 0.2
+ *    density rule catches.
+ *
+ * The density rule alone cannot fire for a short surah: with `total <= 5`,
+ * `distinct >= 1` forces `distinct / total >= 0.2`. So سورة الكوثر, headed in
+ * ابن كثير and البغوي by «[سورة الكوثر (١٠٨): الآيات ١ إلى ٣]» — the textbook
+ * group marker — reported every one of its verses as an exact placement at
+ * confidence "high", and the warning that says otherwise was withheld exactly
+ * where it was true. Surahs 103, 105, 106, 108, 110, 111, 112 and 113 were all
+ * unreachable by that rule.
+ */
+function isGroupPlacement(index: BookAyaIndex, surah: number, aya: number): boolean {
+    if (index.granularity?.[String(surah)] === "group") return true;
+    // A cache read off disk can be older or half-written; a missing field is
+    // "no range information", not a crash in the middle of answering.
+    const ranges = index.ranges ?? {};
+    const prefix = `${surah}:`;
+    for (const key of Object.keys(ranges)) {
+        if (!key.startsWith(prefix)) continue;
+        const span = ranges[key];
+        if (span && aya >= span[0] && aya <= span[1]) return true;
+    }
+    return false;
+}
+
 /** Look one verse up in a built index. */
 export function locateAya(
     index: BookAyaIndex,
@@ -289,7 +323,7 @@ export function locateAya(
     return {
         page_id: page,
         title_id: index.titles[slot] ?? 0,
-        group: index.granularity[String(surah)] === "group",
+        group: isGroupPlacement(index, surah, aya),
     };
 }
 

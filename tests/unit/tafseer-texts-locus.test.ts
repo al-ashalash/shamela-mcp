@@ -63,6 +63,7 @@ function makeAyaIndex(placed: Record<number, { page: number; group?: boolean }>)
             confidence: "high",
             coverage: { ayat: 6236, pct: 100 },
             granularity: group ? { "2": "group" } : {},
+            ranges: {},
             pages: Object.assign(new Array(6236).fill(0), { 261: page }),
             titles: Object.assign(new Array(6236).fill(0), { 261: 99 }),
         }) as unknown as BookAyaIndex;
@@ -181,6 +182,40 @@ describe("tafseer texts: the reader sees every text that was fetched", () => {
         );
         expect(md).toContain("نص التفسير");
         expect(md).toContain("page_id=509");
+    });
+
+    // The release notes promise that «كل نصٍّ يُجلب يقول بأيّ الفهرسين وُضِع».
+    // It did not: status, locus_source and confidence lived in
+    // structuredContent alone, so a curated placement and a heading-derived one
+    // arrived as the same sentence with a different id in it. A placement the
+    // reader cannot weigh is a placement taken on trust.
+    it("says which index placed a text, on the surface the reader reads", async () => {
+        const curated = await render(
+            makeCatalog([10]),
+            makeServices([{ book_id: 10, page_id: 100 }]),
+            null,
+        );
+        // The per-source line, not the header note — which names both indexes
+        // generically and attributes neither text, which was the whole defect.
+        expect(curated).toContain("`الموضع من فهرس الشاملة المنتقى.`");
+        expect(curated).not.toContain("`الموضع من عناوين الكتاب");
+
+        const fromTitles = await render(
+            makeCatalog([20]),
+            makeServices([]),
+            makeAyaIndex({ 20: { page: 337 } }),
+        );
+        expect(fromTitles).toContain("`الموضع من عناوين الكتاب نفسه — ثقة عالية.`");
+        expect(fromTitles).not.toContain("`الموضع من فهرس الشاملة المنتقى.`");
+    });
+
+    it("says on that surface when the marker covered a group of verses", async () => {
+        const md = await render(
+            makeCatalog([30]),
+            makeServices([]),
+            makeAyaIndex({ 30: { page: 509, group: true } }),
+        );
+        expect(md).toContain("يغطي مجموعة آيات");
     });
 
     it("prints nothing for a book the verse could not be placed in", async () => {

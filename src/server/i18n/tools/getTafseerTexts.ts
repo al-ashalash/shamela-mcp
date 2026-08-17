@@ -25,6 +25,15 @@ export const getTafseerTextsLabels: Slice<{
      * or "" when it did not have to.
      */
     slicedToVerse: (continuedOnto: string) => string;
+    /**
+     * Which index placed this text, and how far it may be trusted — printed in
+     * the rendered channel, not only in structuredContent.
+     */
+    provenance: (
+        source: "service" | "titles" | null,
+        confidence: "high" | "medium" | null,
+        group: boolean,
+    ) => string;
     /** How to read on: the rest of this page, the next page, or both. */
     continuation: (
         bookId: string,
@@ -63,6 +72,17 @@ export const getTafseerTextsLabels: Slice<{
         groupNote: "هذا الموضع يغطي مجموعة آيات هذه الآية إحداها، لا الآية وحدها.",
         slicedToVerse: (continuedOnto) =>
             `النصّ يبدأ من موضع الآية في الصفحة لا من أولها، فما قبله تفسير ما سبقها.${continuedOnto ? ` وقد كان الموضع في آخر الصفحة، فوُصِل بالصفحة ${continuedOnto}.` : ""}`,
+        provenance: (source, confidence, group) => {
+            if (source === "service") return "`الموضع من فهرس الشاملة المنتقى.`";
+            const trust =
+                confidence === "high"
+                    ? "ثقة عالية"
+                    : confidence === "medium"
+                      ? "ثقة متوسطة"
+                      : "ثقة غير مقدَّرة";
+            const span = group ? "، وعنوانه يغطي مجموعة آيات هذه إحداها" : "";
+            return `\`الموضع من عناوين الكتاب نفسه — ${trust}${span}.\``;
+        },
         continuation: (bookId, pageId, hasMore, nextPageId) =>
             `التفسير قد يمتد؛ ${hasMore ? `لبقية هذه الصفحة استخدم shamela_get_page(book_id=${bookId}, page_id=${pageId}, body_part=2)` : ""}${hasMore && nextPageId !== null ? "، و" : ""}${nextPageId !== null ? `للصفحة التالية next_page_id=${nextPageId}` : ""}.`,
         trimmed: (fetched, budgetCut, remainingIds) =>
@@ -89,6 +109,17 @@ export const getTafseerTextsLabels: Slice<{
         groupNote: "This locus covers a group of ayat that includes this aya, not the aya on its own.",
         slicedToVerse: (continuedOnto) =>
             `The text starts at the aya's own marker on the page, not at the top of it: what came before is the commentary on the preceding passage.${continuedOnto ? ` The marker sat at the foot of the page, so the text runs on into page ${continuedOnto}.` : ""}`,
+        provenance: (source, confidence, group) => {
+            if (source === "service") return "`Placed by Shamela's curated index.`";
+            const trust =
+                confidence === "high"
+                    ? "high confidence"
+                    : confidence === "medium"
+                      ? "medium confidence"
+                      : "confidence not graded";
+            const span = group ? ", by a heading covering a group of ayat including this one" : "";
+            return `\`Placed by the book's own chapter headings — ${trust}${span}.\``;
+        },
         continuation: (bookId, pageId, hasMore, nextPageId) =>
             `The commentary may run on; ${hasMore ? `for the rest of this page use shamela_get_page(book_id=${bookId}, page_id=${pageId}, body_part=2)` : ""}${hasMore && nextPageId !== null ? ", and " : ""}${nextPageId !== null ? `for the next page next_page_id=${nextPageId}` : ""}.`,
         trimmed: (fetched, budgetCut, remainingIds) =>

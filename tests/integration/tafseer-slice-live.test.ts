@@ -72,6 +72,34 @@ describe("a fetched tafsir begins at its own verse", () => {
         expect(src.text.length).toBeGreaterThan(400);
     }, 120_000);
 
+    it("calls al-Kawthar a group placement, and says so in the rendered text", async () => {
+        // Both ابن كثير and البغوي head the whole sura «[سورة الكوثر (١٠٨):
+        // الآيات ١ إلى ٣]». Every verse of it used to come back as an exact
+        // placement at confidence "high": the surah-density rule that decided
+        // `group` cannot fire for a surah of three verses.
+        const args = getTafseerTextsInput.parse({
+            surah: 108,
+            aya: 2,
+            book_ids: [IBN_KATHIR],
+            response_format: "markdown",
+        });
+        const r = await runGetTafseerTexts(
+            backend.helper,
+            backend.catalog,
+            backend.services,
+            backend.pages,
+            backend.ayaIndex,
+            args,
+        );
+        const src = r.structuredContent.sources.find((s) => s.book_id === IBN_KATHIR);
+        if (!src || !src.text) {
+            console.warn(`skipped: book ${IBN_KATHIR} not readable on this machine`);
+            return;
+        }
+        expect(src.status).toBe("ok_group");
+        expect(r.content[0]!.text).toContain("يغطي مجموعة آيات");
+    }, 120_000);
+
     it("says so when it ran on to the following page", async () => {
         // A marker at the foot of its page means the commentary is on the next
         // one; a citation taken from the tail of the text belongs there, and

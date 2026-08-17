@@ -497,6 +497,14 @@ export async function runGetTafseerTexts(
             if (s.status === "ok" || s.status === "ok_titles" || s.status === "ok_group") {
                 lines.push(
                     `${s.printed_page ? `${L.printedPage(num(s.printed_page))}${L.sep}` : ""}page_id=${s.page_id}${s.next_page_id !== null ? `${L.sep}next_page_id=${s.next_page_id}` : ""}`,
+                    // Which index placed this text, on the surface the reader
+                    // actually reads. It lived only in structuredContent, so a
+                    // curated-table placement and a medium-confidence one read
+                    // off a book's own headings arrived byte-identical — and
+                    // the release notes promise that every text says which
+                    // index placed it. A placement the reader cannot weigh is
+                    // a placement taken on trust.
+                    L.provenance(s.locus_source, s.confidence, s.status === "ok_group"),
                     "",
                     s.text,
                 );
