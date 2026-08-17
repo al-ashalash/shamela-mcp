@@ -13,12 +13,20 @@ export const getCitationLabels: Slice<{
      */
     editorFromBookName: (editor: string) => string;
     publisherFromBookName: (publisher: string) => string;
+    /** The book's file is not on this machine, so nothing can be quoted from it. */
+    noteBookUnreadable: string;
+    /** The page_id asked for is not in this book. */
+    notePageNotFound: (pageId: string) => string;
 }> = {
     ar: {
         heading: "الإحالة",
         notesHeading: "ملاحظات",
         editorFromBookName: (editor) => `المحقق (من اسم الشاملة): ${editor}`,
         publisherFromBookName: (publisher) => `الناشر/الطبعة (من اسم الشاملة): ${publisher}`,
+        noteBookUnreadable:
+            "⚠️ هذا الكتاب غير مقروء على هذا الجهاز (غير منزَّل أو ملفه مفقود)، فلا يُنقَل عنه نصّ؛ والإحالة أدناه من بيانات الفهرس وحدها.",
+        notePageNotFound: (pageId) =>
+            `⚠️ لا توجد صفحة بالمعرِّف ${pageId} في هذا الكتاب، فالإحالة أدناه بلا رقم صفحة. تحقّق من المعرِّف بـ shamela_get_toc أو shamela_search_pages.`,
     },
     en: {
         heading: "Citation",
@@ -26,5 +34,9 @@ export const getCitationLabels: Slice<{
         editorFromBookName: (editor) => `Muḥaqqiq/editor (from the Shamela book name): ${editor}`,
         publisherFromBookName: (publisher) =>
             `Publisher/edition (from the Shamela book name): ${publisher}`,
+        noteBookUnreadable:
+            "⚠️ this book is not readable on this machine (not downloaded, or its file is missing), so nothing can be quoted from it; the citation below rests on catalogue data alone.",
+        notePageNotFound: (pageId) =>
+            `⚠️ this book has no page with id ${pageId}, so the citation below carries no page number. Check the id with shamela_get_toc or shamela_search_pages.`,
     },
 };

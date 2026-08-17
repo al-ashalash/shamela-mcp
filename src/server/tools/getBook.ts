@@ -122,12 +122,33 @@ export async function runGetBook(
     // i18n:arabic-data — «ت » and «ط » are the prefixes Shamela itself puts
     // on the editor and edition parts of a book title. They are how the
     // field is recognised, not anything shown to a reader.
-    let editor: string | null = /^ت\s/.test(suffix) ? suffix.replace(/^ت\s+/, "").trim() : null;
-    let publisher: string | null = /^ط\s/.test(suffix) ? suffix.replace(/^ط\s+/, "").trim() : null;
+    //
+    // Every « - » segment is scanned, not only the last: «أخصر المختصرات -
+    // ت العجمي - ط 1» carries the muḥaqqiq in the middle, and reading the tail
+    // alone reported editor=null for a book that names its editor in its title.
+    let editor: string | null = null;
+    let publisher: string | null = null;
+    /** Digits after «ط » are an edition NUMBER, never a publisher's name. */
+    let editionNumber: string | null = null;
+    for (const part of nameParts.slice(1).concat(rec.meta_data?.suffix?.trim() ?? [])) {
+        const seg = part.trim();
+        if (!editor && /^ت\s/.test(seg)) editor = seg.replace(/^ت\s+/, "").trim() || null;
+        if (/^ط\s/.test(seg)) {
+            const rest = seg.replace(/^ط\s+/, "").trim();
+            // «ط 1» is "print 1", not a publisher called "1". Reported as a
+            // name it produced `"publisher":"1"` on 13 catalogue books, denied
+            // the edition number it had just read, AND — because it made
+            // `publisher` truthy — suppressed the front-matter lookup that
+            // would have found the real editor.
+            if (/^[\d٠-٩]+$/.test(rest)) editionNumber ??= rest;
+            else publisher ??= rest || null;
+        }
+    }
 
     // Fallback: conservatively mine the front-matter card when the name gave
-    // neither — readable books only, never fabricate.
-    if (content_status === "readable" && !editor && !publisher) {
+    // no EDITOR — readable books only, never fabricate. Gating on "neither"
+    // let a bogus publisher stop the lookup that mattered.
+    if (content_status === "readable" && !editor) {
         try {
             const rows = await pages.getPagesRange(rec.book_id, 1, 6);
             const ids = rows.map((r) => r.page_id);
@@ -138,8 +159,8 @@ export async function runGetBook(
                 });
                 const front = batch.results.map((r) => r.body ?? "").join("\n");
                 const info = extractPubInfo(front);
-                editor = info.editor;
-                publisher = info.publisher;
+                editor ??= info.editor;
+                publisher ??= info.publisher;
             }
         } catch {
             /* best-effort enrichment */
@@ -156,10 +177,22 @@ export async function runGetBook(
     if (content_status === "downloaded_no_pages") notes.push(L.noteNoPages);
     if (content_status === "flagged_file_missing") notes.push(L.noteFileMissing);
     if (catalog.isSessionDiscovered(rec.book_id)) notes.push(L.noteSessionDiscovered);
-    if (!editor) notes.push(L.noteNoEditor);
-    if (!publisher) notes.push(L.noteNoPublisher);
+    // The front-matter is read only for a readable book, so only a readable
+    // book may be said to have been checked. These notes used to be pushed
+    // unconditionally, so a not_downloaded book was reported as having had its
+    // introduction inspected and found silent — a negative nothing had looked
+    // for. Same sentence, same book, whether or not the file exists.
+    const frontMatterRead = content_status === "readable";
+    if (!editor || !publisher) {
+        if (!frontMatterRead) notes.push(L.noteFrontMatterUnread);
+        else {
+            if (!editor) notes.push(L.noteNoEditor);
+            if (!publisher) notes.push(L.noteNoPublisher);
+        }
+    }
     if (!edition) notes.push(L.noteNoEdition);
-    notes.push(L.noteNoCityOrEditionNumber);
+    if (editionNumber) notes.push(L.noteEditionNumber(num(editionNumber)));
+    else notes.push(L.noteNoCityOrEditionNumber);
 
     const out: GetBookOutput = {
         book_id: rec.book_id,

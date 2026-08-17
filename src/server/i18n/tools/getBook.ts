@@ -66,6 +66,10 @@ export const getBookLabels: Slice<{
     noteNoPublisher: string;
     noteNoEdition: string;
     noteNoCityOrEditionNumber: string;
+    /** Said when the book's file is absent, so its front-matter was never read. */
+    noteFrontMatterUnread: string;
+    /** The edition NUMBER, read off «ط N» in the Shamela name. */
+    noteEditionNumber: (n: string) => string;
 }> = {
     ar: {
         bookId: "المعرِّف",
@@ -101,6 +105,9 @@ export const getBookLabels: Slice<{
         noteNoPublisher: "لم يُذكر الناشر في مقدمة الكتاب، وليس في master.db.",
         noteNoEdition: "لا وصف للطبعة في لاحقة اسم الكتاب بالشاملة.",
         noteNoCityOrEditionNumber: "بلد النشر ورقم الطبعة غير محفوظين في master.db.",
+        noteFrontMatterUnread:
+            "الكتاب غير منزَّل، فلم يُطَّلع على مقدمته؛ والمحقق والناشر غير معروفين من master.db.",
+        noteEditionNumber: (n) => `رقم الطبعة ${n} (من لاحقة اسم الكتاب بالشاملة)؛ وبلد النشر غير محفوظ في master.db.`,
     },
     en: {
         bookId: "ID",
@@ -139,5 +146,8 @@ export const getBookLabels: Slice<{
         noteNoPublisher: "publisher not found in the front-matter / not in master.db",
         noteNoEdition: "edition descriptor not present in the Shamela name suffix",
         noteNoCityOrEditionNumber: "city of publication and edition number are not stored in master.db",
+        noteFrontMatterUnread:
+            "the book is not downloaded, so its front-matter was never consulted; muḥaqqiq and publisher are unknown from master.db",
+        noteEditionNumber: (n) => `edition number ${n} (from the Shamela name suffix); city of publication is not stored in master.db`,
     },
 };

@@ -63,6 +63,16 @@ export async function runGetCitation(
         : args.page_id !== undefined
             ? { page_id: args.page_id, part: null, page: null }
             : undefined;
+    // A page that was asked for and does not exist has to be said out loud.
+    // Turning a missing row into a page-less citation returned a clean,
+    // publishable-looking «الروض المربع...» for page_id 99999 — the requested
+    // page silently gone, `notes` empty, and nothing to distinguish it from a
+    // deliberate book-level citation.
+    const missingPage = args.page_id !== undefined && !pageRow;
+    // And a book whose file is not here cannot be quoted from at all: get_page
+    // answers BOOK_NOT_DOWNLOADED for the same id this tool cited without a
+    // murmur, so the two disagreed about whether the book could be used.
+    const unreadable = !catalog.isDownloaded(book.book_id) && !catalog.confirmOnDisk(book.book_id);
 
     let formatted: string;
     let notes: string[] = [];
@@ -90,7 +100,11 @@ export async function runGetCitation(
     // i18n:arabic-data — «ت » and «ط » are Shamela's own prefixes for the
     // editor and the edition inside a book title; they are read, not shown.
     const editorFromName = /^ت\s/.test(suffix) ? suffix.replace(/^ت\s+/, "").trim() : null;
-    const publisherFromName = /^ط\s/.test(suffix) ? suffix.replace(/^ط\s+/, "").trim() : null;
+    // Digits after «ط » are an edition number, not a publisher. Reported as a
+    // name, get_citation stated «الناشر/الطبعة (من اسم الشاملة): 1» while
+    // denying, two lines down, that it knew the edition number it had read.
+    const publisherRaw = /^ط\s/.test(suffix) ? suffix.replace(/^ط\s+/, "").trim() : null;
+    const publisherFromName = publisherRaw && !/^[\d٠-٩]+$/.test(publisherRaw) ? publisherRaw : null;
     if (editorFromName || publisherFromName) {
         const L = pick(getCitationLabels);
         const found: string[] = [];
@@ -101,6 +115,16 @@ export async function runGetCitation(
                 (n) => !(editorFromName && /editor|muḥaqqiq/i.test(n)) && !(publisherFromName && /publisher/i.test(n)),
             ),
         );
+    }
+
+    // First, both of them: a citation that cannot be trusted must say so
+    // before it says anything else, not three bullets down.
+    {
+        const L = pick(getCitationLabels);
+        const head: string[] = [];
+        if (unreadable) head.push(L.noteBookUnreadable);
+        if (missingPage) head.push(L.notePageNotFound(String(args.page_id)));
+        if (head.length) notes = head.concat(notes);
     }
 
     const out: GetCitationOutput = {
