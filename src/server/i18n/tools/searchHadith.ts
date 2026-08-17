@@ -16,6 +16,13 @@ export const searchHadithLabels: Slice<{
     downloadedTag: string;
     /** Shown when no page in the window carried a service key. */
     noKeys: string;
+    /**
+     * Which field a snippet came from. The hashiya is the editor's or
+     * commentator's speech, never the author's, and a hit that exists only
+     * there must not read as the author's words.
+     */
+    matnLabel: string;
+    hashiyaLabel: string;
 }> = {
     ar: {
         heading: (query) => `بحث عن حديث: «${query}»`,
@@ -26,6 +33,8 @@ export const searchHadithLabels: Slice<{
         keyLine: (key, books) => `- **مفتاح ${key}**: ${books.join("؛ ")}`,
         unreadableHit: "⚠️ ملف الكتاب غير موجود على القرص — لن تنجح قراءته",
         downloadedTag: " (منزَّل)",
+        matnLabel: "المتن:",
+        hashiyaLabel: "الحاشية (كلام المحقِّق لا المصنِّف):",
         noKeys:
             "_لا توجد مفاتيح خدمة على الصفحات المطابقة (شائع في كتب الفقه/الأصول)؛ انظر التخريج المطبوع في المقتطفات أعلاه._",
     },
@@ -38,6 +47,8 @@ export const searchHadithLabels: Slice<{
         keyLine: (key, books) => `- **Key ${key}**: ${books.join("; ")}`,
         unreadableHit: "⚠️ the book's file is not on disk — reading it will fail",
         downloadedTag: " (downloaded)",
+        matnLabel: "Matn:",
+        hashiyaLabel: "Hashiya (the editor's words, not the author's):",
         noKeys:
             "_No service keys on the matching pages (common in fiqh and usul books); see the printed takhrij in the snippets above._",
     },

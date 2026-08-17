@@ -55,7 +55,20 @@ export interface HadithMatch {
     book_id: number;
     book_name: string;
     page_id: number;
-    snippet: string;
+    /**
+     * Matn and hashiya, kept apart.
+     *
+     * They used to be collapsed into one unlabelled `snippet` with the body
+     * preferred, so a hadith occurring ONLY in the editor's takhrij came back
+     * under a snippet of the author's own text, with nothing to say the words
+     * were not his. The extension's standing rule is that the hashiya is the
+     * editor's or commentator's speech and is never attributed to the author;
+     * a single field made keeping that rule impossible.
+     */
+    snippet_body: string;
+    snippet_foot: string;
+    /** Which of the two carried the match: "body", "foot", or both. */
+    matched_in: Array<"body" | "foot">;
     /** False when the book's page file is not on disk (issue #47). */
     readable: boolean;
     hadith_keys: number[];
@@ -98,7 +111,12 @@ export async function runSearchHadith(
             book_id: hit.book_id,
             book_name: rec?.book_name ?? `(unknown ${hit.book_id})`,
             page_id: hit.page_id,
-            snippet: hit.snippet_body || hit.snippet_foot,
+            snippet_body: hit.snippet_body ?? "",
+            snippet_foot: hit.snippet_foot ?? "",
+            matched_in: [
+                ...(hit.snippet_body ? (["body"] as const) : []),
+                ...(hit.snippet_foot ? (["foot"] as const) : []),
+            ],
             // The same judgement search_pages makes about the same hit. This
             // loop is bounded by max_pages_scanned and already awaits per
             // iteration, so no memo is needed here.
@@ -154,7 +172,12 @@ export async function runSearchHadith(
             // Under the heading, never in it, and the blank line is load-bearing
             // — see searchPages for both reasons.
             if (!m.readable) lines.push(`**${L.unreadableHit}**`, "");
-            if (m.snippet) lines.push("", `> ${m.snippet}`);
+            // Labelled, and both shown. Collapsed into one line with the body
+            // preferred, a hadith found ONLY in the editor's takhrij was
+            // presented under a snippet of the author's own words — the one
+            // confusion this extension is built never to allow.
+            if (m.snippet_body) lines.push("", `> **${L.matnLabel}** ${m.snippet_body}`);
+            if (m.snippet_foot) lines.push("", `> **${L.hashiyaLabel}** ${m.snippet_foot}`);
             // These keys exist to be handed to shamela_get_books_for_hadith,
             // so they are typed back and stay Latin.
             if (m.hadith_keys.length) lines.push(L.hadithKeys(m.hadith_keys.map((k) => String(k))));
