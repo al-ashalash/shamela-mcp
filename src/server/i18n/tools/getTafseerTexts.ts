@@ -15,6 +15,8 @@ export const getTafseerTextsLabels: Slice<{
         indexPending: string;
         noEntryForThisAya: string;
         notIndexed: string;
+        /** The id names no book in master.db. */
+        notFound: string;
         notDownloaded: string;
     };
     /** The locus was a marker over several verses, not this one alone. */
@@ -67,6 +69,7 @@ export const getTafseerTextsLabels: Slice<{
                 "الكتاب مشارك في فهرس الشاملة لكن لا مدخل له لهذه الآية، ولا علامة لها في عناوينه؛ لا يُجلب نص بلا تحديد موضع تفاديًا للنسبة الخاطئة.",
             notIndexed:
                 "لم نجد ما يحدّد موضع الآية في هذا الكتاب — لا في فهرس الشاملة ولا في عناوينه؛ وليس ذلك دليلًا على خلوّه من تفسيرها، فتصفَّحه بـ shamela_get_toc.",
+            notFound: "لا يوجد في فهرس الشاملة كتابٌ بهذا الرقم، فلا شيء يُقرأ منه. تحقّق من الرقم بـ shamela_resolve أو shamela_search_books.",
             notDownloaded: "موضع الآية معلوم في هذا الكتاب لكنه غير منزَّل محليًّا فلا يمكن قراءة نصه.",
         },
         groupNote: "هذا الموضع يغطي مجموعة آيات هذه الآية إحداها، لا الآية وحدها.",
@@ -103,6 +106,8 @@ export const getTafseerTextsLabels: Slice<{
                 "The book is in Shamela's index but has no entry for this aya, and no marker for it in its chapter titles; no text is fetched without a fixed locus, to avoid attributing the wrong page.",
             notIndexed:
                 "Nothing fixes the place of this aya in this book — neither Shamela's index nor the book's own chapter titles; that is no proof it does not comment on the aya, so browse it with shamela_get_toc.",
+            notFound:
+                "No book in Shamela's catalogue carries this id, so there is nothing to read from it. Check the id with shamela_resolve or shamela_search_books.",
             notDownloaded:
                 "The aya is located in this book, but the book is not downloaded on this machine, so its text cannot be read.",
         },

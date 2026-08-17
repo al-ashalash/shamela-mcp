@@ -111,13 +111,16 @@ export async function runGetPage(
     // Prose, not a machine field: it says the same thing in whichever language
     // the reader is being answered in. The part to ask for next stays in Latin
     // digits — the user types it straight back as body_part.
-    const nextBodyPart = chunk.part < chunk.total_parts ? chunk.part + 1 : chunk.total_parts;
+    // null on the last part. It used to fall back to the CURRENT part, so the
+    // advice read «ولجلب التالي استخدم body_part=2» while you were on part 2 —
+    // an instruction that returns the same page for ever.
+    const nextBodyPart = chunk.part < chunk.total_parts ? chunk.part + 1 : null;
     const display =
         chunk.total_parts > 1
             ? pick(getPageLabels).longBody(
                   num(chunk.total_parts),
                   num(chunk.part),
-                  String(nextBodyPart),
+                  nextBodyPart === null ? null : String(nextBodyPart),
                   chunk.total_parts,
               )
             : null;

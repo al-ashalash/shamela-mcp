@@ -69,6 +69,8 @@ export type TafseerSourceStatus =
     | "not_indexed"
     /** Indexed, but nothing marks this particular verse. */
     | "no_entry_for_this_aya"
+    /** The id is not in master.db at all — it names no book. */
+    | "not_found"
     /** Its index has not been built yet; ask again. */
     | "index_pending"
     | "not_downloaded";
@@ -250,6 +252,16 @@ export async function runGetTafseerTexts(
 
     if (args.book_ids?.length) {
         for (const id of args.book_ids) {
+            // An id master.db has never heard of is not "unindexed" — it is not
+            // a book. It used to come back as a source named «(unknown 99999)»
+            // under the note «وليس ذلك دليلًا على خلوّه من تفسيرها، فتصفَّحه بـ
+            // shamela_get_toc» — prose asserting that a work which does not
+            // exist may still comment on the verse, and sending the reader to
+            // a call that can only raise BOOK_NOT_FOUND.
+            if (!catalog.bookRecord(id)) {
+                sources.push(statusRow(id, "not_found", L.statusNote.notFound));
+                continue;
+            }
             const locus = await findLocus(id);
             if (locus === "pending") {
                 sources.push(statusRow(id, "index_pending", L.statusNote.indexPending));

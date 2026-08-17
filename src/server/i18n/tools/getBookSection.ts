@@ -35,8 +35,11 @@ export const getBookSectionLabels: Slice<{
         // visually, and every other line in this tool leads with Arabic.
         range: (start, end, total) => `النطاق: page_id ${start}–${end} (${total} صفحة)`,
         page: (printed, pageId) => (printed ? `ص ${printed} — page_id=${pageId}` : `page_id=${pageId}`),
+        // No «ارفع max_pages» here: the budget trim runs AFTER the max_pages
+        // slice, so raising it changes nothing — the identical response comes
+        // back. Only trimmedByMaxPages below may offer it.
         trimmedByBudget: (shown, total, nextStart) =>
-            `القسم طويل، فعُرِض ${shown} من ${total} صفحة لضبط الحجم. أكمِل بـ shamela_get_pages_range(start_page_id=${nextStart}) أو ارفع max_pages.`,
+            `القسم طويل، فعُرِض ${shown} من ${total} صفحة لضبط الحجم. أكمِل بـ shamela_get_pages_range(start_page_id=${nextStart}).`,
         trimmedByMaxPages: (shown, total, nextStart) =>
             `القسم مقطوع عند حدّ max_pages — عُرِض ${shown} من ${total}. أكمِل بـ start_page_id=${nextStart} أو ارفع max_pages.`,
     },
@@ -54,7 +57,7 @@ export const getBookSectionLabels: Slice<{
         // "this response shows N of M" keeps the verb agreeing with the response,
         // not with N, so a single kept page reads as well as twenty do.
         trimmedByBudget: (shown, total, nextStart) =>
-            `The section is long, so this response shows ${shown} of its ${total} pages to keep it a manageable size. Continue with shamela_get_pages_range(start_page_id=${nextStart}) or raise max_pages.`,
+            `The section is long, so this response shows ${shown} of its ${total} pages to keep it a manageable size. Continue with shamela_get_pages_range(start_page_id=${nextStart}).`,
         trimmedByMaxPages: (shown, total, nextStart) =>
             `The section was cut at the max_pages limit — ${shown} of ${total} shown. Continue with start_page_id=${nextStart} or raise max_pages.`,
     },

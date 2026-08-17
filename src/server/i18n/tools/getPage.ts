@@ -16,7 +16,8 @@ export const getPageLabels: Slice<{
      * `n` is the part count as a number: the Arabic counted noun changes shape
      * with it, and cannot be read back out of «١٢».
      */
-    longBody: (totalParts: string, part: string, nextPart: string, n: number) => string;
+    /** `nextPart` is null on the LAST part — there is nothing to fetch next. */
+    longBody: (totalParts: string, part: string, nextPart: string | null, n: number) => string;
     hashiya: string;
     comment: string;
     citation: string;
@@ -31,10 +32,14 @@ export const getPageLabels: Slice<{
         // الأجزاء اثنان فأكثر دائمًا (لا يُقسَّم النص إلا إذا زاد)، فلا حاجة إلى
         // صورة الواحد؛ لكن «أجزاء» جمعٌ لا يصح تمييزًا إلا من ٣ إلى ١٠، فالاثنان
         // مثنًّى وما فوق العشرة مفردٌ منصوب.
-        longBody: (totalParts, part, nextPart, n) =>
-            `النص طويل، قُسِّم إلى ${
-                n === 2 ? "جزأين" : n <= 10 ? `${totalParts} أجزاء` : `${totalParts} جزءًا`
-            } (هذا الجزء ${part}). اعرض المعروض كاملًا حرفيًّا أو اسأل المستخدم عن طريقة العرض؛ ولجلب التالي استخدم body_part=${nextPart}. (الحاشية والتعليق يظهران مع الجزء الأول.)`,
+        longBody: (totalParts, part, nextPart, n) => {
+            const count =
+                n === 2 ? "جزأين" : n <= 10 ? `${totalParts} أجزاء` : `${totalParts} جزءًا`;
+            const head = `النص طويل، قُسِّم إلى ${count} (هذا الجزء ${part}${nextPart === null ? " وهو الأخير" : ""}). اعرض المعروض كاملًا حرفيًّا أو اسأل المستخدم عن طريقة العرض`;
+            return nextPart === null
+                ? `${head}. (الحاشية والتعليق ظهرا مع الجزء الأول.)`
+                : `${head}؛ ولجلب التالي استخدم body_part=${nextPart}. (الحاشية والتعليق يظهران مع الجزء الأول.)`;
+        },
         hashiya: "الحاشية",
         comment: "التعليق",
         citation: "الإحالة",
@@ -45,8 +50,12 @@ export const getPageLabels: Slice<{
         path: "Path",
         matn: "Matn (main text)",
         matnPart: (part, total) => `Matn (main text) — part ${part}/${total}`,
-        longBody: (totalParts, part, nextPart) =>
-            `This page is long, so it was split into ${totalParts} parts (this is part ${part}). Show what you have in full and verbatim, or ask the user how they would like it presented; to fetch the next part use body_part=${nextPart}. (The hashiya and the comment come with part 1.)`,
+        longBody: (totalParts, part, nextPart) => {
+            const head = `This page is long, so it was split into ${totalParts} parts (this is part ${part}${nextPart === null ? ", the last" : ""}). Show what you have in full and verbatim, or ask the user how they would like it presented`;
+            return nextPart === null
+                ? `${head}. (The hashiya and the comment came with part 1.)`
+                : `${head}; to fetch the next part use body_part=${nextPart}. (The hashiya and the comment come with part 1.)`;
+        },
         hashiya: "Hashiya (footnote)",
         comment: "Comment",
         citation: "Citation",
