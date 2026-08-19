@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { ayaNotFound, badArg } from "../errors.js";
+import { ayaNotFound, ayaOutOfSurah, badArg } from "../errors.js";
 import type { PageStore } from "../pages.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import type { AyaIndexStore } from "../ayaIndex/store.js";
@@ -130,7 +130,7 @@ export async function runListTafsirsForAya(
     if (args.aya_id !== undefined) resolvedId = args.aya_id;
     else if (args.surah !== undefined && args.aya !== undefined) {
         const id = ayaIdFromSurahAya(args.surah, args.aya);
-        if (id === null) throw ayaNotFound(`surah=${args.surah} aya=${args.aya}`);
+        if (id === null) throw ayaOutOfSurah(args.surah!, args.aya!);
         resolvedId = id;
     } else throw badArg("Provide either aya_id or both surah and aya.");
     const sa = surahAyaFromId(resolvedId);

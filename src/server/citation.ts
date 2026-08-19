@@ -32,10 +32,29 @@ export interface CitationComponents {
     auto_numbered: boolean; // true when book.printed != 1
 }
 
+/**
+ * What is missing from a full citation, as typed keys.
+ *
+ * These used to be English sentences built here, so get_citation's notes came
+ * back half Arabic (the tool layer's) and half English (these) under the
+ * default Arabic interface — and the tool de-duplicated them by regex-matching
+ * /editor|muḥaqqiq/i against the TEXT, which any translation would silently
+ * break. A key is language-free; the sentence for it lives in the i18n slice
+ * with the rest of the tool's prose.
+ */
+export type CitationNoteKey =
+    | "no_author_name"
+    | "no_death_year"
+    | "no_composition_year"
+    | "no_edition_number"
+    | "no_publisher"
+    | "no_city"
+    | "no_editor";
+
 export interface FullCitationResult {
     formatted: string;
     components: CitationComponents;
-    notes: string[];
+    notes: CitationNoteKey[];
 }
 
 /** Build the citation components shared by all three styles. */
@@ -139,16 +158,16 @@ export function formatFullCitation(
     const formatted =
         head.join(". ") + (tail.length ? ". " + tail.join("، ") + "." : ".");
 
-    const notes: string[] = [];
-    if (!c.author_name) notes.push("author name not available in master.db for this book");
-    if (!c.death_year && c.author_name) notes.push("author death year not available");
-    notes.push(
-        "composition year not available in master.db — book_date is Shamela's dating stamp (the death year of the work's original author), not the year the book was written",
-    );
-    notes.push("edition number not available in master.db");
-    notes.push("publisher not available in master.db");
-    notes.push("city of publication not available in master.db");
-    notes.push("editor / muḥaqqiq not available in master.db");
+    const notes: CitationNoteKey[] = [];
+    if (!c.author_name) notes.push("no_author_name");
+    if (!c.death_year && c.author_name) notes.push("no_death_year");
+    // Unconditional: master.db has no composition year for ANY book —
+    // book_date is Shamela's dating stamp, not the year the work was written.
+    notes.push("no_composition_year");
+    notes.push("no_edition_number");
+    notes.push("no_publisher");
+    notes.push("no_city");
+    notes.push("no_editor");
 
     return { formatted, components: c, notes };
 }

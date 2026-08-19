@@ -105,6 +105,32 @@ export class ServiceStore {
         }
     }
 
+    /**
+     * True when the service table holds no rows at all.
+     *
+     * A key that resolves to nothing has two very different causes — this key
+     * is not in the index, or the index has nothing in it — and the error for
+     * the first is a wrong diagnosis of the second. Cached per service: an
+     * index does not go from populated to empty mid-session.
+     */
+    private emptyCache = new Map<ServiceName, boolean>();
+    async isEmpty(name: ServiceName): Promise<boolean> {
+        const cached = this.emptyCache.get(name);
+        if (cached !== undefined) return cached;
+        const db = await this.getDb(name);
+        let empty = true;
+        if (db) {
+            const stmt = db.prepare("SELECT 1 FROM service LIMIT 1");
+            try {
+                empty = !stmt.step();
+            } finally {
+                stmt.free();
+            }
+        }
+        this.emptyCache.set(name, empty);
+        return empty;
+    }
+
     /** Return books participating in this service (downloaded books that contribute key→page pairs). */
     async listInService(name: ServiceName): Promise<number[]> {
         const db = await this.getDb(name);

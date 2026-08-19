@@ -121,6 +121,8 @@ export const en: Messages = {
             `Technical detail: ${detail}`,
         serviceKeyNotFound: (service: string, key: number) =>
             `No books are indexed for key ${key} in the ${service} service.`,
+        serviceEmpty: (service: string) =>
+            `The ${service} service index is empty on this machine — no book is enrolled in it, so NO key can resolve, whichever you try. Download musnad hadith collections from the Shamela app to build it, or rely on the printed takhrij in the books' footnotes via shamela_search_hadith.`,
     },
 
     startup: {

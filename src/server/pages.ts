@@ -365,19 +365,48 @@ export class PageStore {
             "SELECT id, page, parent FROM title WHERE page <= ? ORDER BY id DESC LIMIT 1",
         );
         let leafTitleId: number | null = null;
+        let leafTitlePage: number | null = null;
         try {
             findStmt.bind([pageId]);
             if (findStmt.step()) {
-                leafTitleId = findStmt.get()[0] as number;
+                const r = findStmt.get();
+                leafTitleId = r[0] as number;
+                leafTitlePage = r[1] as number;
             }
         } finally {
             findStmt.free();
         }
         if (leafTitleId === null) return [];
 
+        // "The last title at or before this page" assumes chapters run
+        // continuously — and across a volume boundary they do not: a volume's
+        // front matter has no title of its own, so the walk landed on the LAST
+        // chapter of the PREVIOUS volume. Book 147658 page 574 (part "2")
+        // reported containing_titles that all live in part "1", one response
+        // contradicting itself. When the requested page and the title that
+        // would own it sit in different parts, the honest chain is empty.
+        if (leafTitlePage !== null && leafTitlePage !== pageId) {
+            const partOf = async (id: number): Promise<string | null> =>
+                (await this.getPageRow(bookId, id))?.part ?? null;
+            const [pagePart, titlePart] = [await partOf(pageId), await partOf(leafTitlePage)];
+            if (pagePart !== null && titlePart !== null && pagePart !== titlePart) return [];
+        }
+
         const chain: TocEntry[] = [];
         let cursor: number | null = leafTitleId;
         const lookup = db.prepare("SELECT id, page, parent FROM title WHERE id = ?");
+        // The same one-row probe collectToc uses. Hardcoding false here made
+        // the SAME title_id answer has_children differently depending on which
+        // mode of get_toc asked.
+        const childStmt = db.prepare("SELECT 1 FROM title WHERE parent = ? LIMIT 1");
+        const hasChildren = (id: number): boolean => {
+            try {
+                childStmt.bind([id]);
+                return childStmt.step();
+            } finally {
+                childStmt.reset();
+            }
+        };
         try {
             while (cursor !== null && cursor !== 0) {
                 lookup.bind([cursor]);
@@ -394,12 +423,13 @@ export class PageStore {
                     title_id: id,
                     page_id: pg,
                     parent_id: parent,
-                    has_children: false, // doesn't matter for chain
+                    has_children: hasChildren(id),
                 });
                 cursor = parent;
             }
         } finally {
             lookup.free();
+            childStmt.free();
         }
         chain.reverse(); // root → leaf
         return chain;

@@ -17,6 +17,8 @@ export const getCitationLabels: Slice<{
     noteBookUnreadable: string;
     /** The page_id asked for is not in this book. */
     notePageNotFound: (pageId: string) => string;
+    /** The full style's "what master.db does not have" notes, keyed. */
+    fullNotes: Record<import("../../citation.js").CitationNoteKey, string>;
 }> = {
     ar: {
         heading: "الإحالة",
@@ -27,6 +29,16 @@ export const getCitationLabels: Slice<{
             "⚠️ هذا الكتاب غير مقروء على هذا الجهاز (غير منزَّل أو ملفه مفقود)، فلا يُنقَل عنه نصّ؛ والإحالة أدناه من بيانات الفهرس وحدها.",
         notePageNotFound: (pageId) =>
             `⚠️ لا توجد صفحة بالمعرِّف ${pageId} في هذا الكتاب، فالإحالة أدناه بلا رقم صفحة. تحقّق من المعرِّف بـ shamela_get_toc أو shamela_search_pages.`,
+        fullNotes: {
+            no_author_name: "اسم المؤلف غير محفوظ في master.db لهذا الكتاب.",
+            no_death_year: "سنة وفاة المؤلف غير متوفرة.",
+            no_composition_year:
+                "سنة التأليف غير متوفرة في master.db — حقل book_date سنةُ تأريخ الشاملة للكتاب (وفاة مؤلِّف الأصل) لا سنة تأليفه.",
+            no_edition_number: "رقم الطبعة غير محفوظ في master.db.",
+            no_publisher: "الناشر غير محفوظ في master.db.",
+            no_city: "بلد النشر غير محفوظ في master.db.",
+            no_editor: "المحقق غير محفوظ في master.db.",
+        },
     },
     en: {
         heading: "Citation",
@@ -38,5 +50,15 @@ export const getCitationLabels: Slice<{
             "⚠️ this book is not readable on this machine (not downloaded, or its file is missing), so nothing can be quoted from it; the citation below rests on catalogue data alone.",
         notePageNotFound: (pageId) =>
             `⚠️ this book has no page with id ${pageId}, so the citation below carries no page number. Check the id with shamela_get_toc or shamela_search_pages.`,
+        fullNotes: {
+            no_author_name: "author name not available in master.db for this book",
+            no_death_year: "author death year not available",
+            no_composition_year:
+                "composition year not available in master.db — book_date is Shamela's dating stamp for the work (the original author's death year), not the year it was written",
+            no_edition_number: "edition number not available in master.db",
+            no_publisher: "publisher not available in master.db",
+            no_city: "city of publication not available in master.db",
+            no_editor: "editor / muḥaqqiq not available in master.db",
+        },
     },
 };

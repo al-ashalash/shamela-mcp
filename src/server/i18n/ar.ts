@@ -121,6 +121,8 @@ export const ar = {
             `التفصيل التقني: ${detail}`,
         serviceKeyNotFound: (service: string, key: number) =>
             `لا توجد كتب مفهرسة للمفتاح ${key} في خدمة ${service}.`,
+        serviceEmpty: (service: string) =>
+            `فهرس خدمة ${service} فارغ على هذا الجهاز — لا كتاب مشارك فيه، فلن يُجاب أي مفتاح كائنًا ما كان. نزِّل كتب الحديث المسندة من تطبيق المكتبة الشاملة ليُبنى الفهرس، أو اعتمد التخريج المطبوع في حواشي الكتب عبر shamela_search_hadith.`,
     },
 
     /**

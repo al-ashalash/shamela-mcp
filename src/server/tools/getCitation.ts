@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
 import {
+    type CitationNoteKey,
     type CitationComponents,
     formatFullCitation,
     formatShamelaCitation,
@@ -75,7 +76,7 @@ export async function runGetCitation(
     const unreadable = !catalog.isDownloaded(book.book_id) && !catalog.confirmOnDisk(book.book_id);
 
     let formatted: string;
-    let notes: string[] = [];
+    let noteKeys: CitationNoteKey[] = [];
     let components: CitationComponents;
     if (args.style === "shamela") {
         formatted = formatShamelaCitation(book, author, pageRef, args.text);
@@ -90,8 +91,12 @@ export async function runGetCitation(
         const full = formatFullCitation(book, author, pageRef);
         formatted = full.formatted;
         components = full.components;
-        notes = full.notes;
+        noteKeys = full.notes;
     }
+    // Keys → the reader's language. These sentences were hardcoded English in
+    // citation.ts, so the full style's notes arrived half Arabic (this layer's)
+    // and half English (that one's) under the default Arabic interface.
+    let notes: string[] = [];
 
     // (#25): surface muḥaqqiq/edition from the Shamela name
     // suffix («ت <editor>» / «ط <publisher>»), which master.db columns lack.
@@ -105,16 +110,18 @@ export async function runGetCitation(
     // denying, two lines down, that it knew the edition number it had read.
     const publisherRaw = /^ط\s/.test(suffix) ? suffix.replace(/^ط\s+/, "").trim() : null;
     const publisherFromName = publisherRaw && !/^[\d٠-٩]+$/.test(publisherRaw) ? publisherRaw : null;
-    if (editorFromName || publisherFromName) {
+    {
         const L = pick(getCitationLabels);
+        // The name suffix answered some of the missing fields, so their
+        // "not available" keys drop out — by key, not by the regex-on-text
+        // match that any translation would have silently broken.
+        const answered = new Set<CitationNoteKey>();
+        if (editorFromName) answered.add("no_editor");
+        if (publisherFromName) answered.add("no_publisher");
         const found: string[] = [];
         if (editorFromName) found.push(L.editorFromBookName(editorFromName));
         if (publisherFromName) found.push(L.publisherFromBookName(publisherFromName));
-        notes = found.concat(
-            notes.filter(
-                (n) => !(editorFromName && /editor|muḥaqqiq/i.test(n)) && !(publisherFromName && /publisher/i.test(n)),
-            ),
-        );
+        notes = found.concat(noteKeys.filter((k) => !answered.has(k)).map((k) => L.fullNotes[k]));
     }
 
     // First, both of them: a citation that cannot be trusted must say so

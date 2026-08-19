@@ -238,17 +238,21 @@ describe("formatFullCitation", () => {
         expect(result.components.death_year).toBe(1421);
     });
 
+    // Notes are typed KEYS now, translated at the tool layer. They were built
+    // here as English sentences, so the tool's notes arrived half Arabic and
+    // half English under the default interface — and the tool de-duplicated
+    // them by regex-matching the TEXT, which any translation would have
+    // silently broken.
     it("always lists missing publisher / edition / city / editor in notes", () => {
         const result = formatFullCitation(makeBook(), makeAuthor(), PAGE_17);
-        expect(result.notes).toContain("edition number not available in master.db");
-        expect(result.notes).toContain("publisher not available in master.db");
-        expect(result.notes).toContain("city of publication not available in master.db");
-        expect(result.notes).toContain("editor / muḥaqqiq not available in master.db");
+        for (const key of ["no_edition_number", "no_publisher", "no_city", "no_editor"] as const) {
+            expect(result.notes).toContain(key);
+        }
     });
 
     it("flags missing author when author is null", () => {
         const result = formatFullCitation(makeBook(), null, PAGE_17);
-        expect(result.notes.some((n) => n.includes("author name"))).toBe(true);
+        expect(result.notes).toContain("no_author_name");
     });
 
     it("flags missing death year when author has no death_year", () => {
@@ -257,18 +261,16 @@ describe("formatFullCitation", () => {
             makeAuthor({ death_year: null }),
             PAGE_17,
         );
-        expect(result.notes.some((n) => n.includes("death year"))).toBe(true);
+        expect(result.notes).toContain("no_death_year");
     });
 
-    it("says the composition year is unavailable, and why, on every citation", () => {
-        // Unconditional now: master.db has no composition year for ANY book,
-        // so the honest note is not a special case — it is the standing state,
-        // and it names what book_date actually is so nobody reads it as one.
+    it("says the composition year is unavailable on every citation", () => {
+        // Unconditional: master.db has no composition year for ANY book — the
+        // sentence for this key names book_date as Shamela's dating stamp.
         for (const book of [makeBook(), makeBook({ book_date: null })]) {
-            const result = formatFullCitation(book, makeAuthor(), PAGE_17);
-            const note = result.notes.find((n) => n.includes("composition year"));
-            expect(note).toBeDefined();
-            expect(note).toContain("dating stamp");
+            expect(formatFullCitation(book, makeAuthor(), PAGE_17).notes).toContain(
+                "no_composition_year",
+            );
         }
     });
 

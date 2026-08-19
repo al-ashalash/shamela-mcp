@@ -5,6 +5,7 @@
  */
 
 import { messages } from "./i18n/index.js";
+import { ayatInSurah, surahName } from "./quran.js";
 
 import { ShamelaNotFoundError } from "./paths.js";
 import { HelperError } from "./helper.js";
@@ -88,6 +89,25 @@ export function ayaNotFound(detail: string): ShamelaError {
     return new ShamelaError("AYA_NOT_FOUND", `Aya ${detail} does not exist (range is 1..6236).`);
 }
 
+/**
+ * The surah+aya form of the same error.
+ *
+ * It used to fall through to ayaNotFound and quote «range is 1..6236» — the
+ * range of the cumulative aya_id, an argument the caller never passed. Asking
+ * for 108:5 got an invitation to retry with any verse number up to 6236, none
+ * of which can ever be valid for سورة الكوثر. The retry advice has to bound
+ * the argument that actually failed.
+ */
+export function ayaOutOfSurah(surah: number, aya: number): ShamelaError {
+    const count = ayatInSurah(surah);
+    const name = surahName(surah);
+    const detail =
+        count === null
+            ? `surah=${surah} does not exist (surahs are 1..114)`
+            : `surah=${surah} aya=${aya} does not exist — surah ${surah}${name ? ` (${name})` : ""} has ${count} ayat (1..${count})`;
+    return new ShamelaError("AYA_NOT_FOUND", `Aya ${detail}.`);
+}
+
 export function emptyScope(diagnostics: Array<{ source: string; contributed: number }>): ShamelaError {
     const lines = diagnostics.map((d) => `  ${d.source}: ${d.contributed}`).join("\n");
     return new ShamelaError("EMPTY_SCOPE", messages().errors.emptyScope(lines), { diagnostics });
@@ -110,6 +130,16 @@ export function badArg(message: string): ShamelaError {
 
 export function serviceKeyNotFound(service: string, key: number): ShamelaError {
     return new ShamelaError("SERVICE_KEY_NOT_FOUND", messages().errors.serviceKeyNotFound(service, key));
+}
+
+/**
+ * The service table has no rows at all — a different fact from "this key is
+ * not in it". On an install with no musnad collections downloaded, every key
+ * produced the same key-blaming message, which reads as "try another key"
+ * when no key can ever resolve.
+ */
+export function serviceEmpty(service: string): ShamelaError {
+    return new ShamelaError("SERVICE_KEY_NOT_FOUND", messages().errors.serviceEmpty(service));
 }
 
 /** Format any error for an MCP tool error response. */

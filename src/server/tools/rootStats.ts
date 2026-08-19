@@ -105,7 +105,8 @@ export interface RootStatsOutput {
     coverage_cap: number;
     /** "all_results" when every matching page was counted; "window" when sampled. */
     coverage_basis: "all_results" | "window";
-    scope_count: number;
+    /** Books the scope resolved to. Absent on an unscoped call — never -1. */
+    scope_count?: number;
     accuracy_note: string;
     by_category: CountItem[];
     by_century: CountItem[];
@@ -173,7 +174,9 @@ export async function runRootStats(
         coverage_capped: raw.coverage.at_cap,
         coverage_cap: COVERAGE_CAP,
         coverage_basis: fullCoverage ? "all_results" : "window",
-        scope_count: scopeCount,
+        // The renderer already guards on >= 0; the payload leaked the raw -1
+        // sentinel, where it reads as a real count of minus one book.
+        ...(scopeCount >= 0 ? { scope_count: scopeCount } : {}),
         accuracy_note: fullCoverage ? L.accuracyNoteFull : L.accuracyNoteSample,
         by_category: enriched.byCategory,
         by_century: enriched.byCentury,
@@ -186,7 +189,7 @@ export async function runRootStats(
         lines.push(
             L.summary(num(data.total_hits), num(data.total_counted), num(data.books_matched)),
         );
-        if (data.scope_count >= 0) lines.push(L.scope(num(data.scope_count)));
+        if (data.scope_count !== undefined) lines.push(L.scope(num(data.scope_count)));
         if (data.coverage_capped) {
             lines.push(L.cappedNote(num(data.coverage_cap)));
         }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { expandPrefixVariants } from "../arabic.js";
+import { expandPrefixVariants, normalizeArabicAya } from "../arabic.js";
 import type { Helper } from "../helper.js";
 import { surahAyaFromId } from "../quran.js";
 import { OptionsInputShape, PaginationInput, ResponseFormatInput } from "../schemas.js";
@@ -90,15 +90,26 @@ function zeroResultSuggestions(query: string, tokens: string[]): string[] {
     const first = words[0] ?? query.trim();
     // i18n:arabic-data — «ال» is the Arabic definite article being added to
     // and stripped from the search word. It is the operation, not a label.
-    if (first.startsWith("ال") && first.length > 3) {
-        out.push(L.tryWithoutAl(first.slice(2)));
-    } else if (first.length > 2) {
-        out.push(L.tryWithAl(`ال${first}`));
+    //
+    // Offered only when the toggled form was NOT already searched. The engine
+    // expands prefix variants, so the ال-toggle is usually among `tokens`
+    // already — and the old first suggestion told the reader to retry a form
+    // this very call had searched, which provably returns the same zero.
+    const searched = new Set(tokens.map((t) => normalizeArabicAya(t.trim())));
+    const toggled =
+        first.startsWith("ال") && first.length > 3
+            ? { form: first.slice(2), had: true }
+            : first.length > 2
+              ? { form: `ال${first}`, had: false }
+              : null;
+    if (toggled && !searched.has(normalizeArabicAya(toggled.form))) {
+        out.push(toggled.had ? L.tryWithoutAl(toggled.form) : L.tryWithAl(toggled.form));
     }
     out.push(L.tryAnotherForm);
     out.push(L.trySearchPages);
     if (tokens.length) {
-        out.push(L.normalizedAs(tokens.slice(0, 5).join(L.tokenSeparator)));
+        // All of them: five of twelve, unmarked, read as the whole list.
+        out.push(L.normalizedAs(tokens.join(L.tokenSeparator)));
     }
     return out;
 }

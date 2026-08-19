@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
 import { MULTIPAGE_CHAR_BUDGET, PAGE_BODY_BUDGET, VERSE_TAIL_MIN_CHARS } from "../constants.js";
-import { ayaNotFound, badArg } from "../errors.js";
+import { ayaNotFound, ayaOutOfSurah, badArg } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { getChunk } from "../longtext.js";
 import type { PageStore } from "../pages.js";
@@ -157,7 +157,7 @@ export async function runGetTafseerTexts(
     if (args.aya_id !== undefined) resolvedId = args.aya_id;
     else if (args.surah !== undefined && args.aya !== undefined) {
         const id = ayaIdFromSurahAya(args.surah, args.aya);
-        if (id === null) throw ayaNotFound(`surah=${args.surah} aya=${args.aya}`);
+        if (id === null) throw ayaOutOfSurah(args.surah!, args.aya!);
         resolvedId = id;
     } else throw badArg("Provide either aya_id or both surah and aya.");
     const sa = surahAyaFromId(resolvedId);

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { serviceKeyNotFound } from "../errors.js";
+import { serviceEmpty, serviceKeyNotFound } from "../errors.js";
 import type { ServiceStore } from "../services.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
@@ -42,7 +42,14 @@ export async function runGetBooksForHadith(
     args: z.infer<typeof getBooksForHadithInput>,
 ): Promise<RenderedResponse<GetBooksForHadithOutput>> {
     const hits = await services.getBooksForKey("hadeeth", args.hadith_key);
-    if (hits.length === 0) throw serviceKeyNotFound("hadeeth", args.hadith_key);
+    if (hits.length === 0) {
+        // Blame the right thing. On an install whose hadith service table is
+        // empty, EVERY key returned the same "no books indexed for key N" —
+        // which reads as "this key is wrong, try another", inviting an endless
+        // walk through keys that must all fail the same way.
+        if (await services.isEmpty("hadeeth")) throw serviceEmpty("hadeeth");
+        throw serviceKeyNotFound("hadeeth", args.hadith_key);
+    }
     const filtered = args.downloaded_only ? hits.filter((h) => catalog.isDownloaded(h.book_id)) : hits;
     const results: HadithHit[] = filtered.map((h) => {
         const rec = catalog.bookRecord(h.book_id);

@@ -24,7 +24,8 @@ export const listCategoriesInput = z.object(listCategoriesInputShape).strict();
 export interface CategoryRow {
     category_id: number;
     category_name: string;
-    book_count: number;
+    /** null when include_counts=false: "not counted", never "zero books". */
+    book_count: number | null;
     /** How many books in this category are downloaded on this machine. */
     downloaded_count: number;
 }
@@ -50,7 +51,7 @@ export function runListCategories(
     let rows: CategoryRow[] = cats.map((c) => ({
         category_id: c.category_id,
         category_name: c.category_name,
-        book_count: args.include_counts ? catalog.booksInCategory(c.category_id).length : 0,
+        book_count: args.include_counts ? catalog.booksInCategory(c.category_id).length : null,
         downloaded_count: downloadedInCategory(c.category_id),
     }));
     if (args.downloaded_only) rows = rows.filter((r) => r.downloaded_count > 0);

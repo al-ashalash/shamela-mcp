@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { ayaNotFound, badArg, serviceKeyNotFound } from "../errors.js";
+import { ayaNotFound, ayaOutOfSurah, badArg, serviceKeyNotFound } from "../errors.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import { ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
@@ -22,7 +22,8 @@ export interface TafseerHit {
     book_id: number;
     book_name: string;
     author_name: string | null;
-    page_id: number;
+    /** Where the commentary sits — several when it runs across pages. */
+    page_ids: number[];
     downloaded: boolean;
 }
 
@@ -50,7 +51,7 @@ export async function runGetTafseerOfAya(
     if (args.aya_id !== undefined) resolvedId = args.aya_id;
     else if (args.surah !== undefined && args.aya !== undefined) {
         const id = ayaIdFromSurahAya(args.surah, args.aya);
-        if (id === null) throw ayaNotFound(`surah=${args.surah} aya=${args.aya}`);
+        if (id === null) throw ayaOutOfSurah(args.surah!, args.aya!);
         resolvedId = id;
     } else throw badArg("Provide either aya_id or both surah and aya.");
     const sa = surahAyaFromId(resolvedId);
@@ -64,16 +65,28 @@ export async function runGetTafseerOfAya(
     const distinctBooks = new Set(hits.map((h) => h.book_id)).size;
 
     const filtered = args.downloaded_only ? hits.filter((h) => catalog.isDownloaded(h.book_id)) : hits;
-    const results: TafseerHit[] = filtered.map((h) => {
+    // One entry per BOOK, its pages gathered and de-duplicated. Row-per-page
+    // results made `returned` (rows) exceed `total` (distinct books) in one
+    // response — 13 over 5 measured — and duplicate table rows repeated
+    // identical entries, so the list overstated the coverage it presented.
+    const byBook = new Map<number, TafseerHit>();
+    for (const h of filtered) {
+        const existing = byBook.get(h.book_id);
+        if (existing) {
+            if (!existing.page_ids.includes(h.page_id)) existing.page_ids.push(h.page_id);
+            continue;
+        }
         const rec = catalog.bookRecord(h.book_id);
-        return {
+        byBook.set(h.book_id, {
             book_id: h.book_id,
             book_name: rec?.book_name ?? `(unknown ${h.book_id})`,
             author_name: rec ? catalog.mainAuthorName(rec) : null,
-            page_id: h.page_id,
+            page_ids: [h.page_id],
             downloaded: catalog.isDownloaded(h.book_id),
-        };
-    });
+        });
+    }
+    const results = [...byBook.values()];
+    for (const r of results) r.page_ids.sort((a, b) => a - b);
     const L = pick(getTafseerOfAyaLabels);
     const out: GetTafseerOfAyaOutput = {
         aya_id: resolvedId,
@@ -99,7 +112,7 @@ export async function runGetTafseerOfAya(
                 L.bookLine(
                     r.book_name,
                     r.author_name ?? "",
-                    String(r.page_id),
+                    r.page_ids.join(", "),
                     r.downloaded,
                 ),
             );
