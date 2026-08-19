@@ -11,6 +11,10 @@ export const resolveLabels: Slice<{
     /** Fragment after a book's id: who wrote it, when the catalogue knows. */
     byAuthor: (name: string) => string;
     bookLine: (name: string, id: string, author: string) => string;
+    /** Appended to a book that is downloaded on this machine. */
+    downloadedTag: string;
+    /** Said when every book hit is undownloaded — searching their text returns nothing. */
+    noneDownloaded: string;
     empty: string;
 }> = {
     ar: {
@@ -21,6 +25,9 @@ export const resolveLabels: Slice<{
         booksHeading: (count) => `الكتب (${count})`,
         byAuthor: (name) => ` — ${name}`,
         bookLine: (name, id, author) => `- **${name}** (id=${id})${author}`,
+        downloadedTag: " — منزَّل",
+        noneDownloaded:
+            "لا شيء من هذه الكتب منزَّلٌ على هذا الجهاز؛ فالبحث في نصوصها يعيد صفرًا. للتنزيل انظر shamela_suggest_download، أو ابحث في المنزَّل بـ shamela_search_books مع downloaded_only.",
         empty: "_لا توجد نتائج. جرِّب صياغة مختلفة أو جزءًا من الاسم._",
     },
     en: {
@@ -32,6 +39,9 @@ export const resolveLabels: Slice<{
         booksHeading: (count) => `Books (${count})`,
         byAuthor: (name) => ` — ${name}`,
         bookLine: (name, id, author) => `- **${name}** (id=${id})${author}`,
+        downloadedTag: " — downloaded",
+        noneDownloaded:
+            "None of these books is downloaded on this machine, so searching their text returns zero. See shamela_suggest_download to fetch one, or search what IS here with shamela_search_books and downloaded_only.",
         empty: "_No results. Try a different wording, or part of the name._",
     },
 };
