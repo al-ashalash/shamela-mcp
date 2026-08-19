@@ -202,15 +202,51 @@ export class AyaIndexStore {
         let medium = 0;
         let low = 0;
         let entries = 0;
-        for (const idx of this.memory.values()) {
+        const count = (idx: BookAyaIndex): void => {
             if (idx.confidence === "high") high++;
             else if (idx.confidence === "medium") medium++;
             else low++;
             entries += idx.coverage.ayat;
+        };
+        for (const idx of this.memory.values()) count(idx);
+
+        // The disk cache too, not only what this session has already loaded.
+        // Counting `memory` alone made health report the index as EMPTY on the
+        // first call after startup — measured: books_indexed 0, then 25 a few
+        // seconds later with no build in between, while all 25 cache files had
+        // sat on disk for three days. The tool whose own advice is "run me
+        // first" was wrong precisely on the first run.
+        //
+        // A file is counted when this build would accept its generation
+        // (schema + builder). The book-file fingerprint is deliberately NOT
+        // checked here: that needs a stat of every book, and a stale entry is
+        // still built work — it revalidates and rebuilds on the next use.
+        let booksSeen = this.memory.size;
+        try {
+            for (const name of fs.readdirSync(this.cacheDir)) {
+                const m = /^(\d+)\.json$/.exec(name);
+                if (!m) continue;
+                const id = Number(m[1]);
+                if (this.memory.has(id)) continue;
+                try {
+                    const parsed = JSON.parse(
+                        fs.readFileSync(path.join(this.cacheDir, name), "utf8"),
+                    ) as BookAyaIndex;
+                    if (parsed.schema !== AYA_INDEX_SCHEMA_VERSION) continue;
+                    if (parsed.builder !== VERSION) continue;
+                    booksSeen++;
+                    count(parsed);
+                } catch {
+                    // A half-written or corrupt file is not an indexed book.
+                }
+            }
+        } catch {
+            // No cache directory yet — nothing on disk to count.
         }
+
         return {
             cache_dir: this.cacheDir,
-            books_indexed: this.memory.size,
+            books_indexed: booksSeen,
             books_high: high,
             books_medium: medium,
             books_low: low,
