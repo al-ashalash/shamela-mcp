@@ -116,7 +116,7 @@ export const healthLabels: Slice<{
         noteNoneReadable:
             "لا صفحات مقروءة في أيٍّ من الكتب المنزَّلة التي فُحصت — قد يكون مسار مجلد الشاملة خاطئًا، أو التنزيلات مبتورة.",
         noteSomeUnreadable: (ids) =>
-            `كتب منزَّلة لا صفحات نصّية فيها (أرقامها: ${ids}) — نسخ مصوَّرة، وليس ذلك عطلًا في الخادم؛ فلا يُنقَل عنها.`,
+            `كتب منزَّلة لم يجد القارئ فيها صفحات نصّية (أرقامها: ${ids}) — الغالب أنها نسخ مصوَّرة، ويحتمل عجز القارئ عن صيغتها؛ ليس عطلًا في الخادم، ولا يُنقَل عنها. فإن أعاد البحث نصًّا من أحدها فذلك تناقض يستحق بلاغًا.`,
         noteNoDownloads:
             "لا كتب منزَّلة، فالبحث في المتون لن يُرجع شيئًا حتى تُنزَّل كتب من برنامج المكتبة الشاملة.",
         noteFlaggedMissing: (count) =>
@@ -173,7 +173,7 @@ export const healthLabels: Slice<{
         noteNoneReadable:
             "NONE of the sampled downloaded books have readable pages — the Shamela database path may be wrong, or downloads are incomplete",
         noteSomeUnreadable: (ids) =>
-            `downloaded but carrying no text pages (ids: ${ids}) — image/scan-only titles, not a server fault; do not quote from them`,
+            `downloaded books in which the reader found no text pages (ids: ${ids}) — most likely image/scan-only titles, though a file format this reader cannot open would look the same; not a server fault, and do not quote from them. If search still returns text from one, that contradiction deserves a bug report`,
         noteNoDownloads:
             "no downloaded books found — page searches will return nothing until books are downloaded in Shamela",
         noteFlaggedMissing: (count) =>

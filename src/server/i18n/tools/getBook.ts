@@ -96,7 +96,7 @@ export const getBookLabels: Slice<{
         hijriDate: (day, month, year) => `${day}/${month}/${year}هـ`,
         notesHeading: "ملاحظات على البيانات المتاحة",
         noteNoPages:
-            "ملف الكتاب موجود على القرص لكن لا صفحات نصّية فيه (نسخة مصوَّرة) — فلا يُنقَل عنه.",
+            "ملف الكتاب موجود على القرص ولم يجد القارئ فيه صفحات نصّية — الغالب أنها نسخة مصوَّرة لا نصية، ويحتمل عجز القارئ عن صيغة الملف. لا يُنقَل عنه؛ فإن أعاد البحث نصًّا من هذا الكتاب فذلك تناقض يستحق بلاغًا.",
         noteFileMissing:
             "الفهرس يعدّ هذا الكتاب منزَّلًا وملفه غير موجود على القرص (تنزيل مبتور، أو مجلد المكتبة نُقل) — فلا يُنقَل عنه.",
         noteSessionDiscovered:
@@ -137,7 +137,7 @@ export const getBookLabels: Slice<{
         hijriDate: (day, month, year) => `${year}-${month}-${day} AH`,
         notesHeading: "Notes on the available data",
         noteNoPages:
-            "the book file is on disk but carries no text pages (an image/scan-only title) — do not quote from it",
+            "the book file is on disk and the reader found no text pages in it — most likely an image/scan-only title, though a file format this reader cannot open would look identical. Do not quote from it; if search still returns text from this book, that contradiction deserves a bug report.",
         noteFileMissing:
             "the catalog flags this book as downloaded but its file is not on disk (interrupted download, or the library folder was moved) — do not quote from it",
         noteSessionDiscovered:
