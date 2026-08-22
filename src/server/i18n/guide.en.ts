@@ -89,7 +89,7 @@ You do not need to memorise tool names. Write your request in plain language, as
   Example: "Give me the details of Majmu' al-Fatawa: its author, its category, and whether I have it."
 - **\`shamela_get_author\`** — an author's details and the list of their books, with the download status of each.
   Example: "Who was Ibn Qudama, and which of his books are in my library?"
-- **\`shamela_resolve\`** — turn a partial Arabic name into the book or author it means in Shamela's catalogues.
+- **\`shamela_resolve\`** — pin down which book or author is meant in Shamela's catalogues from an Arabic name, even a partial one.
   Example: "I mean al-Sharh al-Mumti' — which book is that exactly in the library?"
 - **\`shamela_get_citation\`** — build a ready citation in three styles: Shamela's default, a short form, or an expanded one.
   Example: "Give me the formatted citation for this page in Shamela's style."
