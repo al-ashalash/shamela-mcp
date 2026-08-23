@@ -286,6 +286,7 @@ export const OUTPUT_SCHEMAS = {
     shamela_resolve: {
         query: z.string().optional(),
         normalized_tokens: z.unknown().optional(),
+        transliterated: z.boolean().optional(),
         books: z.array(z.unknown()).optional(),
         authors: z.unknown().optional(),
         ...envelope,
@@ -315,6 +316,7 @@ export const OUTPUT_SCHEMAS = {
         next_offset: z.unknown().optional(),
         query: z.string().optional(),
         normalized_tokens: z.unknown().optional(),
+        transliterated: z.boolean().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
         ...envelope,
@@ -329,6 +331,7 @@ export const OUTPUT_SCHEMAS = {
         normalized_tokens: z.unknown().optional(),
         coverage: z.unknown().optional(),
         by_century: z.unknown().optional(),
+        transliterated: z.boolean().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
         ...envelope,

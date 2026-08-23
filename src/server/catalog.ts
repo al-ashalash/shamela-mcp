@@ -497,6 +497,11 @@ export class Catalog {
     allBooks(): IterableIterator<BookRecord> {
         return this.books.values();
     }
+
+    /** Iterate all authors — for indexes built over the whole catalog. */
+    allAuthors(): IterableIterator<AuthorRecord> {
+        return this.authors.values();
+    }
 }
 
 function parseMeta(raw: string | null): BookMeta | null {

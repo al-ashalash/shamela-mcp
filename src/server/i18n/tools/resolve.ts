@@ -16,6 +16,8 @@ export const resolveLabels: Slice<{
     /** Said when every book hit is undownloaded — searching their text returns nothing. */
     noneDownloaded: string;
     empty: string;
+    /** Nothing found, and the Latin spelling was tried too. */
+    emptyLatin: string;
 }> = {
     ar: {
         heading: (query) => `نتائج البحث عن «${query}»`,
@@ -29,6 +31,8 @@ export const resolveLabels: Slice<{
         noneDownloaded:
             "لا شيء من هذه الكتب منزَّلٌ على هذا الجهاز؛ فالبحث في نصوصها يعيد صفرًا. للتنزيل انظر shamela_suggest_download، أو ابحث في المنزَّل بـ shamela_search_books مع downloaded_only.",
         empty: "_لا توجد نتائج. جرِّب صياغة مختلفة أو جزءًا من الاسم._",
+        emptyLatin:
+            "_لا نتائج، ولا في مقابلة الرسم اللاتيني بأسماء الفهرس. جرِّب رسمًا آخر للاسم، أو اكتبه بالعربية._",
     },
     en: {
         heading: (query) => `Search results for "${query}"`,
@@ -43,6 +47,8 @@ export const resolveLabels: Slice<{
         noneDownloaded:
             "None of these books is downloaded on this machine, so searching their text returns zero. See shamela_suggest_download to fetch one, or search what IS here with shamela_search_books and downloaded_only.",
         empty: "_No results. Try a different wording, or part of the name._",
+        emptyLatin:
+            "_No results, and matching the Latin spelling against the catalogue's names found none either. Try another spelling, or write the name in Arabic._",
     },
 };
 

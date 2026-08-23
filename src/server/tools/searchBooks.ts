@@ -15,7 +15,10 @@ import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { catalogueAdvice, noResultsLabels } from "../i18n/tools/noResults.js";
 import { searchBooksLabels } from "../i18n/tools/searchBooks.js";
+import { transliterationLabels } from "../i18n/tools/transliteration.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
+import { RomanIndex } from "../romanIndex.js";
+import { isLatinQuery } from "../romanize.js";
 
 // scope.book_ids isn't useful when searching the catalog; expose the rest.
 const SearchBooksScopeShape = {
@@ -27,7 +30,7 @@ const SearchBooksScopeShape = {
 };
 
 export const searchBooksInputShape = {
-    query: z.string().min(1).describe("Arabic search phrase matched against the book name + author + bibliography concatenation."),
+    query: z.string().min(1).describe("Arabic search phrase matched against the book name + author + bibliography concatenation. A phrase in Latin letters ('Sahih Muslim', 'al-Mughni') is matched against the Arabic names by spelling instead, and the answer says so."),
     scope: z.object(SearchBooksScopeShape).strict().optional().describe("Optional: restrict to specific authors, categories, periods, or downloaded-only."),
     options: z.object(OptionsInputShape).strict().optional().describe("morphology / wildcards / preserve_*."),
     ...PaginationInput,
@@ -59,6 +62,12 @@ export interface SearchBooksOutput {
     query: string; normalized_tokens: string[];
     /** Present only when nothing matched: what to try next. */
     suggestions?: string[];
+    /**
+     * The index had nothing for a query written in Latin letters, so these
+     * were reached by matching that spelling against the catalogue's Arabic
+     * names. Candidates to confirm, not index hits.
+     */
+    transliterated?: boolean;
     coverage: { by_category: Record<string, number>; by_century: Record<string, number> };
     results: SearchBookHit[];
 }
@@ -69,6 +78,7 @@ export async function runSearchBooks(
     args: z.infer<typeof searchBooksInput>,
 ): Promise<RenderedResponse<SearchBooksOutput>> {
     let scopeBookKeys: string[] | null = null;
+    let scopeIds: Set<number> | null = null;
     if (args.scope) {
         const scopeInput: ScopeInputType = {
             ...(args.scope as ScopeInputType),
@@ -77,6 +87,7 @@ export async function runSearchBooks(
         const resolved = new CatalogScope(catalog).resolveBookIds(scopeInput);
         if (resolved.book_ids.length === 0) throw emptyScope(resolved.diagnostics);
         scopeBookKeys = resolved.book_ids.map(String);
+        scopeIds = new Set(resolved.book_ids);
     }
     // Bug #2 workaround: SearchBooks.java applies scope only as a post-fetch
     // filter on `results`, so the helper's `total_hits` / `has_more` /
@@ -106,9 +117,29 @@ export async function runSearchBooks(
         raw.has_more = end < all.length;
         raw.next_offset = raw.has_more ? end : undefined;
     }
+    // Only once the Arabic index has answered with nothing, and only for a
+    // query with no Arabic in it. A spelling guess must never stand in front
+    // of a real hit — it takes the empty answer, not the good one.
+    const transliterated = raw.total_hits === 0 && isLatinQuery(args.query);
+    let romanKeys: Record<string, number> | null = null;
+    if (transliterated) {
+        let hits = RomanIndex.for(catalog).books(args.query).hits;
+        if (scopeIds) hits = hits.filter((h) => scopeIds!.has(h.book_id));
+        const window = hits.slice(args.offset, args.offset + args.limit);
+        raw.results = window.map((h) => ({ book_id: h.book_id, snippet: "" }));
+        raw.total_hits = hits.length;
+        raw.returned = window.length;
+        raw.offset = args.offset;
+        raw.has_more = args.offset + window.length < hits.length;
+        raw.next_offset = raw.has_more ? args.offset + window.length : undefined;
+        // Coverage describes every match, not the page of it on screen — the
+        // same contract the engine's own coverage carries.
+        romanKeys = {};
+        for (const h of hits) romanKeys[String(h.book_id)] = 1;
+    }
     const byCat: Record<string, number> = {};
     const byCentury: Record<string, number> = {};
-    const items = Object.entries(raw.coverage.by_book_key).sort((a, b) => b[1] - a[1]);
+    const items = Object.entries(romanKeys ?? raw.coverage.by_book_key).sort((a, b) => b[1] - a[1]);
     for (const [k, c] of items) {
         const id = parseInt(k, 10);
         const rec = !Number.isNaN(id) ? catalog.bookRecord(id) : undefined;
@@ -143,6 +174,7 @@ export async function runSearchBooks(
         // every book Shamela knows of, so an empty answer really is about how
         // the name is spelled.
         ...(raw.total_hits === 0 ? { suggestions: catalogueAdvice("books") } : {}),
+        ...(transliterated ? { transliterated: true } : {}),
         coverage: { by_category: byCat, by_century: byCentury },
         results,
     };
@@ -150,6 +182,7 @@ export async function runSearchBooks(
         const L = pick(searchBooksLabels);
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_hits), num(data.returned)));
+        if (data.transliterated) lines.push("", `> *${pick(transliterationLabels).note}*`);
         if (data.suggestions?.length) {
             lines.push("", pick(noResultsLabels).headingCatalogue);
             for (const s of data.suggestions) lines.push(`- ${s}`);

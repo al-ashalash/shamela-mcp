@@ -3,17 +3,20 @@ import { z } from "zod";
 import { normalizeArabic } from "../arabic.js";
 import type { Catalog } from "../catalog.js";
 import type { Helper } from "../helper.js";
+import { RomanIndex } from "../romanIndex.js";
+import { isLatinQuery } from "../romanize.js";
 import { ResponseFormatInput } from "../schemas.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { resolveLabels } from "../i18n/tools/resolve.js";
+import { transliterationLabels } from "../i18n/tools/transliteration.js";
 
 export const resolveInputShape = {
     query: z
         .string()
         .min(1)
         .describe(
-            "Arabic name fragment to resolve. Use partial names: 'ابن قدامة' resolves Ibn Qudamah, 'الروضة' resolves books with that word in their title.",
+            "Name fragment to resolve. Use partial names: 'ابن قدامة' resolves Ibn Qudamah, 'الروضة' resolves books with that word in their title. A name written in Latin letters ('Ibn Qudama', 'al-Mughni') is answered by matching its spelling against the Arabic names, and the answer says so.",
         ),
     type: z
         .enum(["any", "book", "author"])
@@ -46,6 +49,12 @@ export interface ResolveBookHit {
      * hit. Every other id-producing tool already reports it.
      */
     downloaded: boolean;
+    /**
+     * The engine's confidence, or — on a transliterated answer — the share of
+     * the Arabic name's letters the Latin spelling accounts for, where 1 means
+     * it left nothing unexplained. The two are never mixed in one response;
+     * `transliterated` says which this is.
+     */
     score: number;
 }
 
@@ -97,6 +106,12 @@ const RERANK_POOL = 20;
 export interface ResolveOutput {
     query: string;
     normalized_tokens: string[];
+    /**
+     * The Arabic indexes returned nothing for a query written in Latin
+     * letters, so these names were reached by matching that spelling against
+     * the catalogue. Candidates to confirm, not index hits.
+     */
+    transliterated?: boolean;
     books: ResolveBookHit[];
     authors: ResolveAuthorHit[];
 }
@@ -158,15 +173,52 @@ export async function runResolve(
         .sort(byTier)
         .slice(0, args.limit)
         .map((x) => x.hit);
+    // Only after both Arabic indexes have come back empty, and only for a
+    // query with no Arabic in it: a spelling guess must never displace a
+    // real hit, and a query that already has Arabic in it does not need one.
+    const transliterated = !books.length && !authors.length && isLatinQuery(args.query);
+    if (transliterated) {
+        const index = RomanIndex.for(catalog);
+        // How much of the Arabic name the spelling actually reached, which is
+        // the only confidence a letter comparison can honestly report.
+        const share = (m: { aligned: number; skipped: number }) =>
+            Math.round((m.aligned / (m.aligned + m.skipped)) * 100) / 100;
+        if (args.type !== "author") {
+            for (const h of index.books(args.query).hits.slice(0, args.limit)) {
+                const rec = catalog.bookRecord(h.book_id);
+                books.push({
+                    book_id: h.book_id,
+                    book_name: rec?.book_name ?? `(unknown ${h.book_id})`,
+                    author_name: rec ? catalog.mainAuthorName(rec) : null,
+                    downloaded: catalog.isDownloaded(h.book_id),
+                    score: share(h.match),
+                });
+            }
+        }
+        if (args.type !== "book") {
+            for (const h of index.authors(args.query).hits.slice(0, args.limit)) {
+                const rec = catalog.authorRecord(h.author_id);
+                authors.push({
+                    author_id: h.author_id,
+                    author_name: rec?.author_name ?? `(unknown ${h.author_id})`,
+                    death_year: rec?.death_year ?? null,
+                    book_count: catalog.booksByAuthorId(h.author_id).length,
+                    score: share(h.match),
+                });
+            }
+        }
+    }
     const out: ResolveOutput = {
         query: raw.query,
         normalized_tokens: raw.normalized_tokens,
+        ...(transliterated ? { transliterated: true } : {}),
         books,
         authors,
     };
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(resolveLabels);
         const lines: string[] = [header(1, L.heading(data.query))];
+        if (data.transliterated) lines.push("", `> *${pick(transliterationLabels).note}*`);
         if (data.authors.length) {
             lines.push("", header(2, L.authorsHeading(num(data.authors.length))));
             for (const a of data.authors) {
@@ -195,7 +247,7 @@ export async function runResolve(
             if (data.books.every((b) => !b.downloaded)) lines.push("", `> *${L.noneDownloaded}*`);
         }
         if (!data.books.length && !data.authors.length) {
-            lines.push("", L.empty);
+            lines.push("", data.transliterated ? L.emptyLatin : L.empty);
         }
         return lines.join("\n");
     });

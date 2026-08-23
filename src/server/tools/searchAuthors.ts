@@ -8,11 +8,14 @@ import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { catalogueAdvice, noResultsLabels } from "../i18n/tools/noResults.js";
 import { searchAuthorsLabels } from "../i18n/tools/searchAuthors.js";
+import { transliterationLabels } from "../i18n/tools/transliteration.js";
 import { RERANK_POOL, rankByName } from "./authorRanking.js";
 import { COVERAGE_CAP } from "../constants.js";
+import { RomanIndex } from "../romanIndex.js";
+import { isLatinQuery } from "../romanize.js";
 
 export const searchAuthorsInputShape = {
-    query: z.string().min(1).describe("Arabic search phrase matched against author name + biography."),
+    query: z.string().min(1).describe("Arabic search phrase matched against author name + biography. A name in Latin letters ('Ibn Qudama', 'al-Ghazali') is matched against the Arabic names by spelling instead, and the answer says so."),
     options: z.object(OptionsInputShape).strict().optional().describe("morphology / wildcards. No scope (authors aren't scoped by category/period)."),
     ...PaginationInput,
     ...ResponseFormatInput,
@@ -40,6 +43,12 @@ export interface SearchAuthorsOutput {
     query: string; normalized_tokens: string[];
     /** Present only when nothing matched: what to try next. */
     suggestions?: string[];
+    /**
+     * The index had nothing for a query written in Latin letters, so these
+     * were reached by matching that spelling against the catalogue's Arabic
+     * names. Candidates to confirm, not index hits.
+     */
+    transliterated?: boolean;
     results: SearchAuthorHit[];
 }
 
@@ -62,7 +71,7 @@ export async function runSearchAuthors(
         offset: rerank ? 0 : args.offset,
         options: args.options ?? {},
     });
-    const ordered = rerank
+    let ordered: Array<{ author_id: number; snippet: string }> = rerank
         ? rankByName(
               raw.results.map((h) => ({
                   ...h,
@@ -72,6 +81,18 @@ export async function runSearchAuthors(
               raw.normalized_tokens,
           ).slice(args.offset, windowEnd)
         : raw.results;
+    // Only once the Arabic index has answered with nothing, and only for a
+    // query with no Arabic in it: the spelling guess takes the empty answer,
+    // never a good one.
+    const transliterated = raw.total_hits === 0 && isLatinQuery(args.query);
+    let romanTotal = 0;
+    if (transliterated) {
+        const hits = RomanIndex.for(catalog).authors(args.query).hits;
+        romanTotal = hits.length;
+        ordered = hits
+            .slice(args.offset, args.offset + args.limit)
+            .map((h) => ({ author_id: h.author_id, snippet: "" }));
+    }
     const results: SearchAuthorHit[] = ordered.map((h) => {
         const rec = catalog.authorRecord(h.author_id);
         return {
@@ -86,9 +107,13 @@ export async function runSearchAuthors(
     // was fetched: with rerank on, raw.returned is up to 100 and raw.offset 0.
     const shown = args.offset + results.length;
     // COVERAGE_CAP is the same 5,000-row ceiling the engine pages against.
-    const more = rerank ? shown < Math.min(raw.total_hits, COVERAGE_CAP) : raw.has_more;
+    const more = transliterated
+        ? shown < romanTotal
+        : rerank
+          ? shown < Math.min(raw.total_hits, COVERAGE_CAP)
+          : raw.has_more;
     const out: SearchAuthorsOutput = {
-        total_hits: raw.total_hits,
+        total_hits: transliterated ? romanTotal : raw.total_hits,
         returned: results.length,
         offset: args.offset,
         has_more: more,
@@ -96,13 +121,15 @@ export async function runSearchAuthors(
         query: raw.query, normalized_tokens: raw.normalized_tokens,
         // No download line here: the author index is catalogue-wide, so an
         // empty answer is about the spelling of the name.
-        ...(raw.total_hits === 0 ? { suggestions: catalogueAdvice("authors") } : {}),
+        ...(romanTotal === 0 && raw.total_hits === 0 ? { suggestions: catalogueAdvice("authors") } : {}),
+        ...(transliterated ? { transliterated: true } : {}),
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchAuthorsLabels);
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_hits), num(data.returned)));
+        if (data.transliterated) lines.push("", `> *${pick(transliterationLabels).note}*`);
         if (data.suggestions?.length) {
             lines.push("", pick(noResultsLabels).headingCatalogue);
             for (const s of data.suggestions) lines.push(`- ${s}`);
