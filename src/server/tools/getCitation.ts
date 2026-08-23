@@ -146,6 +146,16 @@ export async function runGetCitation(
         lines.push("```");
         lines.push(data.formatted);
         lines.push("```");
+        // A citation a reader cannot check is a citation taken on trust. The
+        // address is composed locally from Shamela's own ids — nothing here
+        // fetches it — and it says plainly when it points at the book rather
+        // than the page, so a book-level link is never read as the passage's.
+        lines.push(
+            "",
+            data.components.source_url_is_book_level
+                ? L.sourceUrlBookLevel(data.components.source_url)
+                : L.sourceUrl(data.components.source_url),
+        );
         if (data.notes.length) {
             lines.push("", header(2, L.notesHeading));
             for (const n of data.notes) lines.push(`- ${n}`);

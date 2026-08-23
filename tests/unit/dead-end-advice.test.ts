@@ -86,3 +86,23 @@ describe("get_tafseer_texts does not invite browsing a book that does not exist"
         }
     });
 });
+
+describe("an opaque field is named, not half-parsed", () => {
+    // Peer lesson (tafsir-mcp): when code deliberately does not interpret a
+    // raw payload, say so and say what the format is — a half-parse that looks
+    // authoritative is worse than an honest hand-over.
+    it("get_page_services explains the raw services blob in both languages", async () => {
+        const { getPageServicesLabels } = await import(
+            "../../src/server/i18n/tools/getPageServices.js"
+        );
+        for (const lang of ["ar", "en"] as const) {
+            const note = getPageServicesLabels[lang].rawNote;
+            expect(note, lang).toBeTruthy();
+            expect(note, lang).toContain("raw");
+            // It must say the meaning comes from Shamela's own convention…
+            expect(note, lang).toMatch(/الشاملة|Shamela/);
+            // …and warn against building on it.
+            expect(note, lang).toMatch(/لا يُبنى عليه|do not build/);
+        }
+    });
+});

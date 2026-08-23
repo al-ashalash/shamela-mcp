@@ -11,6 +11,7 @@
 
 import type { AuthorRecord, BookRecord } from "./catalog.js";
 import { arabize } from "./format.js";
+import { SHAMELA_WEB } from "./constants.js";
 
 const BOOK_PLACEHOLDER = "الكتاب"; // treated same as null part
 
@@ -30,6 +31,17 @@ export interface CitationComponents {
     part: string | null;
     printed_page: string | null;
     auto_numbered: boolean; // true when book.printed != 1
+    /**
+     * A canonical, human-verifiable address for the passage on shamela.ws.
+     *
+     * Page-level when the page is established, book-level when it is not — and
+     * `source_url_is_book_level` says which, so a book-level link is never read
+     * as pointing at the page that was quoted. This is a STRING the extension
+     * writes; nothing here fetches it, and the reader's browser is what would.
+     * The ids are Shamela's own, already in the local catalogue.
+     */
+    source_url: string;
+    source_url_is_book_level: boolean;
 }
 
 /**
@@ -75,6 +87,14 @@ export function buildComponents(
         part: partRaw && partRaw.trim() ? partRaw.trim() : null,
         printed_page: page?.page !== null && page?.page !== undefined ? String(page.page) : null,
         auto_numbered: book.printed !== 1,
+        // The address uses page_id — Shamela's own key, the one its site routes
+        // on — not the printed page, which is a different number under the same
+        // word and would open the wrong place.
+        source_url:
+            page?.page_id !== undefined && page.page_id !== null
+                ? `${SHAMELA_WEB}/book/${book.book_id}/${page.page_id}`
+                : `${SHAMELA_WEB}/book/${book.book_id}`,
+        source_url_is_book_level: page?.page_id === undefined || page.page_id === null,
     };
 }
 

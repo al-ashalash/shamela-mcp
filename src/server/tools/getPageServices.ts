@@ -59,6 +59,10 @@ export async function runGetPageServices(
         if (data.ayat.length) lines.push(L.ayat(String(data.ayat.length), data.ayat.join(", ")));
         if (data.hadeeth.length) lines.push(L.hadeeth(String(data.hadeeth.length), data.hadeeth.join(", ")));
         if (data.esnad.length) lines.push(L.esnad(String(data.esnad.length)));
+        // Name the opaque field for what it is, beside the data drawn from it.
+        // Half-parsing it into something that looks authoritative would be
+        // worse than handing it over whole and saying what it is.
+        if (data.raw !== null && data.raw !== undefined) lines.push("", L.rawNote);
         return lines.join("\n");
     });
 }

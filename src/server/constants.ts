@@ -71,3 +71,11 @@ export const AYA_INDEX_MIN_TITLE_TEXT_RATIO = 0.5;
  * الطبري's «القول في تأويل قوله» line is shorter still.
  */
 export const VERSE_TAIL_MIN_CHARS = 400;
+
+/**
+ * Shamela's public site. Addresses are COMPOSED from it as text and never
+ * fetched — the extension makes no network request of any kind; the reader's
+ * browser is what would open one. Kept here so the citation surface and the
+ * download-guidance surface cannot drift into two different link shapes.
+ */
+export const SHAMELA_WEB = "https://shamela.ws";

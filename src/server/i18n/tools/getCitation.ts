@@ -19,6 +19,10 @@ export const getCitationLabels: Slice<{
     notePageNotFound: (pageId: string) => string;
     /** The full style's "what master.db does not have" notes, keyed. */
     fullNotes: Record<import("../../citation.js").CitationNoteKey, string>;
+    /** A checkable address for the passage on shamela.ws — composed, never fetched. */
+    sourceUrl: (url: string) => string;
+    /** The same, when only the book could be addressed and not the page. */
+    sourceUrlBookLevel: (url: string) => string;
 }> = {
     ar: {
         heading: "الإحالة",
@@ -39,6 +43,9 @@ export const getCitationLabels: Slice<{
             no_city: "بلد النشر غير محفوظ في master.db.",
             no_editor: "المحقق غير محفوظ في master.db.",
         },
+        sourceUrl: (url) => `**الموضع على شاملة الويب:** ${url}`,
+        sourceUrlBookLevel: (url) =>
+            `**الموضع على شاملة الويب:** ${url} — *وهذا عنوان الكتاب لا الصفحة، إذ لم تتحدَّد صفحةٌ بعينها.*`,
     },
     en: {
         heading: "Citation",
@@ -60,5 +67,8 @@ export const getCitationLabels: Slice<{
             no_city: "city of publication not available in master.db",
             no_editor: "editor / muḥaqqiq not available in master.db",
         },
+        sourceUrl: (url) => `**On shamela.ws:** ${url}`,
+        sourceUrlBookLevel: (url) =>
+            `**On shamela.ws:** ${url} — *this addresses the BOOK, not a page: no particular page was established.*`,
     },
 };

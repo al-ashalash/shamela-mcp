@@ -21,6 +21,7 @@
 import { z } from "zod";
 
 import { normalizeArabic } from "../arabic.js";
+import { SHAMELA_WEB } from "../constants.js";
 import type { Catalog } from "../catalog.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
@@ -86,7 +87,7 @@ export interface SuggestDownloadOutput {
     notes: string[];
 }
 
-const BOOK_PAGE = (id: number): string => `https://shamela.ws/book/${id}`;
+const BOOK_PAGE = (id: number): string => `${SHAMELA_WEB}/book/${id}`;
 
 /**
  * Match a title or author name the way someone would type it from memory.
