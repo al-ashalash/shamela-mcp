@@ -2364,6 +2364,11 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "attributed_to": {
+          "description": "Author id of the scholar a view is being attributed to. Each hit is then marked `provenance`: 'primary' when the book is that scholar's own work, 'report' when it is someone else's book reporting him. Use it whenever the question is 'what did X hold' — the two are not the same evidence, and a report may be a paraphrase, a summary, or a later school's reading. Get the id from shamela_resolve. Example: shamela_search_pages({query:'الاستصناع', attributed_to:<id of الشافعي>}).",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
         "limit": {
           "default": 20,
           "description": "Maximum number of results to return (1-100, default 20).",
@@ -2554,6 +2559,7 @@
           "type": "number"
         },
         "scope_count": {},
+        "searched": {},
         "suggestions": {
           "items": {
             "type": "string"

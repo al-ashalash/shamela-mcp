@@ -23,6 +23,14 @@ export const searchPagesInputShape = {
     query: z.string().min(1).describe("Arabic search phrase. Multiple words are AND-combined; each can match in body or footnotes."),
     scope: z.object(ScopeInputShape).strict().optional().describe("Restrict the search to specific books, authors, categories, or a Hijri date range. Use shamela_list_categories / shamela_resolve to find IDs."),
     options: z.object(OptionsInputShape).strict().optional().describe("Search options: morphology, wildcards, search_in (body/foot/comment), preserve_*. Defaults to body+foot, no toggles."),
+    attributed_to: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe(
+            "Author id of the scholar a view is being attributed to. Each hit is then marked `provenance`: 'primary' when the book is that scholar's own work, 'report' when it is someone else's book reporting him. Use it whenever the question is 'what did X hold' — the two are not the same evidence, and a report may be a paraphrase, a summary, or a later school's reading. Get the id from shamela_resolve. Example: shamela_search_pages({query:'الاستصناع', attributed_to:<id of الشافعي>}).",
+        ),
     ...PaginationInput,
     ...ResponseFormatInput,
 };
@@ -70,6 +78,14 @@ export interface SearchPageHit {
      * get_page will refuse. Issue #47: a hit that cannot be read must say so.
      */
     readable: boolean;
+    /**
+     * Only when `attributed_to` was given. 'primary' means the book is that
+     * scholar's own work, so the passage is his words; 'report' means another
+     * author's book reporting him, which may be paraphrase, summary, or a
+     * later school's reading. Computed from the book/author ids the catalogue
+     * already holds — no outside table, no inference.
+     */
+    provenance?: "primary" | "report";
     snippet_body: string;
     snippet_foot: string;
     snippet_comment?: string;
@@ -84,6 +100,22 @@ export interface SearchPagesOutput {
     query: string;
     normalized_tokens: string[];
     scope_count: number;
+    /**
+     * What was actually searched, not only what was found.
+     *
+     * A hit list says what turned up; it never says how much was looked at, so
+     * a reader cannot tell a thin answer from a thin library. These are exact
+     * local facts — the number of books this query could reach, and how many
+     * are downloaded at all — not an estimate about the world.
+     */
+    searched: {
+        /** Books the query could reach: the scope's size, or the whole downloaded shelf. */
+        books: number;
+        /** Books downloaded on this machine — the ceiling on any search here. */
+        downloaded_total: number;
+        /** True when a scope narrowed the search below that ceiling. */
+        scoped: boolean;
+    };
     /**
      * Present only when nothing matched: what to try next, most likely cause
      * first. A zero here does not mean the wording is absent from the tradition
@@ -174,6 +206,14 @@ export async function runSearchPages(
 
     const enriched: SearchPageHit[] = raw.results.map((hit) => {
         const rec = catalog.bookRecord(hit.book_id);
+        // Is this book the named scholar's own, or someone reporting him?
+        // bookAuthors covers co-authors, so a work he shares is still his.
+        const provenance =
+            args.attributed_to === undefined || !rec
+                ? undefined
+                : catalog.bookAuthors(rec).some((a) => a.author_id === args.attributed_to)
+                  ? ("primary" as const)
+                  : ("report" as const);
         return {
             book_id: hit.book_id,
             book_name: rec?.book_name ?? `(unknown ${hit.book_id})`,
@@ -185,12 +225,15 @@ export async function runSearchPages(
             matched_in: hit.matched_in,
             // The same judgement the reading gate makes, so search and read agree.
             readable: catalog.isDownloaded(hit.book_id) || catalog.confirmOnDisk(hit.book_id),
+            ...(provenance ? { provenance } : {}),
             snippet_body: hit.snippet_body,
             snippet_foot: hit.snippet_foot,
             ...(hit.snippet_comment ? { snippet_comment: hit.snippet_comment } : {}),
         };
     });
 
+    // The denominator the reader needs to weigh any count above it.
+    const downloadedTotal = catalog.downloadedBookIds().size;
     const coverage = enrichCoverage(raw.coverage, catalog);
     // Words the index folds into a different lexeme. Read off the query the
     // user typed, not the normalized tokens — by then the evidence is gone.
@@ -204,6 +247,11 @@ export async function runSearchPages(
         query: raw.query,
         normalized_tokens: raw.normalized_tokens,
         scope_count: scopeCount,
+        searched: {
+            books: scopeCount >= 0 ? scopeCount : downloadedTotal,
+            downloaded_total: downloadedTotal,
+            scoped: scopeCount >= 0,
+        },
         ...(raw.total_hits === 0
             ? {
                   suggestions: pageSearchAdvice({
@@ -222,6 +270,11 @@ export async function runSearchPages(
         const lines = [header(1, L.heading(data.query))];
         lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset), data.total_hits));
         if (data.scope_count >= 0) lines.push(L.scopeLine(num(data.scope_count), data.scope_count));
+        // What was searched, beside what was found — so a thin answer is not
+        // mistaken for a thin tradition.
+        lines.push(
+            L.searchedLine(num(data.searched.books), num(data.searched.downloaded_total), data.searched.scoped),
+        );
         // Directly under the count it qualifies. A caveat printed at the foot,
         // after twenty results, is a caveat nobody reads.
         for (const c of data.caveats ?? []) lines.push("", `> *${c}*`);
@@ -247,6 +300,14 @@ export async function runSearchPages(
             // the caveat reads as part of the byline.
             if (!r.readable) lines.push(`**${L.unreadableHit}**`, "");
             if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
+            // On the byline, where the reader weighs whose words these are: a
+            // scholar's own book and a later report of him are not the same
+            // evidence, and the difference is invisible in a snippet.
+            if (r.provenance) {
+                lines.push(
+                    `\`${r.provenance === "primary" ? L.provenancePrimary : L.provenanceReport}\``,
+                );
+            }
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);
             if (r.snippet_foot) lines.push("", `> ${L.footLabel}${r.snippet_foot}`);
             lines.push("");

@@ -372,6 +372,8 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_search_pages: {
+        /** What was searched, not only what was found — see SearchPagesOutput.searched. */
+        searched: z.unknown().optional(),
         total_hits: z.number().optional(),
         returned: z.number().optional(),
         offset: z.number().optional(),

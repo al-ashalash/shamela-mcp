@@ -23,6 +23,17 @@ export const searchPagesLabels: Slice<{
      * words share a term with a different lexeme.
      */
     hamzaFold: (words: string[]) => string;
+    /**
+     * What was SEARCHED, beside what was found.
+     *
+     * A hit list says what turned up and never how much was looked at, so a
+     * thin answer reads as a thin tradition. These are exact local facts, not
+     * an estimate about the world.
+     */
+    searchedLine: (books: string, downloaded: string, scoped: boolean) => string;
+    /** Marks a hit as the named scholar's own work, or as someone reporting him. */
+    provenancePrimary: string;
+    provenanceReport: string;
 }> = {
     ar: {
         unreadableHit: "⚠️ ملف الكتاب غير موجود على القرص — لن تنجح قراءته",
@@ -34,6 +45,12 @@ export const searchPagesLabels: Slice<{
         bookDate: (year) => ` — ${year}هـ`,
         footLabel: "_حاشية_: ",
         more: (offset) => `*للمزيد، استخدم \`offset=${offset}\`.*`,
+        searchedLine: (books, downloaded, scoped) =>
+            scoped
+                ? `بُحث في **${books}** كتابًا من ${downloaded} منزَّلًا على هذا الجهاز؛ والفهرس لا يشمل غير المنزَّل.`
+                : `بُحث في **${books}** كتابًا — وهي كل المنزَّل على هذا الجهاز؛ والفهرس لا يشمل غيرها.`,
+        provenancePrimary: "من كتب صاحب القول",
+        provenanceReport: "نقلٌ عنه في كتاب غيره",
         hamzaFold: (words) =>
             `تنبيه: فهرس الشاملة يُذيب الهمزة في «يء»، فيصير ${words.map((w) => `«${w}»`).join(" و")} في الفهرس لفظًا واحدًا مع نظيره بلا همزة (فـ«بريء» تُطابِق «بريّ»). فالعدد أعلاه يشمل اللفظين، ولا يخصّه هذا البحث. وللفصل بينهما استعمل \`shamela_search_exact\` بـ \`preserve_hamza\`، فهو يعيد قراءة نصّ الصفحة نفسه.`,
     },
@@ -47,6 +64,12 @@ export const searchPagesLabels: Slice<{
         bookDate: (year) => ` — ${year} AH`,
         footLabel: "_hashiya_ (footnote): ",
         more: (offset) => `*For more, use \`offset=${offset}\`.*`,
+        searchedLine: (books, downloaded, scoped) =>
+            scoped
+                ? `Searched **${books}** of the ${downloaded} books downloaded on this machine; the index covers nothing else.`
+                : `Searched **${books}** books — everything downloaded on this machine; the index covers nothing else.`,
+        provenancePrimary: "the scholar's own work",
+        provenanceReport: "reported in another author's book",
         // The caveat is ABOUT two Arabic spellings collapsing into one index
         // term, and no English sentence can say which spellings without
         // printing them; transliterating would hide the very distinction being
