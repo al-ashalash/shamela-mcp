@@ -127,6 +127,8 @@ export const OUTPUT_SCHEMAS = {
         ...envelope,
     },
     shamela_get_page: {
+        /** Present only when around_phrase was given — see GetPageOutput.excerpt. */
+        excerpt: z.unknown().optional(),
         book_id: z.number().optional(),
         book_name: z.string().optional(),
         author_name: z.unknown().optional(),

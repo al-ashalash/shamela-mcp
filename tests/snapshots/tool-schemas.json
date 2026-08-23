@@ -585,6 +585,18 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "around_phrase": {
+          "description": "Return only the window around this phrase instead of the page body — for when you already know the wording and want to read it in its sentence. Matching ignores diacritics, so the phrase may be typed bare. If the phrase is not on the page the body comes back as normal with a note saying so; nothing approximate is ever returned. Ignored when the page has no body. Example: shamela_get_page({book_id:9942, page_id:63, around_phrase:'الوضوء لا ينتقض'}).",
+          "minLength": 2,
+          "type": "string"
+        },
+        "around_radius": {
+          "default": 300,
+          "description": "Characters to keep either side of `around_phrase` (40–2000, default 300). Snapped outward to word boundaries.",
+          "maximum": 2000,
+          "minimum": 40,
+          "type": "integer"
+        },
         "body_part": {
           "default": 1,
           "description": "For long pages: when the body exceeds ~4000 characters it is split into parts. Pass the 1-based part to read (default 1). The response reports body_part/body_total_parts/body_has_more; request the next part by incrementing. The footnote/comment are returned with part 1.",
@@ -653,6 +665,7 @@
           "type": "boolean"
         },
         "containing_titles": {},
+        "excerpt": {},
         "foot": {
           "type": "string"
         },

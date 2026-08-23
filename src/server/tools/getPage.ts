@@ -4,6 +4,7 @@ import type { Catalog } from "../catalog.js";
 import { PAGE_BODY_BUDGET } from "../constants.js";
 import { pageNotFound } from "../errors.js";
 import type { Helper } from "../helper.js";
+import { excerptAround } from "../excerpt.js";
 import { getChunk } from "../longtext.js";
 import type { PageStore, TocEntry } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
@@ -25,6 +26,20 @@ export const getPageInputShape = {
         .describe(
             `For long pages: when the body exceeds ~${PAGE_BODY_BUDGET} characters it is split into parts. Pass the 1-based part to read (default 1). The response reports body_part/body_total_parts/body_has_more; request the next part by incrementing. The footnote/comment are returned with part 1.`,
         ),
+    around_phrase: z
+        .string()
+        .min(2)
+        .optional()
+        .describe(
+            "Return only the window around this phrase instead of the page body — for when you already know the wording and want to read it in its sentence. Matching ignores diacritics, so the phrase may be typed bare. If the phrase is not on the page the body comes back as normal with a note saying so; nothing approximate is ever returned. Ignored when the page has no body. Example: shamela_get_page({book_id:9942, page_id:63, around_phrase:'الوضوء لا ينتقض'}).",
+        ),
+    around_radius: z
+        .number()
+        .int()
+        .min(40)
+        .max(2000)
+        .default(300)
+        .describe("Characters to keep either side of `around_phrase` (40–2000, default 300). Snapped outward to word boundaries."),
     ...ResponseFormatInput };
 export const getPageInput = z.object(getPageInputShape).strict();
 
@@ -50,6 +65,19 @@ export interface GetPageOutput {
     body_total_parts: number;
     /** True when further body parts remain (fetch with body_part+1). */
     body_has_more: boolean;
+    /**
+     * Set when `around_phrase` was given: whether the phrase was located, and
+     * — when it was — that `body` is a WINDOW, not the page. A reader who is
+     * not told this would cite a partial page as though it were whole.
+     */
+    excerpt: {
+        phrase: string;
+        found: boolean;
+        /** Field the phrase was found in; null when it was not found. */
+        field: "body" | null;
+        truncated_before: boolean;
+        truncated_after: boolean;
+    } | null;
     /** Display advice when the body is long enough to be split; null otherwise. */
     _display: string | null;
     prev_page_id: number | null;
@@ -104,9 +132,32 @@ export async function runGetPage(
     const fullFoot = stripIfHtml(content?.foot ?? "");
     const fullComment = stripIfHtml(content?.comment ?? "");
 
+    // A phrase the reader already knows: hand back its sentence rather than
+    // making them walk fixed slices of the page hunting for it — and worse,
+    // possibly finding it split across the seam between two of them.
+    //
+    // A phrase that is NOT on the page falls through to the whole body with
+    // found:false. Returning an approximate window instead would be a
+    // misquotation with a page number attached.
+    let excerpt: GetPageOutput["excerpt"] = null;
+    let bodyForChunking = fullBody;
+    if (args.around_phrase && fullBody) {
+        const ex = excerptAround(fullBody, args.around_phrase, args.around_radius);
+        excerpt = ex
+            ? {
+                  phrase: args.around_phrase,
+                  found: true,
+                  field: "body",
+                  truncated_before: ex.truncated_before,
+                  truncated_after: ex.truncated_after,
+              }
+            : { phrase: args.around_phrase, found: false, field: null, truncated_before: false, truncated_after: false };
+        if (ex) bodyForChunking = ex.text;
+    }
+
     // #16 — paginate a long page body so the model never dumps a huge
     // page in one shot. Short pages stay a single part (no _display advice).
-    const chunk = getChunk(fullBody, args.body_part, PAGE_BODY_BUDGET);
+    const chunk = getChunk(bodyForChunking, args.body_part, PAGE_BODY_BUDGET);
     const onFirst = chunk.part === 1;
     // Prose, not a machine field: it says the same thing in whichever language
     // the reader is being answered in. The part to ask for next stays in Latin
@@ -139,6 +190,7 @@ export async function runGetPage(
         body_part: chunk.part,
         body_total_parts: chunk.total_parts,
         body_has_more: chunk.has_more,
+        excerpt,
         _display: display,
         prev_page_id: args.page_id > 1 ? args.page_id - 1 : null,
         next_page_id: args.page_id < totalPages ? args.page_id + 1 : null,
@@ -165,6 +217,14 @@ export async function runGetPage(
         if (data.body) {
             lines.push("", header(3, data.body_total_parts > 1 ? L.matnPart(num(data.body_part), num(data.body_total_parts)) : L.matn));
             lines.push(data.body);
+        }
+        // Before the paging advice: a reader must know the body is a WINDOW
+        // before they are told how to page through it.
+        if (data.excerpt) {
+            lines.push(
+                "",
+                `> *${data.excerpt.found ? L.excerptFound(data.excerpt.phrase) : L.excerptMissing(data.excerpt.phrase)}*`,
+            );
         }
         if (data._display) lines.push("", `> *${data._display}*`);
         if (data.foot) {

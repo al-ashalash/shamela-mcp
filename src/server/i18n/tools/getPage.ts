@@ -19,6 +19,10 @@ export const getPageLabels: Slice<{
     /** `nextPart` is null on the LAST part — there is nothing to fetch next. */
     longBody: (totalParts: string, part: string, nextPart: string | null, n: number) => string;
     hashiya: string;
+    /** Said when `around_phrase` cut the body to a window around the phrase. */
+    excerptFound: (phrase: string) => string;
+    /** Said when the phrase was asked for and is not on this page. */
+    excerptMissing: (phrase: string) => string;
     comment: string;
     citation: string;
     /** Shown when the page number is Shamela's own count, not the print's. */
@@ -41,6 +45,10 @@ export const getPageLabels: Slice<{
                 : `${head}؛ ولجلب التالي استخدم body_part=${nextPart}. (الحاشية والتعليق يظهران مع الجزء الأول.)`;
         },
         hashiya: "الحاشية",
+        excerptFound: (phrase) =>
+            `هذا **مقتطعٌ حول عبارة «${phrase}»** لا الصفحة كاملة؛ فإن نقلتَ منه فاعلم أنّ قبله وبعده كلامًا. ولقراءة الصفحة كلها أعد الطلب بلا around_phrase.`,
+        excerptMissing: (phrase) =>
+            `لم تُوجد عبارة «${phrase}» في متن هذه الصفحة، فعُرض المتن كاملًا. وقد يكون اللفظ في الحاشية، أو مختلفًا عمّا كُتب — والمطابقة تتجاوز التشكيل لا الألفاظ.`,
         comment: "التعليق",
         citation: "الإحالة",
         autoNumbered: "_رقم الصفحة بترقيم الشاملة الآلي لا بترقيم المطبوع._",
@@ -57,6 +65,10 @@ export const getPageLabels: Slice<{
                 : `${head}; to fetch the next part use body_part=${nextPart}. (The hashiya and the comment come with part 1.)`;
         },
         hashiya: "Hashiya (footnote)",
+        excerptFound: (phrase) =>
+            `This is an **excerpt around «${phrase}»**, not the whole page; there is text before and after it. To read the full page, ask again without around_phrase.`,
+        excerptMissing: (phrase) =>
+            `«${phrase}» was not found in this page's body, so the whole body is shown. The wording may be in the footnote, or may differ from what was typed — matching ignores diacritics, not different words.`,
         comment: "Comment",
         citation: "Citation",
         autoNumbered: "_Page number is Shamela's automatic count, not the printed edition's._",
