@@ -112,7 +112,9 @@ You do not need to memorise tool names. Write your request in plain language, as
 - **\`shamela_verify_quote\`** — check a quotation against the page it is credited to: present letter for letter, present with differences in diacritics/hamza/digits (the differences are named), or not found in what was examined. It says whether the wording sits in the author's matn or in the editor's footnote — attributing a footnote to the author is a misattribution however exactly it matches — and it catches the confusion between a page id and a printed page number, which is the commonest fault in a hand-carried citation.
   Example: "This passage is credited to al-Mughni, vol. 4 p. 120 — check it."
 - **\`shamela_scan_consensus\`** — find where a question is declared settled and where it is declared open: it sweeps the subject against the fixed formulas of agreement and of disagreement, and returns for each its count, its witnesses, how it falls across the four schools, and its own total in the same scope — so you can tell a school's habit of phrasing from the question's own weight. It gives no verdict: the index cannot see negation or rebuttal, so "he claimed ijmaa, wrongly" carries the formula without asserting it. The witnesses are the evidence.
-  Example: "Is wiping over the khuffayn disputed? Show me where the dispute is."`,
+  Example: "Is wiping over the khuffayn disputed? Show me where the dispute is."
+- **\`shamela_research_scope\`** — a coverage receipt: one row per school even where nothing was found, and each row says what its zero means — «silent» if that school's books are here and say nothing, «cannot tell» if none of its books is here at all. In an argument those are opposite conclusions; on a search screen they look identical, which is why this tool exists. It takes synonyms too, because a school that names the question differently is not a school that is silent about it.
+  Example: "Before I write that the Malikis never discussed istisnaa — how many of their books do I even have?"`,
 
     tips: `## Tips for the researcher
 

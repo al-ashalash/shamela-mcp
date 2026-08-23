@@ -320,6 +320,18 @@ export const OUTPUT_SCHEMAS = {
         suggestions: z.array(z.string()).optional(),
         ...envelope,
     },
+    shamela_research_scope: {
+        term: z.string().optional(),
+        terms: z.array(z.string()).optional(),
+        total_by_term: z.unknown().optional(),
+        schools: z.array(z.unknown()).optional(),
+        outside_the_schools: z.unknown().optional(),
+        searched: z.unknown().optional(),
+        sampled_terms: z.array(z.string()).optional(),
+        reading_note: z.string().optional(),
+        caveats: z.array(z.string()).optional(),
+        ...envelope,
+    },
     shamela_scan_consensus: {
         question: z.string().optional(),
         distance: z.number().optional(),

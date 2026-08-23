@@ -79,6 +79,7 @@ export const en: Messages = {
         shamela_guide: "How to use this extension",
         shamela_verify_quote: "Check a quotation against its page",
         shamela_scan_consensus: "Find where a question is settled or disputed",
+        shamela_research_scope: "Coverage receipt across the four schools",
         shamela_suggest_download: "Find a book you do not have",
     },
 

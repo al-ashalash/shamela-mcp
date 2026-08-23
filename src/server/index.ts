@@ -130,6 +130,7 @@ import { OUTPUT_SCHEMAS } from "./outputSchemas.js";
 import { runSuggestDownload, suggestDownloadInputShape } from "./tools/suggestDownload.js";
 import { runVerifyQuote, verifyQuoteInputShape, type VerifyQuoteOutput } from "./tools/verifyQuote.js";
 import { runScanConsensus, scanConsensusInputShape, type ScanConsensusOutput } from "./tools/scanConsensus.js";
+import { runResearchScope, researchScopeInputShape, type ResearchScopeOutput } from "./tools/researchScope.js";
 import { searchExactInputShape, runSearchExact, type SearchExactOutput } from "./tools/searchExact.js";
 import { searchBooleanInputShape, runSearchBoolean, type SearchBooleanOutput } from "./tools/searchBoolean.js";
 import { rootStatsInputShape, runRootStats, type RootStatsOutput } from "./tools/rootStats.js";
@@ -1003,6 +1004,30 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         },
     );
 
+    // ----------- 34. shamela_research_scope -----------
+    server.registerTool(
+        "shamela_research_scope",
+        {
+            title: L.toolTitles.shamela_research_scope,
+            description:
+                "Measure how much of each madhhab a term actually reached, and return it as a receipt with a row for every school INCLUDING the empty ones. Each row says which of three things its number means: 'found', 'silent' (the school's books are on this machine and none of them says it — the only zero that is evidence about the tradition), or 'cannot_tell' (none of its books is downloaded, so the zero is about this disk and nothing else). Those two zeros are opposite conclusions and look identical in an ordinary search result, which is why this exists: report a school as silent ONLY from a row that says silent. Pass `synonyms` when a school may name the question differently — a school using another term is not a school that is silent. A fifth row counts the pages outside all four schools (general fiqh, usul, fatwa), so the rows are never read as a total. Costs one search per term. Use it BEFORE writing that a school has no view, and after a comparative sweep to see what the sweep missed. Examples: shamela_research_scope({term:'الاستصناع'}), shamela_research_scope({term:'خيار المجلس', synonyms:['خيار المتبايعين']}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_research_scope"] as never,
+            inputSchema: researchScopeInputShape,
+            annotations: COMMON_ANNOTATIONS,
+        },
+        async (args) => {
+            try {
+                const b = await getBackend();
+                const r = await runResearchScope(
+                    b.helper,
+                    b.catalog,
+                    args as Parameters<typeof runResearchScope>[2],
+                );
+                return r as unknown as ToolResult;
+            } catch (e) { return wrapErr(e); }
+        },
+    );
+
     // A 32nd tool, shamela_dump_book, was built here and withdrawn before
     // 2.0.0 shipped. It worked — but its only sink was the conversation, and
     // measured on الروض المربع (1,607 pages) a full export is 67 calls and
@@ -1241,4 +1266,5 @@ export type {
     GuideOutput,
     VerifyQuoteOutput,
     ScanConsensusOutput,
+    ResearchScopeOutput,
 };

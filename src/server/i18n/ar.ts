@@ -80,6 +80,7 @@ export const ar = {
         shamela_suggest_download: "إرشاد لتنزيل كتاب غير موجود",
         shamela_verify_quote: "تحقّق من نصٍّ منقول",
         shamela_scan_consensus: "تحرير محل النزاع في مسألة",
+        shamela_research_scope: "إيصال تغطية المذاهب الأربعة",
     },
 
     resources: {

@@ -58,6 +58,7 @@ const EXPECTED_TOOL_NAMES = [
     "shamela_suggest_download",
     "shamela_verify_quote",
     "shamela_scan_consensus",
+    "shamela_research_scope",
 ] as const;
 
 
