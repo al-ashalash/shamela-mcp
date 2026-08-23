@@ -129,6 +129,7 @@ import { messages } from "./i18n/index.js";
 import { OUTPUT_SCHEMAS } from "./outputSchemas.js";
 import { runSuggestDownload, suggestDownloadInputShape } from "./tools/suggestDownload.js";
 import { runVerifyQuote, verifyQuoteInputShape, type VerifyQuoteOutput } from "./tools/verifyQuote.js";
+import { runScanConsensus, scanConsensusInputShape, type ScanConsensusOutput } from "./tools/scanConsensus.js";
 import { searchExactInputShape, runSearchExact, type SearchExactOutput } from "./tools/searchExact.js";
 import { searchBooleanInputShape, runSearchBoolean, type SearchBooleanOutput } from "./tools/searchBoolean.js";
 import { rootStatsInputShape, runRootStats, type RootStatsOutput } from "./tools/rootStats.js";
@@ -977,6 +978,31 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         },
     );
 
+    // ----------- 33. shamela_scan_consensus -----------
+    server.registerTool(
+        "shamela_scan_consensus",
+        {
+            title: L.toolTitles.shamela_scan_consensus,
+            description:
+                "Locate where a fiqh question is declared settled and where it is declared open, in one sweep. Runs a lexicon of the fixed Arabic idioms by which agreement is claimed (أجمعوا، بالإجماع، لا خلاف، لا نعلم خلافا…) and disagreement is recorded (اختلفوا، قولان، روايتان، وجهان، فيه خلاف…) against your subject, each formula required NEAR the subject and each held together as a phrase. Returns per formula: pages, books, the formula's own total in the same scope (the base rate — «وجهان» is a Shafii habit and «روايتان» a Hanbali one, so raw cross-school counts measure idiom, not dispute), how the pages fall across the four schools, and quoted witnesses. There is deliberately NO verdict field and no total of one column against the other: the index cannot see negation, attribution or rebuttal, so «لا إجماع في المسألة» and «ادعى الإجماع وليس كذلك» both carry the formula and neither asserts it. Read the witnesses; the counts only say where to look. Use it BEFORE arguing a question, to find out whether it is disputed at all. Examples: shamela_scan_consensus({question:'المسح على الخفين'}), shamela_scan_consensus({question:'الاستصناع', families:['ijmaa'], scope:{madhhab:['hanafi']}}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_scan_consensus"] as never,
+            inputSchema: scanConsensusInputShape,
+            annotations: COMMON_ANNOTATIONS,
+        },
+        async (args) => {
+            try {
+                const b = await getBackend();
+                const r = await runScanConsensus(
+                    b.helper,
+                    b.catalog,
+                    b.pages,
+                    args as Parameters<typeof runScanConsensus>[3],
+                );
+                return r as unknown as ToolResult;
+            } catch (e) { return wrapErr(e); }
+        },
+    );
+
     // A 32nd tool, shamela_dump_book, was built here and withdrawn before
     // 2.0.0 shipped. It worked — but its only sink was the conversation, and
     // measured on الروض المربع (1,607 pages) a full export is 67 calls and
@@ -1214,4 +1240,5 @@ export type {
     GetTafseerTextsOutput,
     GuideOutput,
     VerifyQuoteOutput,
+    ScanConsensusOutput,
 };

@@ -1607,6 +1607,199 @@
       "type": "object"
     }
   },
+  "shamela_scan_consensus": {
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "distance": {
+          "default": 15,
+          "description": "Words allowed between the formula and the subject (1–50, default 15). Wider finds more and means less.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "families": {
+          "description": "Limit to the agreement formulas ('ijmaa') or the disagreement formulas ('khilaf'). Default: both.",
+          "items": {
+            "enum": [
+              "ijmaa",
+              "khilaf"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "formulas": {
+          "description": "Run only these formulas, written exactly as the lexicon has them («لا خلاف», «روايتان»). Overrides `families`. Fewer formulas, faster sweep.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "question": {
+          "description": "The subject whose dispute is being located — «المسح على الخفين», «الاستصناع», «بيع الوفاء». One to three words; it is required NEAR each formula, not merely on the same page.",
+          "minLength": 2,
+          "type": "string"
+        },
+        "response_format": {
+          "default": "markdown",
+          "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "description": "Restrict to books/authors/categories/madhhab/period. A madhhab scope answers 'where does THIS school locate the dispute'.",
+          "properties": {
+            "author_ids": {
+              "description": "Restrict to books by these authors. Includes co-authored books. Use `shamela_resolve(type='author')` to find IDs.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "book_ids": {
+              "description": "Restrict to these book IDs. Use `shamela_resolve` or `shamela_list_downloaded_books` to find IDs. Combine with other scope keys for intersection.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "category_ids": {
+              "description": "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "downloaded_only": {
+              "default": false,
+              "description": "Restrict to books actually downloaded on this user's machine (master.db.book.major_ondisk > 0). Critical for honest research scoping when using `shamela_search_pages` — only downloaded books have searchable content.",
+              "type": "boolean"
+            },
+            "madhhab": {
+              "description": "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+              "items": {
+                "enum": [
+                  "hanafi",
+                  "maliki",
+                  "shafii",
+                  "hanbali"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "period_basis": {
+              "description": "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
+              "enum": [
+                "composed",
+                "died",
+                "either"
+              ],
+              "type": "string"
+            },
+            "period_from": {
+              "description": "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "period_to": {
+              "description": "Hijri year, inclusive upper bound. Pair with period_from.",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "search_in": {
+          "default": [
+            "body"
+          ],
+          "description": "Default is the matn alone. A formula in an editor's footnote is the editor declaring the consensus, not the author — a different kind of evidence, so 'foot' is opt-in.",
+          "items": {
+            "enum": [
+              "body",
+              "foot",
+              "comment"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "witnesses": {
+          "default": 2,
+          "description": "Pages to quote per formula (0–5, default 2). The witnesses are the evidence; the counts are only where to look.",
+          "maximum": 5,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "type": "object"
+    },
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "caveats": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "distance": {
+          "type": "number"
+        },
+        "families": {},
+        "formulas": {
+          "items": {},
+          "type": "array"
+        },
+        "question": {
+          "type": "string"
+        },
+        "reading_note": {
+          "type": "string"
+        },
+        "returned_count": {
+          "type": "number"
+        },
+        "searched": {},
+        "subject_pages": {
+          "type": "number"
+        },
+        "suggestions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_count": {
+          "type": "number"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
   "shamela_search_authors": {
     "inputSchema": {
       "additionalProperties": false,

@@ -177,7 +177,142 @@ public final class SearchAdvanced {
                 scopeBookKeys, maxResults, offset, false, true);
     }
 
+    /**
+     * Search for GROUPS of words near one another, each group held together.
+     *
+     * `runPhrase(mode="near")` puts every word of the query into one unordered
+     * window, which is right for a proximity search and wrong for a scan: it
+     * cannot ask for «لا خلاف» AS A PHRASE near a subject. Measured on this
+     * library, {@code {query:"لا خلاف المسح", mode:"near", distance:20}}
+     * returns 162 pages and not one of the first sixty carries «لا خلاف» at
+     * all — «لا» sits on 833,185 of 1,111,817 pages and contributes nothing,
+     * and among the pages returned are ones recording a DISAGREEMENT. A scan
+     * built on that would report the opposite of what its own witnesses say.
+     *
+     * Here each group keeps its shape — one word, an adjacent phrase, or an
+     * ordered run with up to `gap` words allowed inside it, which is what
+     * collapses «لا نعلم خلافا», «لا نعلم فيه خلافا» and «لا أعلم خلافا» into
+     * one query — and the groups are then required within one window of each
+     * other.
+     *
+     * Each group is normalised SEPARATELY. Normalize.normalizeQuery caps a
+     * query at five words and glues the overflow into the last one, so a
+     * three-word formula joined to a three-word subject would silently become a
+     * term no index holds and the whole scan would read zero.
+     *
+     * The FIRST group is the one the witness snippet opens on; a scan passes
+     * the formula first, because the formula is what it is showing evidence of.
+     *
+     * `group_totals` is each group's own count in the same scope, taken here
+     * because the searcher is already open. Without it a reader compares a
+     * formula's count across schools and measures house idiom rather than
+     * dispute: «وجهان» is 32,334 pages of Shafii fiqh and 198 of Maliki.
+     */
+    public static Map<String, Object> runNearGroups(
+            IndexCache indexCache,
+            List<String> groups,
+            List<Integer> groupGaps,
+            int distance,
+            List<String> scopeBookKeys,
+            int maxResults,
+            int offset,
+            List<String> searchIn,
+            boolean wantCoverage
+    ) throws IOException {
+        List<String> fields = fieldsOf(searchIn);
+        List<List<String>> normalized = new ArrayList<>();
+        List<String> allTokens = new ArrayList<>();
+        for (String group : nullToEmpty(groups)) {
+            List<String> toks = Normalize.normalizeQuery(group);
+            normalized.add(toks);
+            allTokens.addAll(toks);
+        }
+
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("groups", nullToEmpty(groups));
+        envelope.put("normalized_groups", normalized);
+        envelope.put("normalized_tokens", allTokens);
+        envelope.put("distance", distance);
+        envelope.put("offset", offset);
+
+        // A group that normalises to nothing would silently drop its own
+        // constraint, turning a two-group question into a one-group one.
+        if (normalized.isEmpty() || normalized.stream().anyMatch(List::isEmpty)) {
+            envelope.put("group_totals", List.of());
+            return empty(envelope, scopeBookKeys);
+        }
+
+        BooleanQuery.Builder acrossFields = new BooleanQuery.Builder();
+        acrossFields.setMinimumNumberShouldMatch(1);
+        for (String field : fields) {
+            acrossFields.add(groupsQuery(field, normalized, groupGaps, distance, allTokens.size()),
+                    BooleanClause.Occur.SHOULD);
+        }
+        Query q = withScope(acrossFields.build(), scopeBookKeys);
+
+        // Each group alone, in the same scope: the base rate beside the count.
+        List<Integer> groupTotals = new ArrayList<>(normalized.size());
+        for (int i = 0; i < normalized.size(); i++) {
+            BooleanQuery.Builder one = new BooleanQuery.Builder();
+            one.setMinimumNumberShouldMatch(1);
+            for (String field : fields) {
+                one.add(groupQuery(field, normalized.get(i), gapAt(groupGaps, i)), BooleanClause.Occur.SHOULD);
+            }
+            groupTotals.add(indexCache.searcher(SearchPages.INDEX)
+                    .count(withScope(one.build(), scopeBookKeys)));
+        }
+        envelope.put("group_totals", groupTotals);
+
+        // The witness snippet is the deliverable of a scan, so the window has
+        // to open on the FIRST group — which is why the first group is the
+        // caller's contract here, and why a scan passes the formula first.
+        //
+        // Snippet.make centres on the earliest match anywhere in the page, so
+        // handing it every group centred «لا خلاف» + «المسح» on whichever came
+        // first — usually the subject, twenty words from the formula the reader
+        // is being shown as evidence. Marking word by word was worse still: it
+        // centred on the «خلاف» inside «بخلاف النحل», a page about bees offered
+        // as evidence about a legal question. The remaining groups stay as the
+        // fallback, so a formula the page spells differently still gets marked.
+        List<String> groupPhrases = new ArrayList<>(normalized.size());
+        for (List<String> group : normalized) groupPhrases.add(String.join(" ", group));
+        return SearchPages.execute(indexCache, null, q, envelope,
+                List.of(groupPhrases.get(0)), allTokens,
+                null, fields, scopeBookKeys, maxResults, offset, false, wantCoverage);
+    }
+
     // --- query construction -------------------------------------------------
+
+    /** Words tolerated inside group `i`; absent means none, i.e. an exact phrase. */
+    private static int gapAt(List<Integer> gaps, int i) {
+        if (gaps == null || i >= gaps.size() || gaps.get(i) == null) return 0;
+        return Math.max(0, gaps.get(i));
+    }
+
+    /** One group, held together: a word, an adjacent phrase, or a gapped run. */
+    private static IntervalsSource groupSource(List<String> tokens, int gap) {
+        if (tokens.size() == 1) return Intervals.term(tokens.get(0));
+        IntervalsSource[] sources = new IntervalsSource[tokens.size()];
+        for (int i = 0; i < tokens.size(); i++) sources[i] = Intervals.term(tokens.get(i));
+        // Ordered, not unordered: «لا خلاف» and «خلاف لا» are not the same
+        // claim, and the gap is what admits «لا نعلم فيه خلافا» beside
+        // «لا نعلم خلافا» without admitting a page that merely holds both words.
+        return gap == 0 ? Intervals.phrase(sources) : Intervals.maxgaps(gap, Intervals.ordered(sources));
+    }
+
+    private static Query groupQuery(String field, List<String> tokens, int gap) {
+        return new IntervalQuery(field, groupSource(tokens, gap));
+    }
+
+    private static Query groupsQuery(
+            String field, List<List<String>> groups, List<Integer> gaps, int distance, int totalTokens) {
+        if (groups.size() == 1) return groupQuery(field, groups.get(0), gapAt(gaps, 0));
+        IntervalsSource[] sources = new IntervalsSource[groups.size()];
+        for (int i = 0; i < groups.size(); i++) sources[i] = groupSource(groups.get(i), gapAt(gaps, i));
+        IntervalsSource unordered = Intervals.unordered(sources);
+        return new IntervalQuery(field, Intervals.maxwidth(spanWidth(distance, totalTokens), unordered));
+    }
+
 
     private static Query phraseQuery(String field, List<String> tokens) {
         PhraseQuery.Builder b = new PhraseQuery.Builder();

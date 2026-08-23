@@ -208,6 +208,20 @@ public final class Main {
                             asInt(args.get("offset"), 0),
                             asStringList(opts.get("search_in")));
                 }
+                case "search_near_groups" -> {
+                    Map<String, Object> opts = (Map<String, Object>) args.getOrDefault("options", new LinkedHashMap<>());
+                    rejectPreservation(opts);
+                    yield SearchAdvanced.runNearGroups(
+                            indexCache,
+                            asStringList(args.get("groups")),
+                            asIntList(args.get("group_gaps")),
+                            asInt(args.get("distance"), 10),
+                            asStringList(args.get("scope_book_keys")),
+                            asInt(args.get("max_results"), 20),
+                            asInt(args.get("offset"), 0),
+                            asStringList(opts.get("search_in")),
+                            !boolFlag(opts, "skip_coverage"));
+                }
                 case "search_boolean" -> {
                     Map<String, Object> opts = (Map<String, Object>) args.getOrDefault("options", new LinkedHashMap<>());
                     rejectPreservation(opts);

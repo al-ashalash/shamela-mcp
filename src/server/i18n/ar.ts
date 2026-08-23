@@ -79,6 +79,7 @@ export const ar = {
         shamela_guide: "دليل استخدام الإضافة",
         shamela_suggest_download: "إرشاد لتنزيل كتاب غير موجود",
         shamela_verify_quote: "تحقّق من نصٍّ منقول",
+        shamela_scan_consensus: "تحرير محل النزاع في مسألة",
     },
 
     resources: {

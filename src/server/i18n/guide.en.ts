@@ -110,7 +110,9 @@ You do not need to memorise tool names. Write your request in plain language, as
 - **\`shamela_suggest_download\`** — look a book up in Shamela's full catalogue (downloaded or not) and say what can be done about it: already on your machine, offered for download with its id and its page link, or in the catalogue but not offered, so you must look elsewhere. Useful when a downloaded book cites one you cannot find.
   Example: "The book the editor cited is not in my library — is it available in Shamela?"
 - **\`shamela_verify_quote\`** — check a quotation against the page it is credited to: present letter for letter, present with differences in diacritics/hamza/digits (the differences are named), or not found in what was examined. It says whether the wording sits in the author's matn or in the editor's footnote — attributing a footnote to the author is a misattribution however exactly it matches — and it catches the confusion between a page id and a printed page number, which is the commonest fault in a hand-carried citation.
-  Example: "This passage is credited to al-Mughni, vol. 4 p. 120 — check it."`,
+  Example: "This passage is credited to al-Mughni, vol. 4 p. 120 — check it."
+- **\`shamela_scan_consensus\`** — find where a question is declared settled and where it is declared open: it sweeps the subject against the fixed formulas of agreement and of disagreement, and returns for each its count, its witnesses, how it falls across the four schools, and its own total in the same scope — so you can tell a school's habit of phrasing from the question's own weight. It gives no verdict: the index cannot see negation or rebuttal, so "he claimed ijmaa, wrongly" carries the formula without asserting it. The witnesses are the evidence.
+  Example: "Is wiping over the khuffayn disputed? Show me where the dispute is."`,
 
     tips: `## Tips for the researcher
 
