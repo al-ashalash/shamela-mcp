@@ -108,7 +108,9 @@ You do not need to memorise tool names. Write your request in plain language, as
 - **\`shamela_guide\`** — show the extension's user guide (this guide) inside the conversation, whole or by section: the tools or the tips.
   Example: "What can the Shamela extension do?"
 - **\`shamela_suggest_download\`** — look a book up in Shamela's full catalogue (downloaded or not) and say what can be done about it: already on your machine, offered for download with its id and its page link, or in the catalogue but not offered, so you must look elsewhere. Useful when a downloaded book cites one you cannot find.
-  Example: "The book the editor cited is not in my library — is it available in Shamela?"`,
+  Example: "The book the editor cited is not in my library — is it available in Shamela?"
+- **\`shamela_verify_quote\`** — check a quotation against the page it is credited to: present letter for letter, present with differences in diacritics/hamza/digits (the differences are named), or not found in what was examined. It says whether the wording sits in the author's matn or in the editor's footnote — attributing a footnote to the author is a misattribution however exactly it matches — and it catches the confusion between a page id and a printed page number, which is the commonest fault in a hand-carried citation.
+  Example: "This passage is credited to al-Mughni, vol. 4 p. 120 — check it."`,
 
     tips: `## Tips for the researcher
 

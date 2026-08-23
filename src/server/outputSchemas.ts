@@ -308,6 +308,18 @@ export const OUTPUT_SCHEMAS = {
         by_author: z.unknown().optional(),
         ...envelope,
     },
+    shamela_verify_quote: {
+        quote: z.string().optional(),
+        checked: z.string().optional(),
+        status: z.string().optional(),
+        claim: z.unknown().optional(),
+        printed_page_confusion: z.unknown().optional(),
+        locations: z.array(z.unknown()).optional(),
+        searched: z.unknown().optional(),
+        notes: z.array(z.string()).optional(),
+        suggestions: z.array(z.string()).optional(),
+        ...envelope,
+    },
     shamela_search_authors: {
         total_hits: z.number().optional(),
         returned: z.number().optional(),

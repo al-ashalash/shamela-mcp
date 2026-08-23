@@ -56,6 +56,7 @@ const EXPECTED_TOOL_NAMES = [
     "shamela_get_tafseer_texts",
     "shamela_guide",
     "shamela_suggest_download",
+    "shamela_verify_quote",
 ] as const;
 
 
@@ -117,7 +118,7 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             expect(text).toBe(buildGuideText());
         });
 
-        it("drift guard: the guide names all 30 tools", () => {
+        it("drift guard: the guide names every registered tool", () => {
             const text = buildGuideText();
             for (const toolName of EXPECTED_TOOL_NAMES) {
                 expect(text, `guide must mention tool ${toolName}`).toContain(toolName);

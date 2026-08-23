@@ -77,6 +77,7 @@ export const en: Messages = {
         shamela_list_tafsirs_for_aya: "Tafsir coverage of a verse",
         shamela_get_tafseer_texts: "Read the tafsirs of a verse",
         shamela_guide: "How to use this extension",
+        shamela_verify_quote: "Check a quotation against its page",
         shamela_suggest_download: "Find a book you do not have",
     },
 

@@ -14,6 +14,22 @@ export const DEFAULT_LIMIT = 20;
 export const MAX_LIMIT = 100;
 
 /** Cap for coverage aggregation on the Java side (per architecture). */
+/**
+ * Words the engine will accept in one query, and the reason to count them.
+ *
+ * `Normalize.normalizeQuery` (Normalize.java:47, :223-229) caps a query at five
+ * words and JOINS everything past the fourth into the fifth — producing a token
+ * with a space in it, which no index term can equal. So a six-word query does
+ * not return a broader answer or a narrower one: it returns zero, with no
+ * error and no warning, and `normalized_tokens` carries the give-away
+ * («باصل في»). Measured on this install: five words of a page's own sentence
+ * find it, six find nothing.
+ *
+ * Any tool that BUILDS a query rather than passing the caller's own words must
+ * stay under this.
+ */
+export const MAX_QUERY_TOKENS = 5;
+
 export const COVERAGE_CAP = 5_000;
 
 /** Snippet window in characters around the first match. */

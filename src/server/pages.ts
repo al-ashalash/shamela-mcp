@@ -235,6 +235,31 @@ export class PageStore {
         return out;
     }
 
+    /**
+     * Page ids whose PRINTED number is `printed` — the reverse of printedPage.
+     *
+     * Exists for one error, which is the commonest error there is in a citation
+     * carried by hand: «ج ٢ ص ١٤٧» is the printed page, `page_id` is Shamela's
+     * own running count, and the two are different numbers for the same paper.
+     * Handed one where the other was meant, a reader gets a page that exists,
+     * reads nothing like the quote, and concludes the quote is fabricated.
+     * Returned in id order; a printed number repeats across parts, so a book in
+     * volumes legitimately answers with more than one.
+     */
+    async pageIdsForPrintedPage(bookId: number, printed: number): Promise<number[]> {
+        const db = await this.getDb(bookId);
+        if (!db) return [];
+        const stmt = db.prepare("SELECT id FROM page WHERE page = ? ORDER BY id");
+        try {
+            stmt.bind([printed]);
+            const out: number[] = [];
+            while (stmt.step()) out.push(Number(stmt.get()[0]));
+            return out;
+        } finally {
+            stmt.free();
+        }
+    }
+
     async getPageRow(bookId: number, pageId: number): Promise<PageRow | null> {
         const db = await this.getDb(bookId);
         if (!db) return null;

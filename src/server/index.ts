@@ -128,6 +128,7 @@ import { AyaIndexStore } from "./ayaIndex/store.js";
 import { messages } from "./i18n/index.js";
 import { OUTPUT_SCHEMAS } from "./outputSchemas.js";
 import { runSuggestDownload, suggestDownloadInputShape } from "./tools/suggestDownload.js";
+import { runVerifyQuote, verifyQuoteInputShape, type VerifyQuoteOutput } from "./tools/verifyQuote.js";
 import { searchExactInputShape, runSearchExact, type SearchExactOutput } from "./tools/searchExact.js";
 import { searchBooleanInputShape, runSearchBoolean, type SearchBooleanOutput } from "./tools/searchBoolean.js";
 import { rootStatsInputShape, runRootStats, type RootStatsOutput } from "./tools/rootStats.js";
@@ -951,6 +952,31 @@ export function createServer(getBackend: () => Promise<Backend>): McpServer {
         },
     );
 
+    // ----------- 32. shamela_verify_quote -----------
+    server.registerTool(
+        "shamela_verify_quote",
+        {
+            title: L.toolTitles.shamela_verify_quote,
+            description:
+                "Check whether a quotation is really on the page it is credited to. Returns one of five verdicts — 'verbatim' (present with diacritics, hamza spelling and digits exactly as typed), 'differs' (ALL of it present, with the differing axes NAMED), 'partial' (a run of it present and the rest worded otherwise — what a quotation carried from memory looks like; matched_words says how much), 'not_found', or 'unverifiable' (the book credited is not downloaded, so nothing was examined and the answer neither confirms nor denies) — together with WHERE on each page it sits: body is the author's own matn, foot is the modern editor's footnote, and a quotation taken from a footnote and attributed to the author is a misattribution however exactly it matches. Pass book_id (and page_id) to check a specific claim, or neither to search the downloaded library for whoever actually said it. When a claimed page does not hold the quotation, the page whose PRINTED number equals the number given is checked too and reported as printed_page_confusion — page_id is Shamela's own running count and a hand-carried citation almost always carries the printed page instead. Use it on any quotation whose source matters and whose provenance you have not personally checked, including one produced earlier in this same conversation. A 'not_found' is a statement about the books downloaded on this machine, never about the tradition. Examples: shamela_verify_quote({quote:'إنما الأعمال بالنيات', book_id:9942, page_id:17}), shamela_verify_quote({quote:'القياس في اللغة التقدير'}).",
+            outputSchema: OUTPUT_SCHEMAS["shamela_verify_quote"] as never,
+            inputSchema: verifyQuoteInputShape,
+            annotations: COMMON_ANNOTATIONS,
+        },
+        async (args) => {
+            try {
+                const b = await getBackend();
+                const r = await runVerifyQuote(
+                    b.helper,
+                    b.catalog,
+                    b.pages,
+                    args as Parameters<typeof runVerifyQuote>[3],
+                );
+                return r as unknown as ToolResult;
+            } catch (e) { return wrapErr(e); }
+        },
+    );
+
     // A 32nd tool, shamela_dump_book, was built here and withdrawn before
     // 2.0.0 shipped. It worked — but its only sink was the conversation, and
     // measured on الروض المربع (1,607 pages) a full export is 67 calls and
@@ -1187,4 +1213,5 @@ export type {
     ListTafsirsForAyaOutput,
     GetTafseerTextsOutput,
     GuideOutput,
+    VerifyQuoteOutput,
 };
