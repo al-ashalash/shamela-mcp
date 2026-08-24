@@ -15,6 +15,7 @@ import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchTitlesLabels } from "../i18n/tools/searchTitles.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchTitlesInputShape = {
     query: z.string().min(1).describe("Arabic search phrase. Matches against chapter / section title text."),
@@ -42,6 +43,7 @@ interface RawEnvelope {
     next_offset?: number;
     coverage: { by_book_key: Record<string, number>; total_seen: number };
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface SearchTitleHit {
@@ -73,6 +75,11 @@ export interface SearchTitlesOutput {
     /** Present only when nothing matched: what to try next. */
     suggestions?: string[];
     results: SearchTitleHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchTitles(
@@ -137,9 +144,13 @@ export async function runSearchTitles(
             : {}),
         results,
     };
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchTitlesLabels);
         const lines = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset)));
         if (data.suggestions?.length) {
             lines.push("", pick(noResultsLabels).heading);

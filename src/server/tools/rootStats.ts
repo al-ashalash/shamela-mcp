@@ -40,6 +40,7 @@ import { ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../sc
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { rootStatsLabels } from "../i18n/tools/rootStats.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const rootStatsInputShape = {
     root: z
@@ -72,6 +73,7 @@ interface RawEnvelope {
     normalized_tokens: string[];
     total_hits: number;
     coverage: RawCoverage;
+    dropped_tokens?: string[];
 }
 
 interface CountItem {
@@ -112,6 +114,11 @@ export interface RootStatsOutput {
     by_century: CountItem[];
     by_book: BookCountItem[];
     by_author: CountItem[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runRootStats(
@@ -184,8 +191,13 @@ export async function runRootStats(
         by_author: enriched.byAuthor,
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
         const lines = [header(1, L.heading(data.root))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(
             L.summary(num(data.total_hits), num(data.total_counted), num(data.books_matched)),
         );

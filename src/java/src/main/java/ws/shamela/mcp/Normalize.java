@@ -46,6 +46,9 @@ public final class Normalize {
     /** Maximum number of tokens we accept from a query (Shamela's default panel size). */
     public static final int MAX_TOKENS = 5;
 
+    /** One or more whitespace characters. */
+    private static final String SPLIT_WHITESPACE = "\\s+";
+
     /**
      * Marks removed before folding: Shamela's basic map (kashida and the
      * honorific ligatures) plus tashkeel and the Quranic annotation marks.
@@ -208,6 +211,13 @@ public final class Normalize {
         return result;
     }
 
+    /**
+     * A query as the engine will actually use it, beside the words it could not
+     * take. `dropped` holds them AS TYPED, so a caller can name them back to
+     * the person who wrote them.
+     */
+    public record QueryTokens(List<String> tokens, List<String> dropped) {}
+
     /** Split, normalize, and drop empty tokens. Caps at MAX_TOKENS. */
     public static List<String> normalizeQuery(String query) {
         return normalizeQuery(query, Variant.PAGE);
@@ -215,24 +225,45 @@ public final class Normalize {
 
     /** Split, normalize, and drop empty tokens. Caps at MAX_TOKENS. */
     public static List<String> normalizeQuery(String query, Variant variant) {
-        if (query == null) return List.of();
+        return normalizeQueryDetailed(query, variant).tokens();
+    }
+
+    /**
+     * The same, keeping what the cap left out.
+     *
+     * The overflow used to be JOINED onto the last accepted word — «باصل» and
+     * «في» becoming the single token «باصل في» — on the reasoning that a user
+     * would still get a sensible result. There is no such result: a term with a
+     * space in it is in no index, so the whole conjunction was empty and the
+     * search returned a confident zero, with no error and no warning. Measured
+     * on this library: five words of a page's own sentence find that page, and
+     * the same six find nothing at all.
+     *
+     * So the overflow is dropped instead. That searches for LESS than was asked
+     * and can therefore only return too much — an answer a reader can see and
+     * correct — and the dropped words are handed back so the answer can say
+     * what was left out.
+     *
+     * The cap itself stays. Five is the width of Shamela's own search panel,
+     * and matching it is what keeps these answers comparable to the program's.
+     */
+    public static QueryTokens normalizeQueryDetailed(String query, Variant variant) {
+        if (query == null) return new QueryTokens(List.of(), List.of());
         String trimmed = query.trim();
-        if (trimmed.isEmpty()) return List.of();
-        String[] raw = trimmed.split("\\s+");
+        if (trimmed.isEmpty()) return new QueryTokens(List.of(), List.of());
+        String[] raw = trimmed.split(SPLIT_WHITESPACE);
         List<String> input = new ArrayList<>(Arrays.asList(raw));
+        List<String> dropped = List.of();
         if (input.size() > MAX_TOKENS) {
-            // Join overflow into the last accepted token so users still get a sensible result.
-            List<String> head = new ArrayList<>(input.subList(0, MAX_TOKENS - 1));
-            String tail = String.join(" ", input.subList(MAX_TOKENS - 1, input.size()));
-            head.add(tail);
-            input = head;
+            dropped = List.copyOf(input.subList(MAX_TOKENS, input.size()));
+            input = new ArrayList<>(input.subList(0, MAX_TOKENS));
         }
         List<String> out = new ArrayList<>(input.size());
         for (String tok : input) {
             String norm = normalizeToken(tok, variant);
             if (!norm.isEmpty()) out.add(norm);
         }
-        return out;
+        return new QueryTokens(out, dropped);
     }
 
     /**

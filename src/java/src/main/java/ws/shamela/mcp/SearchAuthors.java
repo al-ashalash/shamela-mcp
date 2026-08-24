@@ -30,10 +30,12 @@ public final class SearchAuthors {
             boolean morphology,
             boolean wildcards
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery);
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(rawQuery, Normalize.Variant.PAGE);
+        List<String> tokens = parsed.tokens();
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("query", rawQuery == null ? "" : rawQuery);
         envelope.put("normalized_tokens", tokens);
+        envelope.put("dropped_tokens", parsed.dropped());
         envelope.put("offset", offset);
 
         if (tokens.isEmpty()) {

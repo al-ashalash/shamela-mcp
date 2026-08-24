@@ -10,6 +10,7 @@ import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { resolveLabels } from "../i18n/tools/resolve.js";
 import { transliterationLabels } from "../i18n/tools/transliteration.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const resolveInputShape = {
     query: z
@@ -114,6 +115,11 @@ export interface ResolveOutput {
     transliterated?: boolean;
     books: ResolveBookHit[];
     authors: ResolveAuthorHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runResolve(
@@ -127,6 +133,7 @@ export async function runResolve(
     const raw = await helper.request<{
         query: string;
         normalized_tokens: string[];
+        dropped_tokens?: string[];
         books: RawHit[];
         authors: RawHit[];
     }>("resolve", { query: args.query, type: args.type, limit: Math.max(args.limit, RERANK_POOL) });
@@ -215,9 +222,14 @@ export async function runResolve(
         books,
         authors,
     };
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(resolveLabels);
         const lines: string[] = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         if (data.transliterated) lines.push("", `> *${pick(transliterationLabels).note}*`);
         if (data.authors.length) {
             lines.push("", header(2, L.authorsHeading(num(data.authors.length))));

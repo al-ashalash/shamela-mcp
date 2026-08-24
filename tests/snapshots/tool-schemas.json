@@ -1515,6 +1515,12 @@
         "complete": {
           "type": "boolean"
         },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "outside_the_schools": {},
         "reading_note": {
           "type": "string"
@@ -1607,6 +1613,12 @@
         },
         "complete": {
           "type": "boolean"
+        },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "normalized_tokens": {},
         "query": {
@@ -1740,6 +1752,12 @@
         "coverage_basis": {},
         "coverage_cap": {},
         "coverage_capped": {},
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "normalized_tokens": {},
         "returned_count": {
           "type": "number"
@@ -2047,6 +2065,12 @@
         "complete": {
           "type": "boolean"
         },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "has_more": {
           "type": "boolean"
         },
@@ -2226,6 +2250,12 @@
           "type": "boolean"
         },
         "coverage": {},
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "has_more": {
           "type": "boolean"
         },
@@ -2423,6 +2453,12 @@
         "complete": {
           "type": "boolean"
         },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "has_more": {
           "type": "boolean"
         },
@@ -2607,6 +2643,12 @@
         "complete": {
           "type": "boolean"
         },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "preserve": {},
         "query": {
           "type": "string"
@@ -2688,6 +2730,12 @@
         },
         "complete": {
           "type": "boolean"
+        },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "matches": {},
         "pages_scanned": {},
@@ -2895,6 +2943,12 @@
           "type": "boolean"
         },
         "coverage": {},
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "has_more": {
           "type": "boolean"
         },
@@ -3087,6 +3141,12 @@
           "type": "boolean"
         },
         "distance": {},
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "has_more": {
           "type": "boolean"
         },
@@ -3185,6 +3245,12 @@
       "properties": {
         "complete": {
           "type": "boolean"
+        },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "has_more": {
           "type": "boolean"
@@ -3390,6 +3456,12 @@
       "properties": {
         "complete": {
           "type": "boolean"
+        },
+        "dropped_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "has_more": {
           "type": "boolean"

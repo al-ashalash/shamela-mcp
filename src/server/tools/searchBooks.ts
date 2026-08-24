@@ -19,6 +19,7 @@ import { transliterationLabels } from "../i18n/tools/transliteration.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
 import { RomanIndex } from "../romanIndex.js";
 import { isLatinQuery } from "../romanize.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 // scope.book_ids isn't useful when searching the catalog; expose the rest.
 const SearchBooksScopeShape = {
@@ -44,6 +45,7 @@ interface RawEnvelope {
     total_hits: number; returned: number; has_more: boolean; next_offset?: number;
     coverage: { by_book_key: Record<string, number>; total_seen: number };
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface SearchBookHit {
@@ -70,6 +72,11 @@ export interface SearchBooksOutput {
     transliterated?: boolean;
     coverage: { by_category: Record<string, number>; by_century: Record<string, number> };
     results: SearchBookHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchBooks(
@@ -178,9 +185,13 @@ export async function runSearchBooks(
         coverage: { by_category: byCat, by_century: byCentury },
         results,
     };
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchBooksLabels);
         const lines = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.total_hits), num(data.returned)));
         if (data.transliterated) lines.push("", `> *${pick(transliterationLabels).note}*`);
         if (data.suggestions?.length) {

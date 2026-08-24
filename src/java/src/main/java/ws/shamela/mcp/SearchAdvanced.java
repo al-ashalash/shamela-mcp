@@ -70,13 +70,15 @@ public final class SearchAdvanced {
             int offset,
             List<String> searchIn
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery);
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(rawQuery, Normalize.Variant.PAGE);
+        List<String> tokens = parsed.tokens();
         List<String> fields = fieldsOf(searchIn);
         boolean near = "near".equals(mode);
 
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("query", rawQuery == null ? "" : rawQuery);
         envelope.put("normalized_tokens", tokens);
+        envelope.put("dropped_tokens", parsed.dropped());
         envelope.put("mode", near ? "near" : "phrase");
         envelope.put("distance", distance);
         envelope.put("offset", offset);
@@ -138,10 +140,13 @@ public final class SearchAdvanced {
         List<String> highlightTokens = new ArrayList<>();
         // Term -> its words, so each hit can say which terms it carries.
         Map<String, List<String>> termGroups = new LinkedHashMap<>();
+        // Words the five-word cap left out of any term, so the answer can say
+        // it searched for less than it was asked for.
+        List<String> dropped = new ArrayList<>();
         boolean anyPositive = false;
 
         for (String term : nullToEmpty(allOf)) {
-            Query sub = termQuery(term, fields, highlightTokens, termGroups);
+            Query sub = termQuery(term, fields, highlightTokens, termGroups, dropped);
             if (sub == null) continue;
             outer.add(sub, BooleanClause.Occur.MUST);
             anyPositive = true;
@@ -149,7 +154,7 @@ public final class SearchAdvanced {
 
         List<Query> anySubs = new ArrayList<>();
         for (String term : nullToEmpty(anyOf)) {
-            Query sub = termQuery(term, fields, highlightTokens, termGroups);
+            Query sub = termQuery(term, fields, highlightTokens, termGroups, dropped);
             if (sub != null) anySubs.add(sub);
         }
         if (!anySubs.isEmpty()) {
@@ -164,9 +169,11 @@ public final class SearchAdvanced {
         // engine: a page is excluded because the index says it holds the word,
         // not because the word turned up in the window that was fetched.
         for (String term : nullToEmpty(noneOf)) {
-            Query sub = termQuery(term, fields, null, null);
+            Query sub = termQuery(term, fields, null, null, dropped);
             if (sub != null) outer.add(sub, BooleanClause.Occur.MUST_NOT);
         }
+
+        envelope.put("dropped_tokens", dropped);
 
         // A search that only says what it does not want has no result set to
         // subtract from; asking the index for every page is not what was meant.
@@ -222,8 +229,11 @@ public final class SearchAdvanced {
         List<String> fields = fieldsOf(searchIn);
         List<List<String>> normalized = new ArrayList<>();
         List<String> allTokens = new ArrayList<>();
+        List<String> dropped = new ArrayList<>();
         for (String group : nullToEmpty(groups)) {
-            List<String> toks = Normalize.normalizeQuery(group);
+            Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(group, Normalize.Variant.PAGE);
+            List<String> toks = parsed.tokens();
+            dropped.addAll(parsed.dropped());
             normalized.add(toks);
             allTokens.addAll(toks);
         }
@@ -232,6 +242,7 @@ public final class SearchAdvanced {
         envelope.put("groups", nullToEmpty(groups));
         envelope.put("normalized_groups", normalized);
         envelope.put("normalized_tokens", allTokens);
+        envelope.put("dropped_tokens", dropped);
         envelope.put("distance", distance);
         envelope.put("offset", offset);
 
@@ -329,8 +340,11 @@ public final class SearchAdvanced {
 
     /** One boolean term: all its words, anywhere on the page, in any field. */
     private static Query termQuery(
-            String term, List<String> fields, List<String> collectTokens, Map<String, List<String>> groups) {
-        List<String> tokens = Normalize.normalizeQuery(term);
+            String term, List<String> fields, List<String> collectTokens, Map<String, List<String>> groups,
+            List<String> dropped) {
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(term, Normalize.Variant.PAGE);
+        List<String> tokens = parsed.tokens();
+        if (dropped != null) dropped.addAll(parsed.dropped());
         if (tokens.isEmpty()) return null;
         if (collectTokens != null) collectTokens.addAll(tokens);
         if (groups != null) groups.put(term, tokens);

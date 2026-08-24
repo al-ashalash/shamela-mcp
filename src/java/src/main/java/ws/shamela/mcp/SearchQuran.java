@@ -37,10 +37,12 @@ public final class SearchQuran {
             int offset,
             boolean wildcards
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery, Normalize.Variant.AYA);
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(rawQuery, Normalize.Variant.AYA);
+        List<String> tokens = parsed.tokens();
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("query", rawQuery == null ? "" : rawQuery);
         envelope.put("normalized_tokens", tokens);
+        envelope.put("dropped_tokens", parsed.dropped());
         envelope.put("offset", offset);
 
         if (tokens.isEmpty()) {

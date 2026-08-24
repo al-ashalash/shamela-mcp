@@ -18,6 +18,7 @@ import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { searchPagesLabels } from "../i18n/tools/searchPages.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchPagesInputShape = {
     query: z.string().min(1).describe("Arabic search phrase. Multiple words are AND-combined; each can match in body or footnotes."),
@@ -62,6 +63,7 @@ interface RawEnvelope {
     scope_count: number;
     coverage: RawCoverage;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface SearchPageHit {
@@ -159,6 +161,11 @@ export interface SearchPagesOutput {
         by_author: Record<string, number>;
     };
     results: SearchPageHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchPages(
@@ -265,9 +272,13 @@ export async function runSearchPages(
         coverage,
         results: enriched,
     };
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchPagesLabels);
         const lines = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.total_hits), num(data.returned), num(data.offset), data.total_hits));
         if (data.scope_count >= 0) lines.push(L.scopeLine(num(data.scope_count), data.scope_count));
         // What was searched, beside what was found — so a thin answer is not

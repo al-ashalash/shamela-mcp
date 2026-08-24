@@ -289,6 +289,7 @@ export const OUTPUT_SCHEMAS = {
         transliterated: z.boolean().optional(),
         books: z.array(z.unknown()).optional(),
         authors: z.unknown().optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_root_stats: {
@@ -306,6 +307,7 @@ export const OUTPUT_SCHEMAS = {
         by_century: z.unknown().optional(),
         by_book: z.unknown().optional(),
         by_author: z.unknown().optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_verify_quote: {
@@ -330,6 +332,7 @@ export const OUTPUT_SCHEMAS = {
         sampled_terms: z.array(z.string()).optional(),
         reading_note: z.string().optional(),
         caveats: z.array(z.string()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_scan_consensus: {
@@ -355,6 +358,7 @@ export const OUTPUT_SCHEMAS = {
         transliterated: z.boolean().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_books: {
@@ -370,6 +374,7 @@ export const OUTPUT_SCHEMAS = {
         transliterated: z.boolean().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_boolean: {
@@ -388,6 +393,7 @@ export const OUTPUT_SCHEMAS = {
         notes: z.array(z.string()).optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_exact: {
@@ -398,6 +404,7 @@ export const OUTPUT_SCHEMAS = {
         returned: z.number().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_hadith: {
@@ -408,6 +415,7 @@ export const OUTPUT_SCHEMAS = {
         matches: z.unknown().optional(),
         takhrij: z.unknown().optional(),
         books: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_pages: {
@@ -430,6 +438,7 @@ export const OUTPUT_SCHEMAS = {
         by_author: z.unknown().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_phrase: {
@@ -445,6 +454,7 @@ export const OUTPUT_SCHEMAS = {
         next_offset: z.unknown().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_quran: {
@@ -458,6 +468,7 @@ export const OUTPUT_SCHEMAS = {
         total_hits_complete: z.unknown().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_search_titles: {
@@ -470,6 +481,7 @@ export const OUTPUT_SCHEMAS = {
         normalized_tokens: z.unknown().optional(),
         suggestions: z.array(z.string()).optional(),
         results: z.array(z.unknown()).optional(),
+        dropped_tokens: z.array(z.string()).optional(),
         ...envelope,
     },
     shamela_suggest_download: {

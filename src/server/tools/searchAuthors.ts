@@ -13,6 +13,7 @@ import { RERANK_POOL, rankByName } from "./authorRanking.js";
 import { COVERAGE_CAP } from "../constants.js";
 import { RomanIndex } from "../romanIndex.js";
 import { isLatinQuery } from "../romanize.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchAuthorsInputShape = {
     query: z.string().min(1).describe("Arabic search phrase matched against author name + biography. A name in Latin letters ('Ibn Qudama', 'al-Ghazali') is matched against the Arabic names by spelling instead, and the answer says so."),
@@ -27,6 +28,7 @@ interface RawEnvelope {
     query: string; normalized_tokens: string[]; offset: number;
     total_hits: number; returned: number; has_more: boolean; next_offset?: number;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface SearchAuthorHit {
@@ -50,6 +52,11 @@ export interface SearchAuthorsOutput {
      */
     transliterated?: boolean;
     results: SearchAuthorHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchAuthors(
@@ -125,9 +132,13 @@ export async function runSearchAuthors(
         ...(transliterated ? { transliterated: true } : {}),
         results,
     };
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchAuthorsLabels);
         const lines = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.total_hits), num(data.returned)));
         if (data.transliterated) lines.push("", `> *${pick(transliterationLabels).note}*`);
         if (data.suggestions?.length) {

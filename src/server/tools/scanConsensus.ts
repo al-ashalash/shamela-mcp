@@ -99,6 +99,7 @@ interface RawHit {
 }
 interface RawEnvelope {
     normalized_groups: string[][];
+    dropped_tokens?: string[];
     group_totals: number[];
     total_hits: number;
     coverage?: { by_book_key: Record<string, number>; basis?: string; at_cap?: boolean };
@@ -222,12 +223,13 @@ export async function runScanConsensus(
             options: { search_in: args.search_in },
         });
 
-        // The engine takes five words per group and glues the overflow into the
-        // fifth, which matches nothing at all. A subject longer than that would
-        // read as a question nobody in the library has ever discussed.
-        if (raw.normalized_groups?.some((g) => g.some((t) => t.includes(" ")))) {
+        // The engine takes five words per group and drops the rest. For an
+        // ordinary search that is a widening the caller can see; for a SCAN it
+        // is not, because the dropped word is usually the one that named the
+        // question, and every row would then read as a silence.
+        if (raw.dropped_tokens?.length) {
             throw badArg(
-                "The subject is too long for the engine, which takes five words: everything past the fifth is glued to it and matches nothing. Use the one or two words that name the question.",
+                `The subject is too long for the engine, which takes five words per group: it dropped ${raw.dropped_tokens.join(", ")}. In a scan that is not a widening — every formula's row would then be about a different question. Use the one or two words that name it.`,
             );
         }
         // Both totals come back with the search: the formula's own reach in this

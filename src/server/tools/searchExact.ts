@@ -37,6 +37,7 @@ import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchExactLabels } from "../i18n/tools/searchExact.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 // --- Tunable exactness normalizer (pure, local — does NOT touch arabic.ts) ---
 
@@ -208,6 +209,7 @@ interface RawEnvelope {
     returned: number;
     has_more: boolean;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 interface BatchPage {
     page_id: number;
@@ -255,6 +257,11 @@ export interface SearchExactOutput {
     /** Present only when nothing matched: what to try next. */
     suggestions?: string[];
     results: ExactHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 const SEARCH_FIELDS: Array<"body" | "foot"> = ["body", "foot"];
@@ -395,6 +402,9 @@ export async function runSearchExact(
         results,
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchExactLabels);
         const on: string[] = [];
@@ -404,6 +414,8 @@ export async function runSearchExact(
         const lines = [
             header(1, L.heading(L.joinFeatures(on), data.query)),
         ];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.returned), num(data.total_candidates_scanned)));
         if (data.candidate_cap_hit) {
             lines.push(L.capNote);

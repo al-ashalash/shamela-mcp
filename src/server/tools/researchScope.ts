@@ -38,6 +38,7 @@ import { ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../sc
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { researchScopeLabels } from "../i18n/tools/researchScope.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export type Madhhab = keyof typeof MADHHAB_CATEGORY;
 const SCHOOLS = Object.keys(MADHHAB_CATEGORY) as Madhhab[];
@@ -69,6 +70,7 @@ export const researchScopeInput = z.object(researchScopeInputShape).strict();
 interface RawEnvelope {
     total_hits: number;
     normalized_tokens: string[];
+    dropped_tokens?: string[];
     coverage: { by_book_key: Record<string, number>; total_seen: number; at_cap?: boolean; basis?: string };
 }
 
@@ -106,6 +108,11 @@ export interface ResearchScopeOutput {
     searched: { books: number; downloaded_total: number; scoped: boolean };
     /** True when the engine sampled rather than counted a term's distribution. */
     sampled_terms: string[];
+    /**
+     * Words the engine could not take, per term. A receipt built from a
+     * narrowed question measures the wrong thing in every one of its rows.
+     */
+    dropped_tokens?: string[];
     /** The sentence a reader must not be allowed to skip. */
     reading_note: string;
     caveats: string[];
@@ -140,6 +147,8 @@ export async function runResearchScope(
 
     const totalByTerm: Record<string, number> = {};
     const sampled: string[] = [];
+    const dropped: string[] = [];
+    let droppedFor: string | null = null;
     /** school → book_id → pages, accumulated across terms. */
     const perSchool = new Map<Madhhab, Map<number, number>>(SCHOOLS.map((s) => [s, new Map()]));
     const perSchoolByTerm = new Map<Madhhab, Record<string, number>>(SCHOOLS.map((s) => [s, {}]));
@@ -156,6 +165,8 @@ export async function runResearchScope(
             options: {},
         });
         totalByTerm[term] = raw.total_hits;
+        for (const word of raw.dropped_tokens ?? []) if (!dropped.includes(word)) dropped.push(word);
+        if (!droppedFor) droppedFor = droppedNote(raw);
         if (raw.coverage?.basis && raw.coverage.basis !== "all_results") sampled.push(term);
         for (const school of SCHOOLS) perSchoolByTerm.get(school)![term] = 0;
         outsideByTerm[term] = 0;
@@ -203,6 +214,8 @@ export async function runResearchScope(
     });
 
     const caveats: string[] = [];
+    // First, because it changes what every row below is a measurement OF.
+    if (droppedFor) caveats.push(droppedFor);
     if (schools.some((s) => s.status === "cannot_tell")) caveats.push(L.caveats.notDownloaded);
     if (schools.some((s) => s.status === "silent")) caveats.push(L.caveats.silentMeansSilent);
     if (unique.length === 1) caveats.push(L.caveats.oneWording);
@@ -220,6 +233,7 @@ export async function runResearchScope(
             scoped: scopeBookKeys !== null,
         },
         sampled_terms: sampled,
+        ...(dropped.length ? { dropped_tokens: dropped } : {}),
         reading_note: L.readingNote,
         caveats,
     };

@@ -22,6 +22,7 @@ import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchHadithLabels } from "../i18n/tools/searchHadith.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchHadithInputShape = {
     query: z.string().min(1).describe("The hadith text (or a distinctive part of it). AND-combines words across matn + footnotes."),
@@ -42,6 +43,7 @@ interface RawHit {
 interface SearchEnvelope {
     total_hits: number;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface HadithTakhrijBook {
@@ -81,6 +83,11 @@ export interface SearchHadithOutput {
     takhrij: Array<{ hadith_key: number; books: HadithTakhrijBook[] }>;
     /** Present only when nothing matched: what to try next. */
     suggestions?: string[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchHadith(
@@ -158,9 +165,14 @@ export async function runSearchHadith(
             : {}),
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchHadithLabels);
         const lines = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.total_text_matches), num(data.pages_scanned)));
         if (data.suggestions?.length) {
             lines.push("", pick(noResultsLabels).heading);

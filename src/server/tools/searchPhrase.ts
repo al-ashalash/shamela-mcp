@@ -28,6 +28,7 @@ import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchPhraseLabels } from "../i18n/tools/searchPhrase.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchPhraseInputShape = {
     query: z
@@ -75,6 +76,7 @@ interface RawEnvelope {
     has_more: boolean;
     next_offset?: number;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface PhraseHit {
@@ -109,6 +111,11 @@ export interface SearchPhraseOutput {
     /** Present only when nothing matched: what to try next. */
     suggestions?: string[];
     results: PhraseHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchPhrase(
@@ -184,6 +191,9 @@ export async function runSearchPhrase(
         results,
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchPhraseLabels);
         const lines = [
@@ -194,6 +204,8 @@ export async function runSearchPhrase(
                     : L.nearHeading(num(data.distance), data.query, data.distance),
             ),
         ];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.total_hits), num(data.returned), data.total_hits));
         if (data.suggestions?.length) {
             lines.push("", pick(noResultsLabels).heading);

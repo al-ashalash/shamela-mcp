@@ -8,6 +8,7 @@ import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { searchQuranLabels } from "../i18n/tools/searchQuran.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchQuranInputShape = {
     query: z.string().min(1).describe("Arabic phrase. Searches against the Egyptian إملائي (writing-style) text of all 6,236 verses. Single-word queries also match prefixed forms (e.g. «الصبر» matches «بالصبر»); their results are ordered by mushaf position (aya_id), not relevance."),
@@ -37,6 +38,7 @@ interface RawEnvelope {
     has_more: boolean;
     next_offset?: number;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface QuranHit {
@@ -67,6 +69,11 @@ export interface SearchQuranOutput {
      */
     suggestions?: string[];
     results: QuranHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 /**
@@ -139,6 +146,9 @@ export async function runSearchQuran(
     const canExpand = tokens.length === 1 && !args.options?.wildcards && tokens[0]!.length >= 2;
 
     let out: SearchQuranOutput;
+    // Only the multi-word path can lose words to the engine's five-word cap:
+    // the expanding path exists precisely for a query of one.
+    let droppedTokens: string[] = [];
     if (canExpand) {
         const variants = expandPrefixVariants(tokens[0]!);
         // The helper clamps max_results to 100 per call, so a single window
@@ -224,11 +234,17 @@ export async function runSearchQuran(
                 : {}),
             results: raw.results.map(toHit),
         };
+        droppedTokens = raw.dropped_tokens ?? [];
     }
+
+    // The engine reports what it could not take; the answer says so.
+    if (droppedTokens.length) out.dropped_tokens = droppedTokens;
 
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchQuranLabels);
         const lines = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.hits(num(data.total_hits), num(data.returned)));
         if (data.total_hits_complete === false) {
             lines.push(L.lowerBound);

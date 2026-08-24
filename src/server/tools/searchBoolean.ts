@@ -32,6 +32,7 @@ import { num, pick } from "../i18n/labels.js";
 import { depthLimited, depthNote } from "../i18n/tools/paging.js";
 import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchBooleanLabels } from "../i18n/tools/searchBoolean.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchBooleanInputShape = {
     all_of: z
@@ -83,6 +84,7 @@ interface RawEnvelope {
     has_more: boolean;
     next_offset?: number;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface SubqueryReport {
@@ -131,6 +133,11 @@ export interface SearchBooleanOutput {
     /** Present only when nothing matched: what to try next. */
     suggestions?: string[];
     results: BooleanHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchBoolean(
@@ -264,6 +271,9 @@ export async function runSearchBoolean(
         results,
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(searchBooleanLabels);
         const parts: string[] = [];
@@ -271,6 +281,8 @@ export async function runSearchBoolean(
         if (data.any_of.length) parts.push(L.anyOf(data.any_of));
         if (data.none_of.length) parts.push(L.noneOf(data.none_of));
         const lines = [header(1, L.heading(parts.join(" — ")))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(L.summary(num(data.total_in_window), num(data.returned), num(data.offset), data.total_in_window));
         if (data.scope_count >= 0) lines.push(L.scope(num(data.scope_count), data.scope_count));
         for (const n of data.notes) lines.push(L.note(n));
