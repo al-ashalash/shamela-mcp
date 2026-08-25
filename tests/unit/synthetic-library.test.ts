@@ -103,9 +103,9 @@ describe("nothing in the fixture reads as a real book", () => {
 
 describe("the catalogue reads it", () => {
     it("knows the books, authors and categories it was given", () => {
-        expect(catalog.bookCount()).toBe(8);
+        expect(catalog.bookCount()).toBe(9);
         expect(catalog.authorCount()).toBe(3);
-        expect(catalog.categoryCount()).toBe(3);
+        expect(catalog.categoryCount()).toBe(4);
     });
 
     it("lets the disk decide what is downloaded, not the flag", () => {
@@ -148,7 +148,7 @@ describe("scope resolution against real SQLite", () => {
     const scope = () => new CatalogScope(catalog);
 
     it("an empty scope is every book", () => {
-        expect(scope().resolveBookIds({ downloaded_only: false }).book_ids.length).toBe(8);
+        expect(scope().resolveBookIds({ downloaded_only: false }).book_ids.length).toBe(9);
     });
 
     it("a school filter takes that school's category and not the general one", () => {

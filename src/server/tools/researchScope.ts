@@ -127,6 +127,36 @@ export interface ResearchScopeOutput {
     caveats: string[];
 }
 
+/**
+ * Which of the four things a school's row means.
+ *
+ * Ordered by what the reader is entitled to conclude, and the order is the
+ * whole safeguard:
+ *
+ *   found         pages were hit — nothing to qualify
+ *   silent        books of this school were actually READ and none says it.
+ *                 The only row a researcher may cite as evidence about the
+ *                 school, so it demands the strongest precondition: `searched`
+ *                 must count books on the disk, never books the catalogue
+ *                 merely lists
+ *   not_searched  its books are here and the scope left them out
+ *   cannot_tell   none of its books is here at all
+ *
+ * A pure function because both wrong answers this tool has produced were
+ * orderings of these four lines, and a truth table is the only way to see an
+ * ordering whole.
+ */
+export function schoolStatus(
+    hits: number,
+    searched: number,
+    downloaded: number,
+): SchoolRow["status"] {
+    if (hits > 0) return "found";
+    if (searched > 0) return "silent";
+    if (downloaded > 0) return "not_searched";
+    return "cannot_tell";
+}
+
 export async function runResearchScope(
     helper: Helper,
     catalog: Catalog,
@@ -195,11 +225,26 @@ export async function runResearchScope(
         }
     }
 
-    // The ids the sweep could actually reach: the resolved scope, or - with no
-    // scope - everything downloaded. A school's status is judged against what
-    // of it sat inside THIS set.
-    const searchedIds =
-        scopeBookKeys !== null ? new Set(scopeBookKeys.map(Number)) : catalog.downloadedBookIds();
+    // The ids the sweep could actually READ: the scope intersected with what is
+    // on the disk, or — with no scope — everything on the disk.
+    //
+    // The intersection is the whole point. A scope resolves against the
+    // CATALOGUE, and the catalogue ships complete before anything is
+    // downloaded, so `scope: {category_ids:[14]}` names every Hanafi book
+    // Shamela knows of, most of which may not be here. Counting those as
+    // searched made a school with nothing on the disk report «silent — its
+    // books were searched and say nothing», which is this tool's one forbidden
+    // sentence: it is the inversion the tool exists to prevent, and an earlier
+    // draft of this very fix reintroduced it pointing the other way. The index
+    // holds no page of an undownloaded book, so nothing of it was ever read.
+    const searchedIds = new Set(
+        (scopeBookKeys !== null
+            ? scopeBookKeys.map(Number).filter((id) => catalog.isDownloaded(id))
+            : [...catalog.downloadedBookIds()]),
+    );
+    // And the header must not contradict the rows: what was searched is what
+    // could be read, not what the scope named.
+    if (scopeBookKeys !== null) searchedBooks = searchedIds.size;
 
     const schools: SchoolRow[] = SCHOOLS.map((madhhab) => {
         const categoryId = MADHHAB_CATEGORY[madhhab];
@@ -223,19 +268,7 @@ export async function runResearchScope(
             books_searched: searched,
             books_with_hits: found.size,
             pages_by_term: perSchoolByTerm.get(madhhab)!,
-            // Three ways a zero happens, and only one of them is about the
-            // school: its books were READ and say nothing (silent). The scope
-            // excluding them, or the disk not holding them, are facts about the
-            // sweep and the machine - and a sweep scoped to Shafii fiqh used to
-            // render the Hanafis, the chief writers on istisnaa, as silent.
-            status:
-                found.size > 0
-                    ? "found"
-                    : searched > 0
-                      ? "silent"
-                      : downloaded > 0
-                        ? "not_searched"
-                        : "cannot_tell",
+            status: schoolStatus(found.size, searched, downloaded),
             books,
         };
     });

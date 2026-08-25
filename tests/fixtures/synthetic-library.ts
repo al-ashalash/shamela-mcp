@@ -92,10 +92,17 @@ export const SYN = {
     ORPHAN: 888,
     /** carries Shamela's 99999 "no date" sentinel in book_date */
     UNDATED: 1234,
+    /**
+     * Catalogued and NOT downloaded — the ordinary state of most of the
+     * catalogue, and the one a maintainer's fully-downloaded machine can never
+     * show. Filed under a madhhab so the coverage receipt can be asked what a
+     * school's zero means when none of its books is here.
+     */
+    CATALOGUED_ONLY: 2014,
 } as const;
 
 export const SYN_AUTHOR = { DATED: 700001, UNDATED: 700002, COAUTHOR: 700003 } as const;
-export const SYN_CATEGORY = { GENERAL: 1, SHAFII: 16, HANBALI: 17 } as const;
+export const SYN_CATEGORY = { GENERAL: 1, HANAFI: 14, SHAFII: 16, HANBALI: 17 } as const;
 
 export interface SyntheticLibrary {
     /** The `database/` folder, as the extension expects to be handed one. */
@@ -154,6 +161,7 @@ export async function createSyntheticLibrary(): Promise<SyntheticLibrary> {
         [SYN_CATEGORY.GENERAL, `${SYNTH_MARK}عام`, 1],
         [SYN_CATEGORY.SHAFII, `${SYNTH_MARK}شافعي`, 2],
         [SYN_CATEGORY.HANBALI, `${SYNTH_MARK}حنبلي`, 3],
+        [SYN_CATEGORY.HANAFI, `${SYNTH_MARK}حنفي`, 4],
     ];
     for (const c of categories) {
         master.run("INSERT INTO category (category_id, category_name, category_order) VALUES (?, ?, ?)", c);
@@ -185,6 +193,8 @@ export async function createSyntheticLibrary(): Promise<SyntheticLibrary> {
         // It reached citations as «٩٩٩٩٩هـ» because only the author side was
         // being normalised.
         [SYN.UNDATED, SYN_CATEGORY.GENERAL, 99999, String(SYN_AUTHOR.DATED), SYN_AUTHOR.DATED, 1],
+        // Flag 0 and no file: the catalogue knows it, the disk does not.
+        [SYN.CATALOGUED_ONLY, SYN_CATEGORY.HANAFI, 400, String(SYN_AUTHOR.DATED), SYN_AUTHOR.DATED, 0],
     ];
     for (const [id, cat, date, csv, main, ondisk] of books) {
         master.run(

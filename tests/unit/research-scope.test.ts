@@ -18,8 +18,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import { Catalog } from "../../src/server/catalog.js";
 import type { Helper } from "../../src/server/helper.js";
-import { runResearchScope, researchScopeInput } from "../../src/server/tools/researchScope.js";
-import { SYN, createSyntheticLibrary, type SyntheticLibrary } from "../fixtures/synthetic-library.js";
+import { runResearchScope, researchScopeInput, schoolStatus } from "../../src/server/tools/researchScope.js";
+import { SYN, SYN_CATEGORY, createSyntheticLibrary, type SyntheticLibrary } from "../fixtures/synthetic-library.js";
 import { getSqlWasm } from "../fixtures/shared.js";
 
 let lib: SyntheticLibrary;
@@ -187,5 +187,79 @@ describe("what the reader sees", () => {
         expect(text).toContain("حنفي");
         expect(text).toContain("مالكي");
         expect(text).toMatch(/لا يُدرى/);
+    });
+});
+
+describe("the four statuses, as a truth table", () => {
+    // Both wrong answers this tool has produced were orderings of these four
+    // lines: first a scoped-out school read as «silent», then — in the fix for
+    // that — a school with nothing on disk read as «silent». A table is the
+    // only way to see an ordering whole.
+    const cases: Array<[number, number, number, string, string]> = [
+        // hits, searched, downloaded, expected, why
+        [3, 5, 5, "found", "pages were hit"],
+        [1, 1, 9, "found", "one hit is a hit, whatever the rest"],
+        [0, 5, 5, "silent", "its books were read and say nothing"],
+        [0, 2, 9, "silent", "some of its books were read; that much is evidence"],
+        [0, 0, 9, "not_searched", "here, but the scope left them out"],
+        [0, 0, 1, "not_searched", "one book here, unscoped-out"],
+        [0, 0, 0, "cannot_tell", "nothing of it is here at all"],
+    ];
+    for (const [hits, searched, downloaded, expected, why] of cases) {
+        it(`hits=${hits} searched=${searched} downloaded=${downloaded} → ${expected} (${why})`, () => {
+            expect(schoolStatus(hits, searched, downloaded)).toBe(expected);
+        });
+    }
+
+    it("never calls a school silent unless something of it was read", () => {
+        // The one forbidden sentence. `searched` is the only gate on it, so
+        // whatever `downloaded` says, zero read means never silent.
+        for (const downloaded of [0, 1, 50, 153]) {
+            expect(schoolStatus(0, 0, downloaded), `downloaded=${downloaded}`).not.toBe("silent");
+        }
+    });
+});
+
+describe("a scope names catalogue books, not books on the disk", () => {
+    it("does not call a school silent for books the scope named and the disk lacks", async () => {
+        // The regression: a scope resolves against the CATALOGUE, which ships
+        // complete before anything is downloaded. Counting those as searched
+        // made a school with nothing here report «its books were searched and
+        // say nothing» — the inversion this tool exists to prevent, pointing
+        // the other way. SYN.CATALOGUED_ONLY is a Hanafi book in the catalogue
+        // with no file behind it.
+        const out = await receipt(stubHelper({}), {
+            term: "الاستصناع",
+            scope: { category_ids: [SYN_CATEGORY.HANAFI, SYN_CATEGORY.SHAFII] },
+        });
+        const hanafi = rowFor(out, "hanafi");
+        expect(hanafi.books_in_catalogue).toBeGreaterThan(0);
+        expect(hanafi.books_downloaded).toBe(0);
+        expect(hanafi.books_searched).toBe(0);
+        expect(hanafi.status).toBe("cannot_tell");
+        // And the warning that goes with that status is present.
+        expect(out.caveats.join(" ")).toMatch(/لا يدلّ على شيء|shows nothing/);
+    });
+
+    it("keeps books_searched within books_downloaded, always", async () => {
+        const out = await receipt(stubHelper({}), {
+            term: "الاستصناع",
+            scope: { category_ids: [SYN_CATEGORY.HANAFI, SYN_CATEGORY.SHAFII, SYN_CATEGORY.HANBALI] },
+        });
+        for (const row of out.schools) {
+            expect(row.books_searched, row.madhhab).toBeLessThanOrEqual(row.books_downloaded);
+        }
+    });
+
+    it("counts the header's searched books the same way the rows do", async () => {
+        // «searched 7 of 6 downloaded» is an impossible sentence; the header
+        // and the rows must measure the same thing.
+        const out = await receipt(stubHelper({}), {
+            term: "الاستصناع",
+            scope: { category_ids: [SYN_CATEGORY.HANAFI, SYN_CATEGORY.SHAFII] },
+        });
+        expect(out.searched.books).toBeLessThanOrEqual(out.searched.downloaded_total);
+        const inRows = out.schools.reduce((n, s) => n + s.books_searched, 0);
+        expect(out.searched.books).toBeGreaterThanOrEqual(inRows);
     });
 });
