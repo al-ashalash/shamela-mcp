@@ -285,8 +285,23 @@ public final class SearchAdvanced {
         // centred on the «خلاف» inside «بخلاف النحل», a page about bees offered
         // as evidence about a legal question. The remaining groups stay as the
         // fallback, so a formula the page spells differently still gets marked.
+        // For a gapped group the whole joined phrase is usually NOT contiguous
+        // on the matching page — that is what the gap exists for: «لا نعلم
+        // خلافا» matches «لا نعلم فيه خلافا», where the three words never stand
+        // together. The joined phrase then fails, the fallback marks every
+        // token of every group, and the window opened on the subject or on a
+        // stray «لا» far from the formula — witnesses quoting text that showed
+        // none of what they were cited as evidence OF, in the majority of the
+        // gapped formula's hits (adjacent: 257 pages; interrupted: ~1,400).
+        // The first two tokens ARE contiguous in practice (the gap admits words
+        // later in the run), so a gapped group hands those as its phrase.
         List<String> groupPhrases = new ArrayList<>(normalized.size());
-        for (List<String> group : normalized) groupPhrases.add(String.join(" ", group));
+        for (int i = 0; i < normalized.size(); i++) {
+            List<String> group = normalized.get(i);
+            int gap = gapAt(groupGaps, i);
+            List<String> phraseTokens = gap > 0 && group.size() > 2 ? group.subList(0, 2) : group;
+            groupPhrases.add(String.join(" ", phraseTokens));
+        }
         return SearchPages.execute(indexCache, null, q, envelope,
                 List.of(groupPhrases.get(0)), allTokens,
                 null, fields, scopeBookKeys, maxResults, offset, false, wantCoverage);

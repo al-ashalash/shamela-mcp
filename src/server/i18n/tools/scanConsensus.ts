@@ -30,7 +30,7 @@ export const scanConsensusLabels: Slice<{
     caveatsHeading: string;
     /** Why a particular formula is weaker evidence than its count suggests. */
     formulaCaveat: Record<"also_other_senses" | "topic_not_claim", string>;
-    caveats: Record<"flagged" | "footnotes" | "nothingAtAll", string>;
+    caveats: Record<"flagged" | "footnotes" | "nothingAtAll" | "windowed", string>;
     suggestions: string[];
 }> = {
     ar: {
@@ -65,6 +65,8 @@ export const scanConsensusLabels: Slice<{
                 "شمل البحث الحواشي، وصيغةُ الإجماع في الحاشية دعوى محقِّق الطبعة لا دعوى المؤلِّف — وهما في الاحتجاج ليسا سواء.",
             nothingAtAll:
                 "لم توافق صيغةٌ المسألةَ في هذا النطاق: قد تكون المسألة بلفظٍ آخر، أو تكون كتبها غير منزَّلة، أو تكون المسافة أضيق من أن تجمع الصيغة بالمسألة.",
+            windowed:
+                "الصفوف الموسومة بـ~ لم يُستوفَ فيها عدُّ الكتب والمذاهب: المطابقات أكثر من أن تُمشى في المهلة، فعدد الصفحات دقيقٌ وعمودا الكتب والمذاهب عيّنةٌ من نافذةٍ صغيرة لا استيفاء.",
         },
         suggestions: [
             "جرِّب اللفظ الذي يعنون به الفقهاء المسألة، لا وصفها («المسح على الخفين» لا «حكم مسح الجوارب»).",
@@ -104,6 +106,8 @@ export const scanConsensusLabels: Slice<{
                 "Footnotes were searched, and a consensus formula in a footnote is the modern editor's claim, not the author's — not the same thing in an argument.",
             nothingAtAll:
                 "No formula met the subject in this scope: the question may be named differently, its books may not be downloaded, or the distance may be too narrow to bring the two together.",
+            windowed:
+                "Rows marked ~ did not finish the book/school walk: there were more matches than the time budget allows, so the page count is exact while the books and schools columns are a small-window sample, not a survey.",
         },
         suggestions: [
             "Use the phrase the jurists title the question with, not a description of it.",

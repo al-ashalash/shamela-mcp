@@ -42,7 +42,7 @@
 
 import { z } from "zod";
 
-import { hamzaCollisionWords, normalizeArabic, tokenizeArabic } from "../arabic.js";
+import { ARABIC_PUNCT_RE, hamzaCollisionWords, normalizeArabic, tokenizeArabic } from "../arabic.js";
 import { CatalogScope, type Catalog } from "../catalog.js";
 import { MAX_QUERY_TOKENS, SHAMELA_WEB } from "../constants.js";
 import { badArg, emptyScope } from "../errors.js";
@@ -116,13 +116,21 @@ interface QuoteWord {
  */
 export function quoteWords(s: string): QuoteWord[] {
     const out: QuoteWord[] = [];
+    // Arabic punctuation is INSIDE the Arabic block, so without this a comma
+    // glued to a word — «حكم،» — becomes part of the word, and a token carrying
+    // it matches no index term and no page token. One editor's comma then
+    // flipped a verbatim quotation to a confident «not_found», and a SPACED
+    // comma was counted as a word of the quotation, corrupting the «N of M
+    // words» denominator. Each mark becomes one space, so offsets into the
+    // caller's own string survive for the excerpt slicing below.
+    const cleaned = s.replace(ARABIC_PUNCT_RE, " ");
     // i18n:arabic-data — the Arabic block itself, and the one word-level rule
     // the index applies. Both are the alphabet this function operates ON, not
     // wording it shows; translating either would stop it matching, in every
     // language.
     const re = /[؀-ۿ]+/g;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(s))) {
+    while ((m = re.exec(cleaned))) {
         const normalized = normalizeArabic(m[0]);
         const token = normalized === "ابن" ? "بن" : normalized;
         if (token) out.push({ raw: m[0], token, at: m.index });

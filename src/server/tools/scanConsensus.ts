@@ -126,8 +126,18 @@ export interface ConsensusRow {
     gap: number;
     /** Pages where the formula stands within `distance` of the subject. Exact. */
     pages: number;
-    /** Books those pages fall in. */
+    /**
+     * Books those pages fall in. Exact when `coverage_basis` is
+     * "all_results"; a sample of the fetched window when it is "window".
+     */
     books: number;
+    /**
+     * Whether `books` and `by_madhhab` describe every matching page or only
+     * the fetched window. `pages` is exact either way (it is a count, not a
+     * walk); the distribution is what the engine may abandon under its time
+     * budget, and a walk it abandoned must not be read as one it finished.
+     */
+    coverage_basis: "all_results" | "window";
     /**
      * The formula's OWN total in the same scope, whatever the subject.
      *
@@ -238,18 +248,29 @@ export async function runScanConsensus(
         subjectPages = raw.group_totals?.[1] ?? subjectPages;
 
         const byBook = raw.coverage?.by_book_key ?? {};
+        // The engine abandons the per-book walk under a time budget and then
+        // reports the fetched window instead — which for this tool is at most
+        // five rows. researchScope guards this; a scan must too, or a formula
+        // on twenty thousand pages arrives with «books: 1» presented as exact.
+        const basis: "all_results" | "window" =
+            raw.coverage?.basis === "window" || raw.coverage?.at_cap ? "window" : "all_results";
         const byMadhhab: Record<string, number> = {};
         for (const [key, count] of Object.entries(byBook)) {
             const rec = catalog.bookRecord(Number(key));
             const school = rec?.book_category != null ? MADHHAB_OF_CATEGORY.get(rec.book_category) : undefined;
             if (school) byMadhhab[school] = (byMadhhab[school] ?? 0) + count;
         }
-        if (raw.total_hits > 0) {
+        if (raw.total_hits > 0 && basis === "all_results") {
+            // A windowed rollup contributes nothing to the family union: two
+            // books out of thousands would read as «the family touched two».
             for (const key of Object.keys(byBook)) booksByFamily[entry.family].add(Number(key));
         }
 
         const witnesses: ConsensusWitness[] = [];
-        for (const hit of raw.results) {
+        // The engine fetches at least one row however small max_results is, so
+        // witnesses:0 must be enforced here — a caller who asked for counts
+        // alone gets counts alone, as the input schema promises.
+        for (const hit of raw.results.slice(0, args.witnesses)) {
             const rec = catalog.bookRecord(hit.book_id);
             const inFootnote = !hit.snippet_body && Boolean(hit.snippet_foot);
             witnesses.push({
@@ -271,6 +292,7 @@ export async function runScanConsensus(
             gap: entry.gap,
             pages: raw.total_hits,
             books: Object.keys(byBook).length,
+            coverage_basis: basis,
             formula_pages_in_scope: formulaTotal,
             share_of_subject: subjectPages > 0 ? Math.round((raw.total_hits / subjectPages) * 1000) / 1000 : 0,
             ...(entry.caveat ? { caveat: L.formulaCaveat[entry.caveat] } : {}),
@@ -280,6 +302,7 @@ export async function runScanConsensus(
     }
 
     rows.sort((a, b) => b.pages - a.pages || a.formula.localeCompare(b.formula));
+    if (rows.some((r) => r.coverage_basis === "window")) caveats.push(L.caveats.windowed);
     if (rows.some((r) => r.caveat)) caveats.push(L.caveats.flagged);
     if (args.search_in.includes("foot")) caveats.push(L.caveats.footnotes);
     if (rows.every((r) => r.pages === 0)) caveats.push(L.caveats.nothingAtAll);
@@ -330,8 +353,9 @@ export async function runScanConsensus(
                     .filter((m) => r.by_madhhab[m])
                     .map((m) => `${L.madhhab[m]} ${num(r.by_madhhab[m]!)}`)
                     .join(" · ");
+                const windowed = r.coverage_basis === "window" ? "~" : "";
                 lines.push(
-                    `| ${r.formula}${r.caveat ? " ⚠️" : ""} | ${num(r.pages)} | ${num(r.books)} | ${num(r.formula_pages_in_scope)} | ${schools || "—"} |`,
+                    `| ${r.formula}${r.caveat ? " ⚠️" : ""} | ${num(r.pages)} | ${windowed}${num(r.books)} | ${num(r.formula_pages_in_scope)} | ${windowed}${schools || "—"} |`,
                 );
             }
             if (familyRows.some((r) => Object.keys(r.by_madhhab).length)) {

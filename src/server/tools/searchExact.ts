@@ -37,7 +37,6 @@ import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
 import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
 import { searchExactLabels } from "../i18n/tools/searchExact.js";
-import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 // --- Tunable exactness normalizer (pure, local — does NOT touch arabic.ts) ---
 
@@ -51,6 +50,19 @@ const DIACRITICS_RE = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
 // it is a purely decorative letter-elongation, never semantically meaningful).
 const TATWEEL_RE = /ـ/g;
 const HTML_TAG_RE = /<[^>]*>/g;
+
+// Punctuation, Arabic and Latin alike, folded ALWAYS — like tatweel, and for
+// the same reason: it is the edition's furniture, not the author's wording.
+// The exactness this tool enforces is the three axes its flags name
+// (diacritics, hamza, digits); a comma was never one of them, yet an Arabic
+// comma glued to a word used to break the match, because U+060C sits inside
+// the Arabic block and survived every fold. One deliberate exception: the
+// Arabic-Indic numeric separators U+066B/U+066C stay, so «٣٫٥» is not fused
+// into «٣٥». (A Latin period between digits, «3.5», IS folded — after the
+// whitespace collapse both sides fold identically, so matching stays
+// consistent; the cost is «3.5» equalling «35», accepted and noted here.)
+// i18n:arabic-data — the marks themselves.
+const PUNCT_RE = /[،؛؞؟٭۔.,:;!?"'()[\]{}«»„“”‘’…–—-]/g;
 
 // Western 0-9, Arabic-Indic ٠-٩ (U+0660..), Extended Arabic-Indic ۰-۹ (U+06F0..).
 const WESTERN_DIGIT_RE = /[0-9]/g;
@@ -74,7 +86,9 @@ export interface PreserveFlags {
  * not ask to preserve. Both the query and the raw page text go through this
  * SAME function with the SAME flags, so matching is internally consistent.
  *
- * - Always: NFC, strip inline HTML tags, strip tatweel, collapse whitespace.
+ * - Always: NFC, strip inline HTML tags, strip tatweel AND punctuation
+ *   (Arabic and Latin — an editor's comma is not part of the wording),
+ *   collapse whitespace.
  * - preserve_diacritics=false → strip all tashkeel/dagger-alef/Quranic marks.
  * - preserve_hamza=false      → fold آأإٱ→ا, ى→ي, ؤ→و, ئ→ي, ة→ه, drop bare ء.
  * - preserve_digits=false     → unify Arabic-Indic/Extended digits to Western.
@@ -84,6 +98,7 @@ export function normalizeExact(input: string, flags: PreserveFlags): string {
     let s = input.normalize("NFC");
     s = s.replace(HTML_TAG_RE, " ");
     s = s.replace(TATWEEL_RE, ""); // tatweel is always decorative
+    s = s.replace(PUNCT_RE, " "); // punctuation is the editor's, not the author's
     if (!flags.preserve_diacritics) {
         s = s.replace(DIACRITICS_RE, "");
     }
@@ -258,8 +273,12 @@ export interface SearchExactOutput {
     suggestions?: string[];
     results: ExactHit[];
     /**
-     * Words of the query the engine could not take. It accepts five per search
-     * and the rest are dropped, so the results are WIDER than what was asked.
+     * Words the CANDIDATE search could not take — the engine accepts five per
+     * query. Unlike the ordinary searches, this does NOT widen the results:
+     * stage 2 verifies the whole query letter for letter against the raw page
+     * text, dropped words included, so every hit carries all of them. What the
+     * drop can do is thin the candidate pool the verification reads from,
+     * which `candidate_cap_hit` already describes.
      */
     dropped_tokens?: string[];
 }
@@ -414,8 +433,11 @@ export async function runSearchExact(
         const lines = [
             header(1, L.heading(L.joinFeatures(on), data.query)),
         ];
-        const trimmedQuery = droppedNote(data);
-        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
+        // NOT the shared dropped-words sentence: that one says the results are
+        // wider than asked, which is true of every search except this one —
+        // here stage 2 enforces the full text, so the hits are exact and only
+        // the candidate pool was narrowed.
+        if (data.dropped_tokens?.length) lines.push("", `> *${L.candidatesTrimmed(data.dropped_tokens)}*`);
         lines.push(L.summary(num(data.returned), num(data.total_candidates_scanned)));
         if (data.candidate_cap_hit) {
             lines.push(L.capNote);

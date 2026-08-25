@@ -173,8 +173,8 @@ describe("what the reader sees", () => {
             researchScopeInput.parse({ term: "الاستصناع" }),
         );
         const text = r.content[0]!.text;
-        expect(text.indexOf("صفران")).toBeGreaterThan(-1);
-        expect(text.indexOf("صفران")).toBeLessThan(text.indexOf("|---"));
+        expect(text.indexOf("أصفار")).toBeGreaterThan(-1);
+        expect(text.indexOf("أصفار")).toBeLessThan(text.indexOf("|---"));
     });
 
     it("renders the empty schools as rows, not as absences", async () => {

@@ -96,7 +96,7 @@ describe("the reader's own view", () => {
             researchScopeInput.parse({ term: "خيار المجلس" }),
         );
         const text = r.content[0]!.text;
-        expect(text).toMatch(/صفران|two different zeros/);
+        expect(text).toMatch(/ثلاثة أصفار|three different zeros/);
         for (const school of ["حنفي", "مالكي", "شافعي", "حنبلي"]) expect(text).toContain(school);
         expect(text).toMatch(/خارج المذاهب الأربعة|Outside the four/);
     }, 180_000);

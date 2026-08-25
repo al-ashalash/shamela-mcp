@@ -23,6 +23,7 @@
 import { z } from "zod";
 
 import { CatalogScope, type Catalog } from "../catalog.js";
+import { MAX_QUERY_TOKENS } from "../constants.js";
 import { badArg, emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
@@ -134,8 +135,11 @@ export interface SearchBooleanOutput {
     suggestions?: string[];
     results: BooleanHit[];
     /**
-     * Words of the query the engine could not take. It accepts five per search
-     * and the rest are dropped, so the results are WIDER than what was asked.
+     * Words of a POSITIVE term the engine could not take. It accepts five per
+     * term and drops the rest, so the affected term matched more pages than
+     * asked — the intersection can only be wider. An over-long none_of term is
+     * refused outright (see runSearchBoolean), so a dropped word here never
+     * comes from an exclusion.
      */
     dropped_tokens?: string[];
 }
@@ -152,6 +156,21 @@ export async function runSearchBoolean(
 
     if (allOf.length === 0 && anyOf.length === 0) {
         throw badArg("At least one of `all_of` or `any_of` must contain a term.");
+    }
+
+    // The engine takes five words per term and DROPS the rest. For a positive
+    // term that widens the answer, which the shared note explains; for an
+    // EXCLUSION it inverts — a five-word subset of a six-word none_of term
+    // matches more pages, so more pages are excluded and pages the caller asked
+    // to see silently vanish. There is no correct reading of an over-long
+    // exclusion under the cap, so it is refused rather than reinterpreted.
+    for (const term of noneOf) {
+        const words = term.trim().split(/\s+/).filter(Boolean);
+        if (words.length > MAX_QUERY_TOKENS) {
+            throw badArg(
+                `A none_of term takes at most ${MAX_QUERY_TOKENS} words, and "${term}" has ${words.length}: the engine would drop the rest, which BROADENS the exclusion and silently removes pages you asked to see. Split it into two terms, or keep its ${MAX_QUERY_TOKENS} most distinctive words.`,
+            );
+        }
     }
 
     // Resolve scope to book keys (same path as search_pages / search_phrase).

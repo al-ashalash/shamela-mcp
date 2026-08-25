@@ -97,7 +97,7 @@ export const verifyQuoteLabels: Slice<{
             auto_numbered:
                 "ترقيم هذا الكتاب من الشاملة نفسها لا من مطبوعةٍ، فرقم الصفحة المذكور لا يوافق نسخةً مطبوعة؛ فأحِل بمعرِّف الصفحة أو بالرابط.",
             verbatim_is_folded:
-                "و«بحروفه» هنا: بعد إسقاط التطويل وتوحيد المسافات ونزع وسوم العرض — وهي زينةُ رسمٍ لا تغيّر لفظًا؛ وما سوى ذلك من تشكيلٍ وهمزٍ وأرقامٍ قوبل كما كُتب.",
+                "و«بحروفه» هنا: بعد إسقاط التطويل وعلامات الترقيم وتوحيد المسافات ونزع وسوم العرض — فهي من صنعة الطبع لا من لفظ المؤلِّف؛ وما سوى ذلك من تشكيلٍ وهمزٍ وأرقامٍ قوبل كما كُتب.",
             not_found_here:
                 "وقد يكون اللفظ في كتابٍ غير منزَّل، أو في طبعةٍ أخرى، أو منقولًا بالمعنى؛ فجرِّب أدلَّ قطعةٍ منه وحدها بـ shamela_search_phrase.",
         },
@@ -161,7 +161,7 @@ export const verifyQuoteLabels: Slice<{
             auto_numbered:
                 "Shamela numbered this book itself rather than following a printed edition, so the page number above matches no printed copy; cite the page id or the link instead.",
             verbatim_is_folded:
-                "\"Letter for letter\" here means after tatweel, run-together whitespace and display tags are set aside — decoration that changes no word; everything else, diacritics and hamza and digits, was compared as written.",
+                "\"Letter for letter\" here means after tatweel, punctuation, run-together whitespace and display tags are set aside — the edition's furniture, not the author's wording; everything else, diacritics and hamza and digits, was compared as written.",
             not_found_here:
                 "It may be in a book that is not downloaded, in another edition, or reported by sense rather than quoted; try its most distinctive fragment alone with shamela_search_phrase.",
         },

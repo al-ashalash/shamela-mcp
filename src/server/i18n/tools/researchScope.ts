@@ -17,7 +17,7 @@ export const researchScopeLabels: Slice<{
     tableRule: (termCount: number) => string;
     madhhab: Record<"hanafi" | "maliki" | "shafii" | "hanbali", string>;
     /** What a row's number means. Three words, and they must stay three. */
-    status: Record<"found" | "silent" | "cannot_tell", string>;
+    status: Record<"found" | "silent" | "not_searched" | "cannot_tell", string>;
     outsideRow: string;
     outsideNote: string;
     booksHeading: string;
@@ -25,6 +25,7 @@ export const researchScopeLabels: Slice<{
     listSeparator: string;
     caveatsHeading: string;
     caveats: {
+        notSearched: string;
         notDownloaded: string;
         silentMeansSilent: string;
         oneWording: string;
@@ -38,13 +39,14 @@ export const researchScopeLabels: Slice<{
                 ? `بُحث في **${books}** كتابًا من ${downloaded} منزَّلًا على هذا الجهاز.`
                 : `بُحث في **${books}** كتابًا — وهي كل المنزَّل على هذا الجهاز.`,
         readingNote:
-            "الصفر في هذا الجدول صفران لا صفر واحد: «سكوتٌ» أن كتب المذهب عندك ولم تنطق بها، و«لا يُدرى» أن كتبه ليست عندك أصلًا. الأول خبرٌ عن المذهب، والثاني خبرٌ عن قرصك. فلا تنسب إلى مذهبٍ سكوتًا إلا من صفٍّ يقول «سكوت».",
-        tableHead: (terms) => `| المذهب | ${terms.map((t) => `صفحات «${t}»`).join(" | ")} | كتب أصابت | منزَّل / في الفهرس | الحال |`,
+            "الصفر في هذا الجدول ثلاثة أصفار لا صفرٌ واحد: «سكوتٌ» أن كتب المذهب بُحثت ولم تنطق — وهو وحده خبرٌ عن المذهب؛ و«خارج النطاق» أن كتبه عندك والنطاقَ الذي حدّدتَه لم يشملها؛ و«لا يُدرى» أن كتبه ليست عندك أصلًا — وهذان خبران عن بحثك وقرصك لا عن المذهب. فلا تنسب إلى مذهبٍ سكوتًا إلا من صفٍّ يقول «سكوت».",
+        tableHead: (terms) => `| المذهب | ${terms.map((t) => `صفحات «${t}»`).join(" | ")} | كتب أصابت | مبحوث / منزَّل / في الفهرس | الحال |`,
         tableRule: (n) => `|---|${"---|".repeat(n)}---|---|---|`,
         madhhab: { hanafi: "حنفي", maliki: "مالكي", shafii: "شافعي", hanbali: "حنبلي" },
         status: {
             found: "موجود",
-            silent: "**سكوت** — كتبه عندك ولم تنطق",
+            silent: "**سكوت** — بُحثت كتبه ولم تنطق",
+            not_searched: "**خارج النطاق** — كتبه عندك والنطاقُ لم يشملها",
             cannot_tell: "**لا يُدرى** — لا كتب له عندك",
         },
         outsideRow: "خارج المذاهب الأربعة",
@@ -54,6 +56,8 @@ export const researchScopeLabels: Slice<{
         listSeparator: "، ",
         caveatsHeading: "قيود",
         caveats: {
+            notSearched:
+                "من المذاهب ما استبعد النطاقُ كتبَه من البحث كلَّها؛ فصفُّه «خارج النطاق» لا سكوت — ولا يُنسب إلى مذهبٍ سكوتٌ عن سؤالٍ لم يُطرح على كتبه. وسِّع النطاق أو أسقطه ليدخل.",
             notDownloaded:
                 "من المذاهب ما لا كتاب له منزَّلٌ عندك؛ فصفره لا يدلّ على شيء، ولا يصحّ أن يُنقل عنه سكوت. وانظر shamela_suggest_download لتنزيل ما يسدّ الثغرة.",
             silentMeansSilent:
@@ -71,13 +75,14 @@ export const researchScopeLabels: Slice<{
                 ? `Searched **${books}** of the ${downloaded} books downloaded on this machine.`
                 : `Searched **${books}** books — everything downloaded on this machine.`,
         readingNote:
-            "A zero in this table is two different zeros: «silent» means the school's books ARE here and none of them says it; «cannot tell» means its books are not here at all. The first is evidence about the school, the second is evidence about your disk. Never report a school as silent except from a row that says silent.",
-        tableHead: (terms) => `| School | ${terms.map((t) => `pages "${t}"`).join(" | ")} | Books hit | Downloaded / catalogued | Reading |`,
+            "A zero in this table is three different zeros: «silent» means the school's books were searched and none of them says it — the only zero that is evidence about the school; «out of scope» means its books are here and your scope excluded them; «cannot tell» means its books are not here at all — both facts about your sweep and your disk, not about the school. Never report a school as silent except from a row that says silent.",
+        tableHead: (terms) => `| School | ${terms.map((t) => `pages "${t}"`).join(" | ")} | Books hit | Searched / downloaded / catalogued | Reading |`,
         tableRule: (n) => `|---|${"---|".repeat(n)}---|---|---|`,
         madhhab: { hanafi: "Hanafi", maliki: "Maliki", shafii: "Shafii", hanbali: "Hanbali" },
         status: {
             found: "found",
-            silent: "**silent** — its books are here and say nothing",
+            silent: "**silent** — its books were searched and say nothing",
+            not_searched: "**out of scope** — its books are here and the scope excluded them",
             cannot_tell: "**cannot tell** — none of its books is here",
         },
         outsideRow: "Outside the four schools",
@@ -87,6 +92,8 @@ export const researchScopeLabels: Slice<{
         listSeparator: ", ",
         caveatsHeading: "Limits",
         caveats: {
+            notSearched:
+                "At least one school had every one of its books excluded by the scope, so its row reads out-of-scope, not silence — no school may be reported silent about a question its books were never asked. Widen or drop the scope to include it.",
             notDownloaded:
                 "At least one school has no book downloaded here, so its zero shows nothing and no silence may be reported from it. See shamela_suggest_download to close the gap.",
             silentMeansSilent:

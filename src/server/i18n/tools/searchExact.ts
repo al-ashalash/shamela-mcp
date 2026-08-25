@@ -8,6 +8,13 @@ export const searchExactLabels: Slice<{
     digits: string;
     /** Between the enforced distinctions. */
     joinFeatures: (parts: string[]) => string;
+    /**
+     * The candidate stage lost words to the engine's five-word cap. NOT the
+     * shared dropped-words sentence: exactness re-verifies the whole text, so
+     * the results here stay exact and only the pool they were read from
+     * narrowed — the opposite direction of every other search.
+     */
+    candidatesTrimmed: (words: string[]) => string;
     heading: (features: string, query: string) => string;
     summary: (returned: string, scanned: string) => string;
     capNote: string;
@@ -24,6 +31,8 @@ export const searchExactLabels: Slice<{
         hamza: "الهمزات",
         digits: "نظام الأرقام",
         joinFeatures: (parts) => parts.join(" و"),
+        candidatesTrimmed: (words) =>
+            `تنبيه: مرحلة الترشيح تقبل خمس كلمات، فرُشِّحت الصفحات بدون ${words.map((w) => `«${w}»`).join(" و")} — والفحص الحرفي طُبِّق على نصّك كاملًا، فما ظهر مطابقٌ له كلِّه. غير أن قلة المرشَّحين قد تُنقص النتائج لا تزيدها؛ فإن ظننت نقصًا فضيِّق بـ scope.`,
         heading: (features, query) => `بحث مطابق تمامًا (مع مراعاة ${features}): «${query}»`,
         summary: (returned, scanned) =>
             `**${returned}** صفحة مطابقة بالضبط (من ${scanned} صفحة مرشَّحة فُحصت).`,
@@ -39,6 +48,8 @@ export const searchExactLabels: Slice<{
         hamza: "hamza forms",
         digits: "digit systems",
         joinFeatures: (parts) => listAnd(parts),
+        candidatesTrimmed: (words) =>
+            `Note: the candidate stage takes five words, so pages were shortlisted without ${words.map((w) => `"${w}"`).join(" and ")} — the letter-exact check was then applied to your FULL text, so every hit matches all of it. A thinner shortlist can only miss results, never add them; if something seems absent, narrow with scope.`,
         heading: (features, query) => `Exact search (preserving ${features}): "${query}"`,
         summary: (returned, scanned) =>
             `**${returned}** ${plural(returned, "page matches", "pages match")} exactly (out of ${scanned} candidate ${plural(scanned, "page", "pages")} examined).`,

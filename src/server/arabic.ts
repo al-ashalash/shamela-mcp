@@ -139,11 +139,31 @@ function stripHtml(s: string): string {
 }
 
 /**
+ * Arabic punctuation, which sits INSIDE the Arabic Unicode block and therefore
+ * inside a naive «Arabic run» regex.
+ *
+ * The comma U+060C, semicolon U+061B, triple dot U+061E, question mark U+061F,
+ * the star U+066D and the full stop U+06D4. Left in, a comma glued to a word
+ * — «حكم،» — rides along as part of the token, and a token carrying it exists
+ * in no Lucene index and equals no page word: Shamela's tokenizer splits on
+ * punctuation, so the index holds «حكم» alone. Measured: a quotation lifted
+ * verbatim from a fixture page flipped from «verbatim» to a confident
+ * «not_found» on the strength of one editor's comma.
+ *
+ * Replaced with a space, never deleted: each mark is one character, so every
+ * offset into the original string survives, which quoteWords relies on.
+ *
+ * The numeric separators U+066B/U+066C are deliberately NOT here — dropping
+ * them would fuse «٣٫٥» into «٣٥», a different number.
+ */
+export const ARABIC_PUNCT_RE = /[،؛؞؟٭۔]/g;
+
+/**
  * Tokenize Arabic text into normalized tokens (runs of Arabic letters).
  * Applies the same "ابن" → "بن" rule the helper uses so phrase matching lines up.
  */
 export function tokenizeArabic(input: string): string[] {
-    const normalized = normalizeArabic(stripHtml(input));
+    const normalized = normalizeArabic(stripHtml(input).replace(ARABIC_PUNCT_RE, " "));
     const matches = normalized.match(/[؀-ۿ]+/g);
     if (!matches) return [];
     return matches.map((t) => (t === "ابن" ? "بن" : t)); // ابن → بن

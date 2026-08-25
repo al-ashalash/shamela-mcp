@@ -9,13 +9,15 @@
  * manual». Both produce the same zero, and they are opposite conclusions.
  *
  * So the instruction becomes data. One row per school, always all four, and
- * every row says which of three things its number means:
+ * every row says which of four things its number means:
  *
- *   found        the term is there, in this many of the school's books
- *   silent       its books ARE on this machine and none of them says it —
- *                the only zero that is evidence about the tradition
- *   cannot_tell  none of its books is downloaded, so the zero is about the
- *                library on this disk and about nothing else
+ *   found         the term is there, in this many of the school's books
+ *   silent        its books were SEARCHED and none of them says it — the only
+ *                 zero that is evidence about the tradition
+ *   not_searched  its books are on this machine and the caller's scope
+ *                 excluded them, so the school was never asked
+ *   cannot_tell   none of its books is downloaded, so the zero is about the
+ *                 library on this disk and about nothing else
  *
  * A fifth row counts what falls outside the four schools entirely. Shamela
  * files each school's fiqh under its own category and leaves general fiqh,
@@ -80,6 +82,13 @@ export interface SchoolRow {
     /** Books Shamela catalogues under this school, and how many are on this disk. */
     books_in_catalogue: number;
     books_downloaded: number;
+    /**
+     * Of those, how many the SCOPE let the sweep reach. The status is judged
+     * against this, never against the machine-wide count: a school whose books
+     * the scope excluded was not asked, and a school that was not asked cannot
+     * be reported silent.
+     */
+    books_searched: number;
     /** Books of this school in which any of the terms was found. Union — exact. */
     books_with_hits: number;
     /** Pages per term. Never summed: one page may carry two of the terms. */
@@ -89,7 +98,7 @@ export interface SchoolRow {
      * tool exists for: `silent` is evidence, `cannot_tell` is a gap in the
      * library wearing the same clothes.
      */
-    status: "found" | "silent" | "cannot_tell";
+    status: "found" | "silent" | "not_searched" | "cannot_tell";
     /** A few of the books the term was actually found in, most pages first. */
     books: Array<{ book_id: number; book_name: string; pages: number }>;
 }
@@ -186,10 +195,17 @@ export async function runResearchScope(
         }
     }
 
+    // The ids the sweep could actually reach: the resolved scope, or - with no
+    // scope - everything downloaded. A school's status is judged against what
+    // of it sat inside THIS set.
+    const searchedIds =
+        scopeBookKeys !== null ? new Set(scopeBookKeys.map(Number)) : catalog.downloadedBookIds();
+
     const schools: SchoolRow[] = SCHOOLS.map((madhhab) => {
         const categoryId = MADHHAB_CATEGORY[madhhab];
         const inCatalogue = catalog.booksInCategory(categoryId);
         const downloaded = inCatalogue.filter((id) => catalog.isDownloaded(id)).length;
+        const searched = inCatalogue.filter((id) => searchedIds.has(id)).length;
         const found = perSchool.get(madhhab)!;
         const books = [...found.entries()]
             .sort((a, b) => b[1] - a[1] || a[0] - b[0])
@@ -204,11 +220,22 @@ export async function runResearchScope(
             category_id: categoryId,
             books_in_catalogue: inCatalogue.length,
             books_downloaded: downloaded,
+            books_searched: searched,
             books_with_hits: found.size,
             pages_by_term: perSchoolByTerm.get(madhhab)!,
-            // A zero with none of the school's books on the machine is not a
-            // finding about the school. This is the whole distinction.
-            status: found.size > 0 ? "found" : downloaded > 0 ? "silent" : "cannot_tell",
+            // Three ways a zero happens, and only one of them is about the
+            // school: its books were READ and say nothing (silent). The scope
+            // excluding them, or the disk not holding them, are facts about the
+            // sweep and the machine - and a sweep scoped to Shafii fiqh used to
+            // render the Hanafis, the chief writers on istisnaa, as silent.
+            status:
+                found.size > 0
+                    ? "found"
+                    : searched > 0
+                      ? "silent"
+                      : downloaded > 0
+                        ? "not_searched"
+                        : "cannot_tell",
             books,
         };
     });
@@ -216,6 +243,7 @@ export async function runResearchScope(
     const caveats: string[] = [];
     // First, because it changes what every row below is a measurement OF.
     if (droppedFor) caveats.push(droppedFor);
+    if (schools.some((s) => s.status === "not_searched")) caveats.push(L.caveats.notSearched);
     if (schools.some((s) => s.status === "cannot_tell")) caveats.push(L.caveats.notDownloaded);
     if (schools.some((s) => s.status === "silent")) caveats.push(L.caveats.silentMeansSilent);
     if (unique.length === 1) caveats.push(L.caveats.oneWording);
@@ -246,7 +274,7 @@ export async function runResearchScope(
         for (const s of data.schools) {
             const cells = data.terms.map((t) => num(s.pages_by_term[t] ?? 0)).join(" | ");
             lines.push(
-                `| ${L.madhhab[s.madhhab]} | ${cells} | ${num(s.books_with_hits)} | ${num(s.books_downloaded)} / ${num(s.books_in_catalogue)} | ${L.status[s.status]} |`,
+                `| ${L.madhhab[s.madhhab]} | ${cells} | ${num(s.books_with_hits)} | ${num(s.books_searched)} / ${num(s.books_downloaded)} / ${num(s.books_in_catalogue)} | ${L.status[s.status]} |`,
             );
         }
         const outsideCells = data.terms.map((t) => num(data.outside_the_schools.pages_by_term[t] ?? 0)).join(" | ");
