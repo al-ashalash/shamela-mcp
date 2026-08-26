@@ -8,8 +8,8 @@
 <style>
   :root{
     --bg:#F0EDE4; --surface:#FBFAF6; --surface2:#F4F0E7; --border:#E4DFD2;
-    --ink:#23201B; --muted:#6F695D; --coral:#D97757; --coral-deep:#BE5D3B;
-    --chip-bg:#F7E7DE; --chip-tx:#B4522F; --chip-bd:#EBCBBB; --gold:#C79A3F;
+    --ink:#23201B; --muted:#6F695D; --coral:#D97757; --coral-deep:#A8462A;
+    --chip-bg:#F7E7DE; --chip-tx:#9C4425; --chip-bd:#EBCBBB; --gold:#C79A3F;
     --sand:#EFE3D2; --sand-bd:#E2D2BB; --gold-bg:#F7F1DF; --gold-bd:#E7DBB6;
     --shadow:0 10px 34px rgba(35,32,27,.08); --shadow-sm:0 4px 14px rgba(35,32,27,.06);
     --arab:"Segoe UI","Geeza Pro","SF Arabic","Noto Sans Arabic",system-ui,sans-serif;
@@ -27,8 +27,8 @@
       --shadow:0 12px 34px rgba(0,0,0,.36); --shadow-sm:0 4px 14px rgba(0,0,0,.3); }
   }
   :root[data-theme="light"]{ --bg:#F0EDE4; --surface:#FBFAF6; --surface2:#F4F0E7; --border:#E4DFD2;
-    --ink:#23201B; --muted:#6F695D; --coral:#D97757; --coral-deep:#BE5D3B;
-    --chip-bg:#F7E7DE; --chip-tx:#B4522F; --chip-bd:#EBCBBB; --gold:#C79A3F;
+    --ink:#23201B; --muted:#6F695D; --coral:#D97757; --coral-deep:#A8462A;
+    --chip-bg:#F7E7DE; --chip-tx:#9C4425; --chip-bd:#EBCBBB; --gold:#C79A3F;
     --sand:#EFE3D2; --sand-bd:#E2D2BB; --gold-bg:#F7F1DF; --gold-bd:#E7DBB6; --shadow:0 10px 34px rgba(35,32,27,.08); --shadow-sm:0 4px 14px rgba(35,32,27,.06); }
   :root[data-theme="dark"]{ --bg:#201D16; --surface:#2B271F; --surface2:#332E24; --border:#443E31;
     --ink:#F1EDE3; --muted:#ADA592; --coral:#E58B6B; --coral-deep:#F0A98C;
@@ -36,7 +36,7 @@
     --sand:#2A241C; --sand-bd:#463A2C; --gold-bg:#2E2716; --gold-bd:#4A3F22; --shadow:0 12px 34px rgba(0,0,0,.36); --shadow-sm:0 4px 14px rgba(0,0,0,.3); }
 
   *{margin:0;padding:0;box-sizing:border-box}
-  html{scroll-behavior:smooth}
+  html{scroll-behavior:smooth;scroll-padding-top:80px}
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   body{
     background:radial-gradient(1250px 600px at 50% -10%, color-mix(in srgb,var(--surface) 85%,var(--bg)) 0%, rgba(0,0,0,0) 62%), var(--bg);
@@ -51,11 +51,12 @@
   section{padding:56px 0;border-top:1px solid var(--border)}
   .eyebrow{color:var(--coral-deep);font-weight:800;font-size:15px;letter-spacing:.02em}
   #skill{background:var(--gold-bg);border-top-color:var(--gold-bd);border-bottom:1px solid var(--gold-bd)}
+  #skill+section,#tools+section{border-top:0}
   #skill .eyebrow{display:inline-flex;align-items:center;gap:7px;color:#8A6A1E}
   @media(prefers-color-scheme:dark){#skill .eyebrow{color:var(--gold)}}
   :root[data-theme="light"] #skill .eyebrow{color:#8A6A1E}
   :root[data-theme="dark"] #skill .eyebrow{color:var(--gold)}
-  h2{font-size:clamp(26px,4vw,36px);font-weight:800;margin:6px 0 6px;text-wrap:balance}
+  h2{font-size:clamp(26px,4vw,36px);font-weight:800;line-height:1.28;margin:8px 0 12px;text-wrap:balance}
   .lead{color:var(--muted);font-size:clamp(16px,2.2vw,19px);max-width:60ch}
   .en,.id,.ms,.ur,.fr,.bn,.tr,.ru,.zh,.fa,.sw{display:none}
   html[data-lang="en"] .ar,html[data-lang="id"] .ar,html[data-lang="ms"] .ar,html[data-lang="ur"] .ar,html[data-lang="fr"] .ar,html[data-lang="bn"] .ar,html[data-lang="tr"] .ar,html[data-lang="ru"] .ar,html[data-lang="zh"] .ar,html[data-lang="fa"] .ar,html[data-lang="sw"] .ar{display:none}
@@ -85,7 +86,8 @@
   .tools-btn{background:none;border:1px solid var(--border);color:var(--ink);border-radius:9px;
     padding:7px 12px;font-size:14px;cursor:pointer;font-family:inherit;font-weight:700}
   .tools-btn:hover{background:var(--surface2)}
-  .tools-btn:focus-visible,a:focus-visible,.acc:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
+  .tools-btn:focus-visible,a:focus-visible{outline:2px solid var(--coral-deep);outline-offset:2px}
+  .acc:focus-visible{outline:2px solid var(--coral-deep);outline-offset:-3px}
   /* the language menu is as wide as its longest option, so cap it and let the wordmark give way */
   #lang{max-width:170px}
   /* the section names are long in several languages; below this the links do not fit beside them */
@@ -116,7 +118,7 @@
   .hero-art svg{display:block;width:100%;height:auto}
   .win{margin-top:36px;background:var(--surface);border:1px solid var(--border);border-radius:20px;
     overflow:hidden;box-shadow:var(--shadow)}
-  .win-bar{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--surface2);
+  .win-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 18px;background:var(--surface2);
     border-bottom:1px solid var(--border)}
   .lights{display:flex;gap:7px}
   .lights i{width:11px;height:11px;border-radius:50%;display:block}
@@ -124,7 +126,7 @@
   .win-title{display:flex;align-items:center;gap:8px}
   .win-title .brand{font-size:17px;color:var(--ink)}
   .win-tag{margin-inline-start:auto;font-size:13.5px;font-weight:700;color:var(--chip-tx);
-    background:var(--chip-bg);border:1px solid var(--chip-bd);padding:4px 13px;border-radius:30px;white-space:nowrap}
+    background:var(--chip-bg);border:1px solid var(--chip-bd);padding:4px 13px;border-radius:30px}
   .win-body{padding:20px 22px 24px}
   .search{display:flex;align-items:center;gap:12px;background:var(--bg);border:1.5px solid var(--border);
     border-radius:14px;padding:11px 15px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
@@ -141,7 +143,7 @@
   .ans-line{font-size:16.5px;line-height:1.55}
   .skl{height:9px;border-radius:6px;background:var(--surface2);margin:11px 0}
   .skl.w1{width:100%}.skl.w2{width:78%}
-  .hero h1{font-size:clamp(38px,7vw,66px);line-height:1.08;font-weight:800;margin:16px 0 0;text-wrap:balance}
+  .hero h1{font-size:clamp(38px,7vw,66px);line-height:1.2;font-weight:800;margin:16px 0 0;text-wrap:balance}
   /* the artwork underlines the highlighted words; a background keeps it working when they wrap */
   .hero h1 .em{color:var(--coral-deep);
     background-image:linear-gradient(var(--chip-bg),var(--chip-bg));
@@ -158,9 +160,8 @@
   .btn.ghost:hover{background:var(--surface2)}
   .vnote{margin-top:14px;font-size:14.5px;color:var(--muted)}
   /* scale of the catalogue the extension reaches into */
-  /* four tiles: one row on the wide hero column, two by two when it narrows */
-  .scale{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
-  @media(max-width:900px){.scale{grid-template-columns:repeat(2,1fr)}}
+  /* the tiles size themselves to their content, so they never depend on the viewport */
+  .scale{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin-top:26px}
   .scale li{list-style:none;background:var(--surface);border:1px solid var(--border);
     border-radius:14px;padding:12px 13px;box-shadow:var(--shadow-sm);min-width:0}
   .scale .i{width:32px;height:32px;border-radius:9px;background:var(--chip-bg);border:1px solid var(--chip-bd);
@@ -194,9 +195,8 @@
   /* generic cards grid */
   .grid{display:grid;gap:14px;margin-top:26px}
   .g3{grid-template-columns:repeat(3,1fr)}
-  .g2{grid-template-columns:repeat(2,1fr)}
   @media(max-width:820px){.g3{grid-template-columns:1fr 1fr}}
-  @media(max-width:560px){.g3,.g2{grid-template-columns:1fr}}
+  @media(max-width:560px){.g3{grid-template-columns:1fr}}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:18px 20px;box-shadow:var(--shadow-sm)}
   .card .ic{width:40px;height:40px;border-radius:11px;background:var(--chip-bg);border:1px solid var(--chip-bd);
     color:var(--coral-deep);display:flex;align-items:center;justify-content:center;margin-bottom:11px}
@@ -220,6 +220,7 @@
   /* tools accordion */
   .cats{display:flex;flex-direction:column;gap:10px;margin-top:24px}
   .cat{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .acch{margin:0;font:inherit;font-weight:inherit}
   .acc{width:100%;background:none;border:0;cursor:pointer;display:flex;align-items:center;gap:14px;
     padding:15px 18px;text-align:start;color:inherit;font-family:inherit}
   .acc:hover{background:var(--surface2)}
@@ -232,8 +233,10 @@
   .acc .car{width:11px;height:11px;border-inline-start:2px solid var(--muted);border-bottom:2px solid var(--muted);
     transform:rotate(-45deg);transition:transform .25s;flex-shrink:0}
   html[dir="ltr"] .acc .car{transform:rotate(45deg)}
-  .cat.open .acc .car{transform:rotate(135deg)}
-  .body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+  /* the open state must outrank BOTH direction rules, so it matches html too */
+  html .cat.open .acc .car{transform:rotate(135deg)}
+  .body{max-height:0;overflow:hidden;visibility:hidden;transition:max-height .3s ease,visibility 0s linear .3s}
+  .cat.open .body{visibility:visible;transition:max-height .3s ease}
   @media(prefers-reduced-motion:reduce){.body{transition:none}}
   .body ul{list-style:none;padding:2px 18px 20px;display:grid;gap:10px}
   @media(min-width:860px){.body ul{grid-template-columns:1fr 1fr}}
@@ -256,22 +259,33 @@
 
 
   /* steps */
-  .steps{counter-reset:s;display:flex;flex-direction:column;gap:12px;margin-top:24px}
+  .steps{counter-reset:s;list-style:none;display:flex;flex-direction:column;gap:12px;margin-top:24px}
   .step{display:flex;gap:15px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px}
   .step::before{counter-increment:s;content:counter(s);flex-shrink:0;width:34px;height:34px;border-radius:50%;
     background:var(--coral);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:var(--latin)}
-  .step .st{font-size:16.5px}
+  /* the step body is a flex item: without this it hugs its own line of text,
+     and any figure inside it shrinks to that width instead of the step's */
+  .step .st{font-size:16.5px;flex:1 1 auto;min-width:0}
   .step .st b{color:var(--coral-deep)}
+  /* on a phone the number would eat a quarter of the screenshot's width,
+     so it moves above the text and the figure gets the whole column */
+  @media(max-width:560px){
+    .step{flex-direction:column;gap:10px;padding:14px}
+    .step::before{width:30px;height:30px}
+    /* let the screenshot bleed to the card's edges so it matches the block figures */
+    .step .shot{margin-inline:-14px;max-width:none !important;border-radius:0;border-inline:0}
+  }
   .callout{margin-top:16px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:14px;
-    padding:15px 18px;font-size:15.5px}
+    padding:15px 18px;font-size:15.5px;max-width:66ch}
   .callout b{color:var(--chip-tx)}
 
   /* settings blocks: heading, then the picture, then its numbered key */
   .block{margin-top:32px}
   .block+.block{padding-top:30px;border-top:1px solid var(--border)}
-  .steps+.block{padding-top:30px;border-top:1px solid var(--border)}
+  .steps+.block,.cats+.block,.block+.cats{padding-top:30px;border-top:1px solid var(--border)}
   .block h3{font-size:21.5px;font-weight:800;margin-bottom:5px}
-  .block .blead{color:var(--muted);font-size:16px;line-height:1.65;max-width:72ch}
+  .block .blead{color:var(--muted);font-size:16px;line-height:1.65;max-width:66ch}
+  #limits .opts{max-width:70ch}
   .keys,.opts{list-style:none;display:grid;gap:9px;margin-top:14px;max-width:760px}
   .keys{counter-reset:k}
   .keys li,.opts li{background:var(--surface);border:1px solid var(--border);border-radius:12px;
@@ -282,16 +296,21 @@
   .opts li::before{content:"";position:absolute;inset-inline-start:19px;top:21px;
     width:10px;height:10px;border-radius:50%;background:var(--coral)}
   .keys li b,.opts li b{color:var(--chip-tx)}
+  /* the caveats are eight separate lessons, so each gets a real title line */
+  #limits .opts li{padding-block:14px}
+  #limits .opts li b{display:block;font-size:17px;line-height:1.45;margin-bottom:3px;color:var(--ink)}
 
   /* install walkthrough — untouched screenshots, markers drawn over them in HTML */
   .shot{position:relative;display:block;max-width:760px;margin-top:13px;line-height:0;
-    border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface2);box-shadow:var(--shadow-sm)}
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface2);box-shadow:var(--shadow-sm);container-type:inline-size}
   .shot img{display:block;width:100%;height:auto}
-  .pin{position:absolute;border:2.5px solid var(--coral);border-radius:8px;
+  .pin{position:absolute;border:clamp(1.5px,.35cqw,2.5px) solid var(--coral);border-radius:8px;
     background:color-mix(in srgb,var(--coral) 9%,transparent);
     box-shadow:0 0 0 3px color-mix(in srgb,var(--coral) 24%,transparent)}
-  .pin i{position:absolute;top:0;right:0;transform:translate(50%,-50%);width:25px;height:25px;
-    border-radius:50%;background:var(--coral);color:#fff;font:800 14px/25px var(--latin);
+  .pin i{position:absolute;top:0;right:0;transform:translate(50%,-50%);
+    --pin:clamp(15px,3.3cqw,25px);width:var(--pin);height:var(--pin);
+    border-radius:50%;background:var(--coral);color:#fff;
+    font:800 calc(var(--pin)*.56)/var(--pin) var(--latin);
     font-style:normal;text-align:center;box-shadow:0 2px 7px rgba(35,32,27,.4)}
   .pin.l i{right:auto;left:0;transform:translate(-50%,-50%)}
   @media(prefers-color-scheme:dark){.shot img{filter:brightness(.93)}}
@@ -312,6 +331,113 @@
   .fowner a:hover b{color:#E8A487}
   .fmotif{position:absolute;bottom:-130px;inset-inline-end:-110px;width:300px;height:300px;
     opacity:.07;pointer-events:none}
+
+
+  /* the catalogue in numbers: two bar lists and a grid of the larger arts */
+  .bars{list-style:none;display:grid;gap:7px;margin-top:16px;max-width:760px}
+  .bars li{display:grid;grid-template-columns:minmax(0,152px) 1fr 58px;align-items:center;gap:12px;font-size:15px}
+  .bars .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bars .track{background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:99px;height:15px;overflow:hidden}
+  /* min-width keeps the first century, seven books against a top of a thousand, from vanishing */
+  .bars .fill{display:block;height:100%;min-width:4px;background:var(--coral);border-radius:99px}
+  .bars .v{font-weight:800;color:var(--coral-deep);font-variant-numeric:tabular-nums;font-size:15.5px}
+  .bars.gold .fill{background:var(--gold)}
+  .bars.gold .v{color:var(--chip-tx)}
+  /* on a phone a 104px label ellipses "الرقائق والآداب والأذكار" away, so the
+     name and its number take the first line and the bar spans the second */
+  @media(max-width:560px){
+    .bars{gap:13px}
+    .bars li{grid-template-columns:1fr auto;grid-template-areas:"nm v" "track track";gap:5px 10px;font-size:14.5px}
+    .bars .nm{grid-area:nm;white-space:normal;overflow:visible}
+    .bars .v{grid-area:v}
+    .bars .track{grid-area:track}
+  }
+  .funun{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:16px}
+  .funun li{background:var(--surface);border:1px solid var(--border);border-radius:13px;
+    padding:15px 16px;text-align:center;box-shadow:var(--shadow-sm)}
+  .funun .n{display:block;font-size:23px;font-weight:800;color:var(--coral-deep);font-variant-numeric:tabular-nums}
+  .funun .t{display:block;font-size:14px;color:var(--muted);margin-top:3px;line-height:1.5}
+  .srcline{margin-top:14px;font-size:13.5px;color:var(--muted)}
+
+  /* ---- print ----------------------------------------------------------
+     Paper gets the page as designed, minus the interface. Nothing is
+     recoloured for the printer's sake: the cream ground, the coral chips,
+     the tinted bands and the espresso footer are what make the printout
+     legible at a glance, and a reader who wants to spare the ink can switch
+     backgrounds off in the print dialogue. Only the controls come out. */
+  @media print{
+    @page{margin:14mm}
+    /* the screen may be dark; paper is not. Restate the light palette at a
+       specificity that beats :root[data-theme="dark"]. */
+    :root,:root[data-theme="light"],:root[data-theme="dark"]{
+      --bg:#F0EDE4; --surface:#FBFAF6; --surface2:#F4F0E7; --border:#E4DFD2;
+      --ink:#23201B; --muted:#6F695D; --coral:#D97757; --coral-deep:#A8462A;
+      --chip-bg:#F7E7DE; --chip-tx:#9C4425; --chip-bd:#EBCBBB; --gold:#C79A3F;
+      --sand:#EFE3D2; --sand-bd:#E2D2BB; --gold-bg:#F7F1DF; --gold-bd:#E7DBB6;
+      --shadow:none; --shadow-sm:none;
+    }
+    /* the one colour outside the token system that the dark theme also sets;
+       it needs the same three roots to outrank :root[data-theme="dark"]. */
+    :root #skill .eyebrow,:root[data-theme="light"] #skill .eyebrow,
+    :root[data-theme="dark"] #skill .eyebrow{color:#8A6A1E}
+    html{scroll-behavior:auto}
+    /* browsers drop backgrounds on paper unless asked; ours carry meaning */
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+    /* left alone on purpose: body's background propagates to the page
+       canvas, so the cream ground carries across all the sheets. */
+    body{font-size:10.5pt}
+    header,.cta{display:none !important}
+    /* only the gutter goes: a plain "padding:0" here would also outrank
+       .hero's own 52px/46px on source order and open sheet one flush
+       against the top margin. */
+    .wrap{max-width:none;padding-inline:0}
+
+    /* overflow:hidden makes a box a scroll container, and a scroll container
+       is monolithic — it cannot be fragmented, so a box taller than the page
+       gets its tail sheared off instead of continued. The hero (1138px) and
+       the two largest tool panels (1264px, 1146px) are all past the ~1017px
+       page box. overflow:clip clips exactly the same way, to the same rounded
+       corners, without becoming a scroll container. */
+    .hero,.cat{overflow:clip}
+
+    /* the hero's two columns would each be too narrow on A4 */
+    .hero-grid{display:block}
+    .hero-art{max-width:190px;margin:0 0 12px}
+
+    /* the tool guide is the reason to print this at all */
+    .body,.cat .body,.cat:not(.open) .body{max-height:none !important;visibility:visible !important;
+      overflow:visible !important;transition:none !important}
+    .acc .car{display:none}
+    .body ul{grid-template-columns:1fr}
+
+    /* shadows are the one thing that prints worse than it looks */
+    .win,.card,.step,.keys li,.opts li,.body li,.shot,.scale li,.cat,.metabar{box-shadow:none !important}
+    .shot img{filter:none !important}
+    /* four 194px columns shatter the appended URLs over three break-all lines;
+       the screen's own two-column fallback only starts at 640px, below the
+       688px text column of an A4 sheet, so ask for it here. */
+    .metabar{grid-template-columns:1fr 1fr}
+    /* the URL appended to a footer link must stay legible on espresso */
+    footer a[href^="http"]::after{color:#B7AF9F}
+
+    /* let content flow; only keep pieces whole */
+    section{padding:26px 0}
+    /* a heading, its coral eyebrow and its lead line belong to what follows */
+    h2,h3,.eyebrow,.lead,.blead{break-after:avoid}
+    /* Keep whole only what fits on a page. ".cat" and ".block" were in this
+       list, but two panels and two settings blocks run past 1100px against a
+       page box of ~1017px: a box taller than the page cannot be kept whole, so
+       the browser pushes it to a fresh sheet, gives up, and breaks it anyway —
+       four near-blank pages for nothing. The atoms worth protecting are the
+       tool cards, the steps and the figures, none of which exceed 630px. */
+    .step,.keys li,.opts li,.body li,figure.shot,.scale li,.card,.callout,
+    .bars li,.funun li{break-inside:avoid}
+    a[href^="http"]::after{content:" (" attr(href) ")";font-size:8.5pt;color:var(--muted);word-break:break-all}
+    /* only the navigation is worth stripping — a paper reader cannot click
+       anything, so every other link earns its URL, the metabar's and the
+       footer credit's included. */
+    .btn::after,.navlinks a::after{content:"" !important}
+  }
 </style>
 </head>
 <body>
@@ -330,23 +456,25 @@
     </nav>
     <div class="navspace"></div>
     <select class="tools-btn" id="lang" aria-label="Language / اللغة">
-      <option value="ar">العربية</option>
-      <option value="en">English</option>
-      <option value="id">Bahasa Indonesia</option>
-      <option value="ms">Bahasa Melayu</option>
-      <option value="ur">اردو</option>
-      <option value="fr">Français</option>
-      <option value="bn">বাংলা</option>
-      <option value="tr">Türkçe</option>
-      <option value="ru">Русский</option>
-      <option value="zh">中文</option>
-      <option value="fa">فارسی</option>
-      <option value="sw">Kiswahili</option>
+      <option value="ar" lang="ar">العربية</option>
+      <option value="en" lang="en">English</option>
+      <option value="id" lang="id">Bahasa Indonesia</option>
+      <option value="ms" lang="ms">Bahasa Melayu</option>
+      <option value="ur" lang="ur">اردو</option>
+      <option value="fr" lang="fr">Français</option>
+      <option value="bn" lang="bn">বাংলা</option>
+      <option value="tr" lang="tr">Türkçe</option>
+      <option value="ru" lang="ru">Русский</option>
+      <option value="zh" lang="zh">中文</option>
+      <option value="fa" lang="fa">فارسی</option>
+      <option value="sw" lang="sw">Kiswahili</option>
     </select>
-    <button class="tools-btn" id="theme" aria-label="Theme">◐</button>
+    <button class="tools-btn" id="theme" aria-label="Theme / السمة" aria-pressed="false"><span aria-hidden="true">◐</span></button>
+    <button class="tools-btn" id="print" aria-label="طباعة / Print"><svg width="15" height="15" viewBox="0 0 32 32" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;display:block"><path d="M9 12V5h14v7"/><path d="M9 23H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h20a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/><rect x="9" y="20" width="14" height="7" rx="1.5"/></svg></button>
   </div>
 </header>
 
+<main>
 <div class="wrap hero">
   <span class="motif" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><g style="stroke:var(--coral);stroke-width:1.6;stroke-linecap:round;fill:none"><line x1="12" y1="2" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="22"/><line x1="2" y1="12" x2="8" y2="12"/><line x1="16" y1="12" x2="22" y2="12"/><line x1="5" y1="5" x2="9" y2="9"/><line x1="15" y1="15" x2="19" y2="19"/><line x1="19" y1="5" x2="15" y2="9"/><line x1="9" y1="15" x2="5" y2="19"/></g></svg></span>
   <div class="hero-grid">
@@ -369,13 +497,7 @@
         <a class="btn ghost" href="https://github.com/alhoqbani/shamela-mcp" target="_blank" rel="noopener">
           <span class="ar">المستودع على GitHub</span><span class="en">View on GitHub</span><span class="fa">مخزن در GitHub</span><span class="sw">Tazama kwenye GitHub</span><span class="tr">GitHub'da görüntüle</span><span class="ru">Репозиторий на GitHub</span><span class="zh">在 GitHub 上查看仓库</span><span class="ur">GitHub پر ریپوزٹری دیکھیں</span><span class="fr">Le dépôt sur GitHub</span><span class="bn">GitHub-এ রিপোজিটরি দেখুন</span><span class="id">Lihat di GitHub</span><span class="ms">Repositori di GitHub</span></a>
       </div>
-      <ul class="scale ar">
-        <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="9" width="5" height="16" rx="1.3"/><line x1="5" y1="13" x2="10" y2="13"/><rect x="11" y="6" width="5" height="19" rx="1.3"/><line x1="11" y1="10" x2="16" y2="10"/><rect x="18.4" y="9.4" width="5" height="16" rx="1.3" transform="rotate(11 21 17)"/><line x1="3.5" y1="26" x2="28.5" y2="26"/></svg></span><span class="n">٨٥٠٠+</span><span class="t">كتابٍ في الفهرس</span></li>
-        <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="11" r="5"/><path d="M6 27 a10 10 0 0 1 20 0"/></svg></span><span class="n">٣١٠٠+</span><span class="t">مؤلفٍ بتراجمهم</span></li>
-        <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="2"/><rect x="18" y="5" width="9" height="9" rx="2"/><rect x="5" y="18" width="9" height="9" rx="2"/><rect x="18" y="18" width="9" height="9" rx="2"/></svg></span><span class="n">٤١</span><span class="t">تصنيفًا علميًّا</span></li>
-        <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 4 h9 l6 6 v16 a2 2 0 0 1 -2 2 H9 a2 2 0 0 1 -2 -2 V6 a2 2 0 0 1 2 -2 Z"/><path d="M18 4 v6 h6"/><line x1="11" y1="18" x2="20" y2="18"/><line x1="11" y1="22" x2="17" y2="22"/></svg></span><span class="n">٧ ملايين+</span><span class="t">صفحةٍ في كتب الفهرس</span></li>
-              </ul>
-      <p class="scale-note ar">أرقام فهرس الشاملة على جهازك؛ وعددُ الصفحات بحسب ما تذكره الشاملة نفسها: «نحو ٧ ملايين صفحة». والبحث في النصوص يجري على ما نزّلتَه من هذا الفهرس.</p>
+
       <p class="vnote">
         <span class="ar">تعمل مع تطبيق المكتبة الشاملة ٤ المثبَّت على جهازك، وهي أداةُ بحثٍ وتوثيق، لا فتوى.</span>
         <span class="en">Works with the Shamela 4 app installed on your device.</span><span class="fa">با برنامهٔ الشامله ۴ نصب‌شده روی دستگاه شما کار می‌کند.</span><span class="sw">Inafanya kazi na programu ya Shamela 4 iliyosakinishwa kwenye kifaa chako.</span><span class="tr">Cihazınıza kurulu eş-Şâmile 4 uygulamasıyla çalışır.</span><span class="ru">Работает с приложением «аш-Шамиля 4», установленным на вашем устройстве.</span><span class="zh">与安装在你设备上的谢米莱图书馆 4 应用配合使用。</span><span class="ur">آپ کے آلے پر نصب شدہ المکتبۃ الشاملہ 4 ایپ کے ساتھ کام کرتی ہے۔</span><span class="fr">Fonctionne avec l'application de la bibliothèque Shamela 4 installée sur votre appareil.</span><span class="bn">আপনার ডিভাইসে ইনস্টল করা শামিলা 4 অ্যাপের সাথে কাজ করে।</span><span class="id">Bekerja dengan aplikasi Maktabah Syamilah 4 yang terpasang di perangkat Anda.</span><span class="ms">Berfungsi dengan aplikasi Maktabah Syamilah 4 yang dipasang pada peranti anda.</span>
@@ -384,6 +506,14 @@
 
     <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 322 300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><circle cx="158" cy="168" r="140" fill="var(--chip-bg)" opacity=".55"/><path fill="var(--coral)" d="M262 74 c2 12 8 18 20 20 c-12 2 -18 8 -20 20 c-2 -12 -8 -18 -20 -20 c12 -2 18 -8 20 -20 z"/><path fill="color-mix(in srgb,var(--coral) 55%,transparent)" d="M70 108 c1.4 8 5 11.6 13 13 c-8 1.4 -11.6 5 -13 13 c-1.4 -8 -5 -11.6 -13 -13 c8 -1.4 11.6 -5 13 -13 z"/><g stroke="color-mix(in srgb,var(--coral) 55%,transparent)" stroke-width="4.5" stroke-linecap="round"><line x1="214" y1="52" x2="214" y2="64"/><line x1="240" y1="40" x2="248" y2="48"/><line x1="188" y1="44" x2="196" y2="52"/></g><path fill="var(--coral-deep)" d="M40 214 C82 200 234 200 276 214 L276 232 C234 216 82 216 40 232 Z"/><path fill="var(--coral-deep)" d="M158 190 L158 224 L152 224 L152 192 Z"/><path fill="var(--surface)" stroke="var(--coral-deep)" stroke-width="3" stroke-linejoin="round" d="M158 178 C124 166 82 163 46 172 L40 210 C76 200 124 202 158 216 Z"/><path fill="var(--surface)" stroke="var(--coral-deep)" stroke-width="3" stroke-linejoin="round" d="M158 178 C192 166 234 163 270 172 L276 210 C240 200 192 202 158 216 Z"/><path fill="none" stroke="var(--coral-deep)" stroke-width="3" stroke-linecap="round" d="M158 178 L158 216"/><g stroke="color-mix(in srgb,var(--coral) 55%,transparent)" stroke-width="3.4" stroke-linecap="round"><line x1="176" y1="184" x2="256" y2="180"/><line x1="176" y1="193" x2="252" y2="189"/><line x1="176" y1="202" x2="236" y2="199"/><line x1="62" y1="180" x2="140" y2="184"/><line x1="66" y1="189" x2="140" y2="193"/></g><g><circle cx="138" cy="120" r="52" fill="var(--surface)" fill-opacity=".62" stroke="var(--coral-deep)" stroke-width="11"/><path d="M108 96 A40 40 0 0 1 140 84" fill="none" stroke="var(--surface)" stroke-width="7" stroke-linecap="round" opacity=".85"/><line x1="176" y1="158" x2="214" y2="196" stroke="var(--coral-deep)" stroke-width="18" stroke-linecap="round"/><line x1="176" y1="158" x2="214" y2="196" stroke="var(--coral)" stroke-width="7" stroke-linecap="round"/></g></svg></div>
   </div>
+
+  <ul class="scale ar">
+    <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="9" width="5" height="16" rx="1.3"/><line x1="5" y1="13" x2="10" y2="13"/><rect x="11" y="6" width="5" height="19" rx="1.3"/><line x1="11" y1="10" x2="16" y2="10"/><rect x="18.4" y="9.4" width="5" height="16" rx="1.3" transform="rotate(11 21 17)"/><line x1="3.5" y1="26" x2="28.5" y2="26"/></svg></span><span class="n">٨٬٥٩٨</span><span class="t">كتابًا في الفهرس</span></li>
+    <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="11" r="5"/><path d="M6 27 a10 10 0 0 1 20 0"/></svg></span><span class="n">٣٬١٩٠</span><span class="t">مؤلفًا بتراجمهم</span></li>
+    <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="2"/><rect x="18" y="5" width="9" height="9" rx="2"/><rect x="5" y="18" width="9" height="9" rx="2"/><rect x="18" y="18" width="9" height="9" rx="2"/></svg></span><span class="n">٤٠</span><span class="t">تصنيفًا علميًّا</span></li>
+    <li><span class="i"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 4 h9 l6 6 v16 a2 2 0 0 1 -2 2 H9 a2 2 0 0 1 -2 -2 V6 a2 2 0 0 1 2 -2 Z"/><path d="M18 4 v6 h6"/><line x1="11" y1="18" x2="20" y2="18"/><line x1="11" y1="22" x2="17" y2="22"/></svg></span><span class="n">٧٬٦٠٥٬٦٦٥</span><span class="t">صفحةً نصيةً مفهرسة</span></li>
+      </ul>
+  <p class="scale-note ar">أرقامُ فهرس المكتبة الشاملة ٤ كاملًا، محتسبةً من الفهرس نفسه في ١٣ ربيع الأول ١٤٤٨هـ. والبحثُ في النصوص يجري على ما نزّلتَه أنت من هذا الفهرس.</p>
 
   <div class="win" aria-hidden="true">
     <div class="win-bar">
@@ -409,7 +539,7 @@
     <div class="mi"><div class="mk"><span class="ar">التطبيق</span><span class="en">App</span><span class="fa">برنامه</span><span class="sw">Programu</span><span class="tr">Uygulama</span><span class="ru">Приложение</span><span class="zh">应用</span><span class="ur">ایپ</span><span class="fr">Application</span><span class="bn">অ্যাপ</span><span class="id">Aplikasi</span><span class="ms">Aplikasi</span></div>
       <div class="mv lat"><a href="https://claude.com/download" target="_blank" rel="noopener">Claude Desktop <span class="ar" style="font-family:var(--arab);font-weight:600">· سطح المكتب</span></a></div></div>
     <div class="mi"><div class="mk"><span class="ar">الإصدار</span><span class="en">Version</span><span class="fa">نسخه</span><span class="sw">Toleo</span><span class="tr">Sürüm</span><span class="ru">Версия</span><span class="zh">版本</span><span class="ur">ورژن</span><span class="fr">Version</span><span class="bn">সংস্করণ</span><span class="id">Versi</span><span class="ms">Versi</span></div>
-      <div class="mv"><span class="lat">2.0.0</span> <span class="ar">— أغسطس ٢٠٢٦</span><span class="en">— Aug 2026</span><span class="fa">— اوت ۲۰۲۶</span><span class="sw">— Agosti 2026</span><span class="tr">— Ağustos 2026</span><span class="ru">— август 2026</span><span class="zh">— 2026 年 8 月</span><span class="ur">— اگست 2026</span><span class="fr">— août 2026</span><span class="bn">— আগস্ট 2026</span><span class="id">— Agustus 2026</span><span class="ms">— Ogos 2026</span></div></div>
+      <div class="mv"><span class="lat">1.3.0</span> <span class="ar">— ربيع الأول ١٤٤٨هـ</span><span class="en">— Aug 2026</span><span class="fa">— اوت ۲۰۲۶</span><span class="sw">— Agosti 2026</span><span class="tr">— Ağustos 2026</span><span class="ru">— август 2026</span><span class="zh">— 2026 年 8 月</span><span class="ur">— اگست 2026</span><span class="fr">— août 2026</span><span class="bn">— আগস্ট 2026</span><span class="id">— Agustus 2026</span><span class="ms">— Ogos 2026</span></div></div>
     <div class="mi"><div class="mk"><span class="ar">الترخيص</span><span class="en">License</span><span class="fa">مجوز</span><span class="sw">Leseni</span><span class="tr">Lisans</span><span class="ru">Лицензия</span><span class="zh">许可</span><span class="ur">لائسنس</span><span class="fr">Licence</span><span class="bn">লাইসেন্স</span><span class="id">Lisensi</span><span class="ms">Lesen</span></div>
       <div class="mv"><span class="ar">مفتوح المصدر · مجّاني</span><span class="en">Open source · free</span><span class="fa">متن‌باز · رایگان</span><span class="sw">Chanzo huria · bila malipo</span><span class="tr">Açık kaynak · ücretsiz</span><span class="ru">Открытый исходный код · бесплатно</span><span class="zh">开源 · 免费</span><span class="ur">اوپن سورس · مفت</span><span class="fr">Open source · gratuit</span><span class="bn">ওপেন সোর্স · বিনামূল্যে</span><span class="id">Sumber terbuka · gratis</span><span class="ms">Sumber terbuka · percuma</span></div></div>
     <div class="mi"><div class="mk"><span class="ar">التوافق</span><span class="en">Requires</span><span class="fa">موردنیاز</span><span class="sw">Inahitaji</span><span class="tr">Gereksinim</span><span class="ru">Совместимость</span><span class="zh">需要</span><span class="ur">درکار</span><span class="fr">Compatibilité</span><span class="bn">প্রয়োজন</span><span class="id">Kompatibilitas</span><span class="ms">Keperluan</span></div>
@@ -438,12 +568,75 @@
 </section>
 
 <!-- TOOLS -->
+<section id="numbers" dir="rtl" lang="ar" class="ar">
+  <div class="wrap">
+    <div class="eyebrow">أرقامٌ وحقائق</div>
+    <h2>المكتبة الشاملة في أرقام</h2>
+    <p class="lead">إحصاءاتٌ محتسبةٌ مباشرةً من فهرس المكتبة الشاملة ٤ وفهارس البحث المحلية، بتاريخ ١٣ ربيع الأول ١٤٤٨هـ.</p>
+
+    <div class="block">
+      <h3>خمسة عشر قرنًا من التأليف</h3>
+      <p class="blead">توزيعُ الكتب على القرون الهجرية بحسب سنة وفاة المؤلف الرئيس: ٦٬١٧١ كتابًا مؤرَّخًا، و٢٬٤٢٧ كتابًا لمؤلفين معاصرين أو غير مؤرَّخين.</p>
+      <ul class="bars">
+        <li><span class="nm">القرن الأول</span><span class="track"><span class="fill" style="width:0.6724%"></span></span><span class="v">٧</span></li>
+        <li><span class="nm">القرن الثاني</span><span class="track"><span class="fill" style="width:8.261%"></span></span><span class="v">٨٦</span></li>
+        <li><span class="nm">القرن الثالث</span><span class="track"><span class="fill" style="width:46.69%"></span></span><span class="v">٤٨٦</span></li>
+        <li><span class="nm">القرن الرابع</span><span class="track"><span class="fill" style="width:64.07%"></span></span><span class="v">٦٦٧</span></li>
+        <li><span class="nm">القرن الخامس</span><span class="track"><span class="fill" style="width:55.52%"></span></span><span class="v">٥٧٨</span></li>
+        <li><span class="nm">القرن السادس</span><span class="track"><span class="fill" style="width:46.78%"></span></span><span class="v">٤٨٧</span></li>
+        <li><span class="nm">القرن السابع</span><span class="track"><span class="fill" style="width:40.15%"></span></span><span class="v">٤١٨</span></li>
+        <li><span class="nm">القرن الثامن</span><span class="track"><span class="fill" style="width:67.92%"></span></span><span class="v">٧٠٧</span></li>
+        <li><span class="nm">القرن التاسع</span><span class="track"><span class="fill" style="width:34.1%"></span></span><span class="v">٣٥٥</span></li>
+        <li><span class="nm">القرن العاشر</span><span class="track"><span class="fill" style="width:30.64%"></span></span><span class="v">٣١٩</span></li>
+        <li><span class="nm">القرن الحادي عشر</span><span class="track"><span class="fill" style="width:13.26%"></span></span><span class="v">١٣٨</span></li>
+        <li><span class="nm">القرن الثاني عشر</span><span class="track"><span class="fill" style="width:9.606%"></span></span><span class="v">١٠٠</span></li>
+        <li><span class="nm">القرن الثالث عشر</span><span class="track"><span class="fill" style="width:20.46%"></span></span><span class="v">٢١٣</span></li>
+        <li><span class="nm">القرن الرابع عشر</span><span class="track"><span class="fill" style="width:54.66%"></span></span><span class="v">٥٦٩</span></li>
+        <li><span class="nm">القرن الخامس عشر</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="v">١٬٠٤١</span></li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h3>أكبر عشرة تصنيفات</h3>
+      <p class="blead">عددُ الكتب في كلِّ تصنيفٍ من تصنيفات الفهرس الأربعين.</p>
+      <ul class="bars gold">
+        <li><span class="nm">كتب السنة</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="v">١٬٢٤٥</span></li>
+        <li><span class="nm">العقيدة</span><span class="track"><span class="fill" style="width:64.9%"></span></span><span class="v">٨٠٨</span></li>
+        <li><span class="nm">الرقائق والآداب والأذكار</span><span class="track"><span class="fill" style="width:50.2%"></span></span><span class="v">٦٢٥</span></li>
+        <li><span class="nm">التراجم والطبقات</span><span class="track"><span class="fill" style="width:46.51%"></span></span><span class="v">٥٧٩</span></li>
+        <li><span class="nm">مسائل فقهية</span><span class="track"><span class="fill" style="width:34.46%"></span></span><span class="v">٤٢٩</span></li>
+        <li><span class="nm">الأدب</span><span class="track"><span class="fill" style="width:32.61%"></span></span><span class="v">٤٠٦</span></li>
+        <li><span class="nm">كتب عامة</span><span class="track"><span class="fill" style="width:28.67%"></span></span><span class="v">٣٥٧</span></li>
+        <li><span class="nm">علوم الحديث</span><span class="track"><span class="fill" style="width:25.7%"></span></span><span class="v">٣٢٠</span></li>
+        <li><span class="nm">علوم القرآن وأصول التفسير</span><span class="track"><span class="fill" style="width:25.06%"></span></span><span class="v">٣١٢</span></li>
+        <li><span class="nm">التفسير</span><span class="track"><span class="fill" style="width:22.01%"></span></span><span class="v">٢٧٤</span></li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h3>المكتبة بحسب الفنون</h3>
+      <p class="blead">تجميعُ التصنيفات المتقاربة في فنونٍ كبرى.</p>
+      <ul class="funun">
+        <li><span class="n">٢٬٠٣٧</span><span class="t">الحديث وعلومه وشروحه</span></li>
+        <li><span class="n">١٬٥٦٠</span><span class="t">الفقه وأصوله وفروعه</span></li>
+        <li><span class="n">١٬١٢١</span><span class="t">التاريخ والسيرة والتراجم</span></li>
+        <li><span class="n">٩٥٩</span><span class="t">العقيدة والفرق والردود</span></li>
+        <li><span class="n">٩١١</span><span class="t">اللغة والنحو والأدب</span></li>
+        <li><span class="n">٧٣٨</span><span class="t">القرآن وعلومه وقراءاته</span></li>
+      </ul>
+    </div>
+
+    <div class="callout"><b>ملاحظةٌ في إحصاءات الشاملة:</b> عددُ الصفحات هو عددُ الصفحات الإلكترونية في فهرس البحث المحلي، وصفحةُ الشاملة قد تطابق صفحةَ المطبوع وقد لا تطابقها. ونسبةُ الكتب إلى القرون بسنة وفاة المؤلف الرئيس لا بسنة التأليف. وهذه الأرقام بتاريخ ١٣ ربيع الأول ١٤٤٨هـ، وهي تتغيَّر بتغيُّر فهرس الشاملة.</div>
+    <p class="srcline">المصدر: فهرس المكتبة الشاملة ٤ المحلي عبر إضافة «بحث ودراسة في المكتبة الشاملة» v1.3.0</p>
+  </div>
+</section>
+
 <section id="tools">
   <div class="wrap">
     <div class="eyebrow"><span class="ar">الأدوات وطريقة استخدامها</span><span class="en">The tools and how to use them</span><span class="fa">ابزارها و روش استفاده از آن‌ها</span><span class="sw">Zana na jinsi ya kuzitumia</span><span class="tr">Araçlar ve kullanımları</span><span class="ru">Инструменты и как ими пользоваться</span><span class="zh">工具及其用法</span><span class="ur">اوزار اور اُن کے استعمال کا طریقہ</span><span class="fr">Les outils et leur utilisation</span><span class="bn">টুলস ও সেগুলোর ব্যবহার</span><span class="id">Perkakas dan cara memakainya</span><span class="ms">Alat dan cara menggunakannya</span></div>
     <h2><span class="ar">٣١ أداة بحثٍ وقراءة</span><span class="en">31 search &amp; reading tools</span><span class="fa">۳۱ ابزار جست‌وجو و مطالعه</span><span class="sw">Zana 31 za kutafuta na kusoma</span><span class="tr">31 arama ve okuma aracı</span><span class="ru">31 инструмента поиска и чтения</span><span class="zh">31 个检索与阅读工具</span><span class="ur">تلاش و مطالعہ کے 31 اوزار</span><span class="fr">31 outils de recherche et de lecture</span><span class="bn">31টি অনুসন্ধান ও পঠন টুল</span><span class="id">31 perkakas pencarian & pembacaan</span><span class="ms">31 alat carian & pembacaan</span></h2>
     <p class="lead"><span class="ar">موزَّعة على سبع فئات: البحث، والقرآن والتفسير، والحديث، والقراءة والتصفح، والفهارس والبيانات، والإحصاء والزمن، والتشخيص والدليل. انقر أيَّ فئة لعرض أدواتها.</span><span class="en">Spread across seven categories: Search, Qur'an & Tafsir, Hadith, Reading & browsing, Catalog & metadata, Statistics & time, and Health & guide. Tap a category to reveal its tools.</span><span class="fa">در هفت دسته توزیع شده‌اند: جست‌وجو، قرآن و تفسیر، حدیث، مطالعه و مرور، فهرست‌ها و فراداده، آمار و زمان و سلامت و راهنما. روی هر دسته بزنید تا ابزارهایش نمایان شود.</span><span class="sw">Zimegawanywa katika makundi saba: Utafutaji, Qur'ani na Tafsiri, Hadithi, Kusoma na kuvinjari, Faharasa na data, Takwimu na wakati na Uchunguzi na mwongozo. Gusa kundi lolote ili kuonyesha zana zake.</span><span class="tr">Yedi kategoriye dağılmışlardır: Arama, Kur'an ve tefsir, Hadis, Okuma ve gezinme, Katalog ve künye bilgileri, İstatistik ve zaman ve Tanılama ve rehber. Araçlarını görmek için herhangi bir kategoriye tıklayın.</span><span class="ru">Распределены по семи категориям: Поиск, Коран и тафсир (تفسير), Хадис (حديث), Чтение и просмотр, Каталоги и данные, Статистика и время и Диагностика и руководство. Нажмите на любую категорию, чтобы увидеть её инструменты.</span><span class="zh">分为七大类别：检索、古兰经与经注（تفسير）、圣训、阅读与浏览、目录与元数据、统计与时间、诊断与指南。点击任一类别即可展开其工具。</span><span class="ur">سات زمروں میں تقسیم: تلاش، قرآن اور تفسیر، حدیث، مطالعہ اور ورق گردانی، فہارس اور کوائف، شماریات اور زمانہ اور تشخیص اور رہنمائی۔ کسی بھی زمرے پر کلک کیجیے تاکہ اُس کے اوزار سامنے آئیں۔</span><span class="fr">Répartis en sept catégories : Recherche, Coran et tafsir, Hadith, Lecture et navigation, Catalogues et métadonnées, Statistiques et temps et Diagnostic et guide. Cliquez sur une catégorie pour afficher ses outils.</span><span class="bn">সাতটি বিভাগে বিন্যস্ত: অনুসন্ধান, কুরআন ও তাফসির, হাদিস, পঠন ও ব্রাউজিং, সূচি ও মেটাডেটা, পরিসংখ্যান ও সময় এবং স্বাস্থ্য-পরীক্ষা ও নির্দেশিকা। যেকোনো বিভাগে ক্লিক করলে তার টুলগুলো দেখা যাবে।</span><span class="id">Tersebar dalam tujuh kategori: Pencarian, Al-Qur'an & Tafsir, Hadis, Membaca & menjelajah, Katalog & metadata, Statistik & waktu, dan Diagnostik & panduan. Klik kategori mana pun untuk menampilkan perkakasnya.</span><span class="ms">Tersebar dalam tujuh kategori: Carian, Al-Quran & Tafsir, Hadis, Pembacaan & semak imbas, Katalog & metadata, Statistik & masa dan Diagnosis & panduan. Ketik mana-mana kategori untuk memaparkan alatnya.</span></p>
-    <div class="block">
+    <div class="block ar" dir="rtl" lang="ar">
       <h3>كيف تسأل</h3>
       <p class="blead">لا تحتاج إلى حفظ أسماء الأدوات ولا إلى صياغةٍ خاصة؛ اكتب مسألتك كما تتصوّرها، ويتولّى كلود اختيار الأداة المناسبة. وإن شئت ضيّقتَ نطاق البحث بكتابٍ بعينه أو مؤلفٍ أو تصنيف، فتقول: «اقصر البحث على المغني وحده»، أو «ابحث في كتب الفقه الحنبلي دون غيرها».</p>
       <ul class="opts">
@@ -456,7 +649,7 @@
 
     <div class="cats" id="cats"></div>
 
-    <div class="block">
+    <div class="block ar" dir="rtl" lang="ar">
       <h3>موارد تُرفَق في المحادثة</h3>
       <p class="blead">وإلى جانب الأدوات، تقدّم الإضافة خمسة «موارد» جاهزة يُرفَق محتواها في المحادثة فيقرؤه كلود سياقًا لبحثك. تصل إليها من زر <b class="lat">+</b> ثم <b class="lat">Connectors</b>:</p>
       <figure class="shot" aria-hidden="true" style="max-width:760px"><img src="install/resources.jpg" width="788" height="302" alt="" loading="lazy" decoding="async"><span class="pin" style="left:44.67%;top:69.54%;width:37.82%;height:10.6%"><i>1</i></span><span class="pin l" style="left:4.82%;top:9.93%;width:38.07%;height:69.54%"><i>2</i></span></figure>
@@ -483,31 +676,31 @@
   <div class="wrap">
     <div class="eyebrow"><span class="ar">خطوة بخطوة</span><span class="en">Step by step</span><span class="fa">گام‌به‌گام</span><span class="sw">Hatua kwa hatua</span><span class="tr">Adım adım</span><span class="ru">Шаг за шагом</span><span class="zh">循序渐进</span><span class="ur">قدم بہ قدم</span><span class="fr">Étape par étape</span><span class="bn">ধাপে ধাপে</span><span class="id">Langkah demi langkah</span><span class="ms">Langkah demi langkah</span></div>
     <h2><span class="ar">التثبيت والتحديث</span><span class="en">Install &amp; update</span><span class="fa">نصب و به‌روزرسانی</span><span class="sw">Usakinishaji na usasishaji</span><span class="tr">Kurulum ve güncelleme</span><span class="ru">Установка и обновление</span><span class="zh">安装与更新</span><span class="ur">تنصیب اور اپ ڈیٹ</span><span class="fr">Installation et mise à jour</span><span class="bn">ইনস্টল ও আপডেট</span><span class="id">Pemasangan &amp; pembaruan</span><span class="ms">Pemasangan &amp; kemas kini</span></h2>
-        <div class="steps">
-      <div class="step"><div class="st"><span class="ar">تأكَّد من المتطلبات: تطبيق <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> على جهازك، و<a href="https://shamela.ws/page/download" target="_blank" rel="noopener">تطبيق المكتبة الشاملة ٤</a> وفيه كتب منزَّلة.</span><span class="en">Make sure you have the requirements: the <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> app on your device, and <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">the Shamela 4 app</a> with books downloaded.</span><span class="fa">از فراهم‌بودن پیش‌نیازها مطمئن شوید: برنامهٔ <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> روی دستگاهتان، و <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">برنامهٔ الشامله ۴</a> (Shamela) که کتاب‌هایی در آن نصب شده باشد.</span><span class="sw">Hakikisha una mahitaji: programu ya <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> kwenye kifaa chako, na <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">programu ya Maktaba ya Shamela 4</a> yenye vitabu vilivyopakuliwa.</span><span class="tr">Gereksinimlere sahip olduğunuzdan emin olun: cihazınızda <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> uygulaması ve içinde kitaplar indirilmiş <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">eş-Şâmile (Shamela) 4 uygulaması</a>.</span><span class="ru">Убедитесь, что у вас есть всё необходимое: приложение <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> на вашем устройстве и <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">приложение «аш-Шамиля (Shamela) 4»</a> с загруженными книгами.</span><span class="zh">确认已具备前提条件：你设备上的 <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> 应用，以及<a href="https://shamela.ws/page/download" target="_blank" rel="noopener">谢米莱图书馆（Shamela）4 应用</a>，且其中已下载书籍。</span><span class="ur">متطلبات کا یقین کر لیجیے: آپ کے آلے پر <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> ایپ، اور <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">المکتبۃ الشاملہ 4 ایپ</a> جس میں کتب ڈاؤن لوڈ شدہ ہوں۔</span><span class="fr">Assurez-vous d'avoir les prérequis : l'application <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> sur votre appareil, ainsi que <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">l'application de la bibliothèque Shamela 4</a> avec des livres installés.</span><span class="bn">প্রয়োজনীয় জিনিসগুলো নিশ্চিত করুন: আপনার ডিভাইসে <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> অ্যাপ, এবং কিতাব ডাউনলোড করা অবস্থায় <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">শামিলা (Shamela) 4 অ্যাপ</a>।</span><span class="id">Pastikan persyaratan terpenuhi: aplikasi <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> di perangkat Anda, dan <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">aplikasi Maktabah Syamilah (Shamela) 4</a> dengan kitab-kitab yang sudah diunduh.</span><span class="ms">Pastikan keperluan dipenuhi: aplikasi <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> pada peranti anda, dan <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">aplikasi Maktabah Syamilah 4</a> yang mempunyai kitab yang dimuat turun.</span></div></div>
-      <div class="step"><div class="st"><span class="ar">نزّل ملف الإضافة (بامتداد <b class="lat">.mcpb</b>) من <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">صفحة الإصدار</a> (أو زر «تنزيل» بالأعلى).</span>
-        <span class="en">Download the extension file (<b class="lat">.mcpb</b>) from the <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">release page</a> (or the “Download” button above).</span><span class="fa">فایل افزونه (با پسوند <b class="lat">.mcpb</b>) را از <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">صفحهٔ انتشار</a> (یا دکمهٔ «دانلود» در بالا) دانلود کنید.</span><span class="sw">Pakua faili la kiendelezi (<b class="lat">.mcpb</b>) kutoka <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">ukurasa wa toleo</a> (au kitufe cha «Pakua» hapo juu).</span><span class="tr">Uzantı dosyasını (<b class="lat">.mcpb</b>) <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">sürüm sayfasından</a> (ya da yukarıdaki «İndir» düğmesinden) indirin.</span><span class="ru">Скачайте файл расширения (<b class="lat">.mcpb</b>) со <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">страницы релиза</a> (или кнопкой «Скачать» выше).</span><span class="zh">从<a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">发布页面</a>（或上方的「下载」按钮）下载扩展文件（<b class="lat">.mcpb</b>）。</span><span class="ur">ایکسٹینشن فائل (<b class="lat">.mcpb</b> لاحقے والی) کو <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">ریلیز کے صفحے</a> سے ڈاؤن لوڈ کیجیے (یا اوپر دیے گئے «ڈاؤن لوڈ» بٹن سے)۔</span><span class="fr">Téléchargez le fichier de l'extension (<b class="lat">.mcpb</b>) depuis la <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">page de version</a> (ou le bouton « Télécharger » ci-dessus).</span><span class="bn"><a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">রিলিজ পেজ</a> থেকে (অথবা উপরের «ডাউনলোড» বোতাম থেকে) এক্সটেনশন ফাইলটি (<b class="lat">.mcpb</b>) ডাউনলোড করুন।</span><span class="id">Unduh berkas ekstensi (berekstensi <b class="lat">.mcpb</b>) dari <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">halaman rilis</a> (atau tombol «Unduh» di atas).</span><span class="ms">Muat turun fail sambungan (berformat <b class="lat">.mcpb</b>) daripada <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">halaman keluaran</a> (atau butang «Muat Turun» di atas).</span></div></div>
-      <div class="step"><div class="st"><span class="ar">في تطبيق <b class="lat">Claude Desktop</b> اضغط على اسمك في أسفل الشريط الجانبي.</span>
-        <span class="en">In the <b class="lat">Claude Desktop</b> app, click your name at the bottom of the sidebar.</span><span class="fa">در برنامهٔ <b class="lat">Claude Desktop</b> روی نام خود در پایین نوار کناری کلیک کنید.</span><span class="sw">Katika programu ya <b class="lat">Claude Desktop</b>, bofya jina lako lililoko chini ya upau wa kando.</span><span class="tr"><b class="lat">Claude Desktop</b> uygulamasında, kenar çubuğunun altındaki adınıza tıklayın.</span><span class="ru">В приложении <b class="lat">Claude Desktop</b> нажмите на своё имя внизу боковой панели.</span><span class="zh">在 <b class="lat">Claude Desktop</b> 应用中，点击侧边栏底部你的名字。</span><span class="ur"><b class="lat">Claude Desktop</b> ایپ میں سائیڈ بار کے نیچے اپنے نام پر کلک کیجیے۔</span><span class="fr">Dans l'application <b class="lat">Claude Desktop</b>, cliquez sur votre nom en bas de la barre latérale.</span><span class="bn"><b class="lat">Claude Desktop</b> অ্যাপে সাইডবারের একেবারে নিচে আপনার নামের উপর ক্লিক করুন।</span><span class="id">Pada aplikasi <b class="lat">Claude Desktop</b>, klik nama Anda di bagian bawah bilah sisi (sidebar).</span><span class="ms">Dalam aplikasi <b class="lat">Claude Desktop</b>, klik nama anda di bahagian bawah bar sisi.</span><figure class="shot" aria-hidden="true"><img src="install/step-1.jpg" width="973" height="613" alt="" loading="lazy" decoding="async"><span class="pin" style="left:0.62%;top:93.8%;width:15.62%;height:4.89%"><i>3</i></span></figure></div></div>
-      <div class="step"><div class="st"><span class="ar">اختر <b class="lat">Settings</b> من القائمة التي تظهر.</span>
-        <span class="en">Choose <b class="lat">Settings</b> from the menu that appears.</span><span class="fa">از منویی که نمایان می‌شود <b class="lat">Settings</b> را برگزینید.</span><span class="sw">Chagua <b class="lat">Settings</b> (mipangilio) kutoka katika menyu inayojitokeza.</span><span class="tr">Açılan menüden <b class="lat">Settings</b> öğesini seçin.</span><span class="ru">Выберите <b class="lat">Settings</b> в появившемся меню.</span><span class="zh">在随即出现的菜单中选择 <b class="lat">Settings</b>（设置）。</span><span class="ur">ظاہر ہونے والی فہرست میں سے <b class="lat">Settings</b> منتخب کیجیے۔</span><span class="fr">Choisissez <b class="lat">Settings</b> (réglages) dans le menu qui apparaît.</span><span class="bn">যে মেনুটি খুলবে, সেখান থেকে <b class="lat">Settings</b> বেছে নিন।</span><span class="id">Pilih <b class="lat">Settings</b> dari menu yang muncul.</span><span class="ms">Pilih <b class="lat">Settings</b> daripada menu yang muncul.</span><figure class="shot" aria-hidden="true"><img src="install/step-2.jpg" width="970" height="615" alt="" loading="lazy" decoding="async"><span class="pin" style="left:1.03%;top:58.05%;width:27.01%;height:3.9%"><i>4</i></span></figure></div></div>
-      <div class="step"><div class="st"><span class="ar">في نافذة الإعدادات، انزل إلى قسم <b class="lat">Desktop app</b> واختر <b class="lat">Extensions</b>.</span>
-        <span class="en">In the settings window, go down to the <b class="lat">Desktop app</b> section and choose <b class="lat">Extensions</b>.</span><span class="fa">در پنجرهٔ تنظیمات تا بخش <b class="lat">Desktop app</b> پایین بروید و <b class="lat">Extensions</b> را برگزینید.</span><span class="sw">Katika dirisha la mipangilio, shuka hadi sehemu ya <b class="lat">Desktop app</b> kisha uchague <b class="lat">Extensions</b>.</span><span class="tr">Ayarlar penceresinde <b class="lat">Desktop app</b> bölümüne inin ve <b class="lat">Extensions</b> öğesini seçin.</span><span class="ru">В окне настроек спуститесь до раздела <b class="lat">Desktop app</b> и выберите <b class="lat">Extensions</b>.</span><span class="zh">在设置窗口中，向下滚动到 <b class="lat">Desktop app</b>（桌面应用）一栏，选择 <b class="lat">Extensions</b>（扩展）。</span><span class="ur">ترتیبات کی ونڈو میں نیچے <b class="lat">Desktop app</b> کے حصے تک جائیے اور <b class="lat">Extensions</b> منتخب کیجیے۔</span><span class="fr">Dans la fenêtre des réglages, descendez jusqu'à la section <b class="lat">Desktop app</b> et choisissez <b class="lat">Extensions</b>.</span><span class="bn">সেটিংস উইন্ডোতে নিচে নেমে <b class="lat">Desktop app</b> বিভাগে যান এবং <b class="lat">Extensions</b> বেছে নিন।</span><span class="id">Pada jendela pengaturan, turunlah ke bagian <b class="lat">Desktop app</b> lalu pilih <b class="lat">Extensions</b>.</span><span class="ms">Dalam tetingkap tetapan, turun ke bahagian <b class="lat">Desktop app</b> lalu pilih <b class="lat">Extensions</b>.</span></div></div>
-      <div class="step"><div class="st"><span class="ar">اضغط زر <b class="lat">Advanced settings</b> — وعند هذه الخطوة يتوقف كثيرٌ من المستعملين، فزرّ التثبيت لا يظهر إلا بعد هذه الضغطة.</span>
-        <span class="en">Click <b class="lat">Advanced settings</b> — this is where many people get stuck: the install button only shows up after it.</span><span class="fa">دکمهٔ <b class="lat">Advanced settings</b> را بزنید — بسیاری از کاربران همین‌جا متوقف می‌شوند، زیرا دکمهٔ نصب تنها پس از آن نمایان می‌شود.</span><span class="sw">Bofya kitufe cha <b class="lat">Advanced settings</b> — hapa ndipo watumiaji wengi hukwama, kwani kitufe cha kusakinisha hakionekani ila baada yake.</span><span class="tr"><b class="lat">Advanced settings</b> düğmesine tıklayın — birçok kullanıcı burada takılıp kalır; çünkü kurulum düğmesi ancak bundan sonra görünür.</span><span class="ru">Нажмите кнопку <b class="lat">Advanced settings</b> — именно здесь останавливаются многие: кнопка установки появляется только после неё.</span><span class="zh">点击 <b class="lat">Advanced settings</b>（高级设置）按钮——许多人正是卡在这一步：安装按钮只有点击它之后才会出现。</span><span class="ur"><b class="lat">Advanced settings</b> کا بٹن دبائیے — یہیں بہت سے صارفین رک جاتے ہیں، کیونکہ تنصیب کا بٹن اِسی کے بعد ظاہر ہوتا ہے۔</span><span class="fr">Cliquez sur le bouton <b class="lat">Advanced settings</b> — c'est là que beaucoup d'utilisateurs s'arrêtent : le bouton d'installation n'apparaît qu'après.</span><span class="bn"><b class="lat">Advanced settings</b> বোতামে ক্লিক করুন — এখানেই অনেক ব্যবহারকারী আটকে যান, কারণ ইনস্টল বোতামটি এতে ক্লিক করার পরেই কেবল দেখা যায়।</span><span class="id">Klik tombol <b class="lat">Advanced settings</b> — di sinilah banyak pengguna tertahan, sebab tombol pemasangan baru muncul setelah langkah ini.</span><span class="ms">Klik butang <b class="lat">Advanced settings</b> — di sinilah ramai pengguna tersekat, kerana butang pemasangan hanya muncul selepas anda mengkliknya.</span><figure class="shot" aria-hidden="true"><img src="install/step-3.jpg" width="935" height="537" alt="" loading="lazy" decoding="async"><span class="pin" style="left:0.64%;top:58.1%;width:16.9%;height:5.96%"><i>5</i></span><span class="pin" style="left:21.71%;top:55.49%;width:17.11%;height:5.96%"><i>6</i></span></figure></div></div>
-      <div class="step"><div class="st"><span class="ar">انزل إلى قسم <b class="lat">Extension Developer</b> واضغط <b class="lat">Install Extension</b>، ثم اختر ملف <b class="lat">.mcpb</b> الذي نزّلته.</span>
-        <span class="en">Scroll down to <b class="lat">Extension Developer</b>, click <b class="lat">Install Extension</b>, then pick the <b class="lat">.mcpb</b> file you downloaded.</span><span class="fa">تا بخش <b class="lat">Extension Developer</b> پایین بروید و <b class="lat">Install Extension</b> را بزنید، سپس فایل <b class="lat">.mcpb</b> را که دانلود کرده‌اید برگزینید.</span><span class="sw">Shuka hadi sehemu ya <b class="lat">Extension Developer</b>, bofya <b class="lat">Install Extension</b>, kisha chagua faili la <b class="lat">.mcpb</b> ulilopakua.</span><span class="tr"><b class="lat">Extension Developer</b> bölümüne inin, <b class="lat">Install Extension</b> düğmesine tıklayın, ardından indirdiğiniz <b class="lat">.mcpb</b> dosyasını seçin.</span><span class="ru">Спуститесь к разделу <b class="lat">Extension Developer</b>, нажмите <b class="lat">Install Extension</b>, затем выберите скачанный файл <b class="lat">.mcpb</b>.</span><span class="zh">向下滚动到 <b class="lat">Extension Developer</b>（扩展开发者）一栏，点击 <b class="lat">Install Extension</b>（安装扩展），然后选择你已下载的 <b class="lat">.mcpb</b> 文件。</span><span class="ur">نیچے <b class="lat">Extension Developer</b> کے حصے تک جائیے، <b class="lat">Install Extension</b> پر کلک کیجیے، پھر وہ <b class="lat">.mcpb</b> فائل منتخب کیجیے جو آپ نے ڈاؤن لوڈ کی تھی۔</span><span class="fr">Descendez jusqu'à la section <b class="lat">Extension Developer</b>, cliquez sur <b class="lat">Install Extension</b>, puis choisissez le fichier <b class="lat">.mcpb</b> que vous avez téléchargé.</span><span class="bn">নিচে নেমে <b class="lat">Extension Developer</b> বিভাগে যান, <b class="lat">Install Extension</b>-এ ক্লিক করুন, তারপর আপনার ডাউনলোড করা <b class="lat">.mcpb</b> ফাইলটি বেছে নিন।</span><span class="id">Turunlah ke bagian <b class="lat">Extension Developer</b> lalu klik <b class="lat">Install Extension</b>, kemudian pilih berkas <b class="lat">.mcpb</b> yang telah Anda unduh.</span><span class="ms">Turun ke bahagian <b class="lat">Extension Developer</b> dan klik <b class="lat">Install Extension</b>, kemudian pilih fail <b class="lat">.mcpb</b> yang anda muat turun tadi.</span><figure class="shot" aria-hidden="true"><img src="install/step-4.jpg" width="972" height="649" alt="" loading="lazy" decoding="async"><span class="pin" style="left:31.28%;top:94.15%;width:14.2%;height:5.24%"><i>7</i></span></figure></div></div>
-      <div class="step"><div class="st"><span class="ar">تظهر صفحة الإضافة، وفيها التنبيه الذي يعرضه التطبيق لكل إضافة تُثبَّت من خارج متجره؛ اضغط <b class="lat">Install</b>.</span>
-        <span class="en">The extension's page appears, with the warning the app shows for any extension installed from outside its store; click <b class="lat">Install</b>.</span><span class="fa">صفحهٔ افزونه نمایان می‌شود و در آن همان هشداری هست که برنامه برای هر افزونه‌ای که از بیرونِ فروشگاهش نصب شود نشان می‌دهد؛ <b class="lat">Install</b> را بزنید.</span><span class="sw">Ukurasa wa kiendelezi utaonekana, ukiwa na tahadhari ambayo programu huionyesha kwa kila kiendelezi kinachosakinishwa nje ya duka lake; bofya <b class="lat">Install</b>.</span><span class="tr">Uzantının sayfası açılır; burada uygulamanın, mağazası dışından kurulan her uzantı için gösterdiği uyarı yer alır. <b class="lat">Install</b> düğmesine tıklayın.</span><span class="ru">Откроется страница расширения с предупреждением, которое приложение показывает для любого расширения, устанавливаемого не из его магазина; нажмите <b class="lat">Install</b>.</span><span class="zh">扩展的页面随即出现，其中带有该应用对任何自其商店之外安装的扩展都会显示的提示；点击 <b class="lat">Install</b>（安装）。</span><span class="ur">ایکسٹینشن کا صفحہ کھلتا ہے، اور اس میں وہ تنبیہ ہوتی ہے جو ایپ ہر اُس ایکسٹینشن کے لیے دکھاتی ہے جو اس کے اسٹور سے باہر سے نصب کی جائے؛ <b class="lat">Install</b> پر کلک کیجیے۔</span><span class="fr">La page de l'extension s'affiche, avec l'avertissement que l'application montre pour toute extension installée en dehors de sa boutique ; cliquez sur <b class="lat">Install</b>.</span><span class="bn">এক্সটেনশনের পাতাটি খুলবে, আর তাতে থাকবে সেই সতর্কবার্তা যা অ্যাপটি নিজের স্টোরের বাইরে থেকে ইনস্টল করা প্রতিটি এক্সটেনশনের জন্য দেখায়; <b class="lat">Install</b>-এ ক্লিক করুন।</span><span class="id">Halaman ekstensi pun terbuka, berisi peringatan yang ditampilkan aplikasi bagi setiap ekstensi yang dipasang dari luar tokonya; klik <b class="lat">Install</b>.</span><span class="ms">Halaman sambungan akan terpapar, berserta amaran yang ditunjukkan oleh aplikasi bagi setiap sambungan yang dipasang dari luar gedung aplikasinya; klik <b class="lat">Install</b>.</span><figure class="shot" aria-hidden="true"><img src="install/step-5.jpg" width="757" height="569" alt="" loading="lazy" decoding="async"><span class="pin" style="left:79.0%;top:17.4%;width:13.74%;height:5.98%"><i>8</i></span></figure></div></div>
-      <div class="step"><div class="st"><span class="ar">يظهر مربع تأكيد، اضغط فيه <b class="lat">Install</b> — وبذلك تمّ التثبيت.</span>
-        <span class="en">A confirmation box appears; click <b class="lat">Install</b> in it — and the installation is done.</span><span class="fa">کادر تأیید نمایان می‌شود؛ در آن <b class="lat">Install</b> را بزنید — و نصب به پایان می‌رسد.</span><span class="sw">Kisanduku cha uthibitisho kitajitokeza; bofya <b class="lat">Install</b> humo — na hapo usakinishaji umekamilika.</span><span class="tr">Bir onay kutusu belirir; içindeki <b class="lat">Install</b> düğmesine tıklayın — ve kurulum tamamlanmış olur.</span><span class="ru">Появится окно подтверждения — нажмите в нём <b class="lat">Install</b>, и на этом установка завершена.</span><span class="zh">随后弹出一个确认框，在其中点击 <b class="lat">Install</b>——至此安装完成。</span><span class="ur">تصدیق کا ایک خانہ ظاہر ہوتا ہے، اس میں <b class="lat">Install</b> پر کلک کیجیے — اور یوں تنصیب مکمل ہو گئی۔</span><span class="fr">Une boîte de confirmation apparaît ; cliquez-y sur <b class="lat">Install</b> — et l'installation est achevée.</span><span class="bn">একটি নিশ্চিতকরণ বাক্স আসবে, তাতে <b class="lat">Install</b>-এ ক্লিক করুন — এতেই ইনস্টল সম্পন্ন।</span><span class="id">Muncul kotak konfirmasi; klik <b class="lat">Install</b> di dalamnya — dan pemasangan pun selesai.</span><span class="ms">Kotak pengesahan akan muncul; klik <b class="lat">Install</b> padanya — dan dengan itu selesailah pemasangan.</span><figure class="shot" aria-hidden="true"><img src="install/step-6.jpg" width="746" height="571" alt="" loading="lazy" decoding="async"><span class="pin" style="left:66.76%;top:46.76%;width:11.53%;height:5.08%"><i>9</i></span></figure></div></div>
-      <div class="step"><div class="st"><span class="ar">تصبح أدوات الشاملة جاهزة في محادثتك. اسأل: «افحص إضافة الشاملة» للتأكد أنها تعمل.</span>
-        <span class="en">Shamela's tools become available in your chat. Ask “check the Shamela extension” to confirm it works.</span><span class="fa">ابزارهای الشامله در گفت‌وگوی شما آماده می‌شوند. برای اطمینان از کارکرد آن بپرسید: «افزونهٔ الشامله را بررسی کن».</span><span class="sw">Zana za Shamela zitakuwa tayari katika mazungumzo yako. Uliza: «kagua kiendelezi cha Shamela» ili kuthibitisha kuwa kinafanya kazi.</span><span class="tr">eş-Şâmile'nin araçları sohbetinizde kullanıma hazır hâle gelir. Çalıştığını doğrulamak için «eş-Şâmile uzantısını denetle» diye sorun.</span><span class="ru">Инструменты аш-Шамиля становятся доступны в вашем чате. Спросите: «проверь расширение аш-Шамиля», чтобы убедиться, что оно работает.</span><span class="zh">谢米莱的工具便会在你的对话中就绪。输入「检查谢米莱扩展」即可确认其正常运行。</span><span class="ur">الشاملہ کے اوزار آپ کی گفتگو میں دستیاب ہو جاتے ہیں۔ اس کے درست چلنے کی تصدیق کے لیے پوچھیے: «الشاملہ ایکسٹینشن کا معائنہ کریں»۔</span><span class="fr">Les outils de Shamela deviennent disponibles dans votre conversation. Demandez « vérifie l'extension Shamela » pour confirmer qu'elle fonctionne.</span><span class="bn">শামিলার টুলগুলো আপনার চ্যাটে প্রস্তুত হয়ে যাবে। এটি কাজ করছে কিনা নিশ্চিত হতে জিজ্ঞাসা করুন: «শামিলা এক্সটেনশনটি পরীক্ষা করো»।</span><span class="id">Perkakas Syamilah pun siap di percakapan Anda. Tanyakan: «periksa ekstensi Syamilah» untuk memastikan ia bekerja.</span><span class="ms">Alat Syamilah menjadi tersedia dalam perbualan anda. Tanya: «periksa sambungan Syamilah» untuk memastikan ia berfungsi.</span></div></div>
-    </div>
+        <ol class="steps">
+      <li class="step"><div class="st"><span class="ar">تأكَّد من المتطلبات: تطبيق <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> على جهازك، و<a href="https://shamela.ws/page/download" target="_blank" rel="noopener">تطبيق المكتبة الشاملة ٤</a> وفيه كتب منزَّلة.</span><span class="en">Make sure you have the requirements: the <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> app on your device, and <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">the Shamela 4 app</a> with books downloaded.</span><span class="fa">از فراهم‌بودن پیش‌نیازها مطمئن شوید: برنامهٔ <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> روی دستگاهتان، و <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">برنامهٔ الشامله ۴</a> (Shamela) که کتاب‌هایی در آن نصب شده باشد.</span><span class="sw">Hakikisha una mahitaji: programu ya <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> kwenye kifaa chako, na <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">programu ya Maktaba ya Shamela 4</a> yenye vitabu vilivyopakuliwa.</span><span class="tr">Gereksinimlere sahip olduğunuzdan emin olun: cihazınızda <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> uygulaması ve içinde kitaplar indirilmiş <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">eş-Şâmile (Shamela) 4 uygulaması</a>.</span><span class="ru">Убедитесь, что у вас есть всё необходимое: приложение <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> на вашем устройстве и <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">приложение «аш-Шамиля (Shamela) 4»</a> с загруженными книгами.</span><span class="zh">确认已具备前提条件：你设备上的 <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> 应用，以及<a href="https://shamela.ws/page/download" target="_blank" rel="noopener">谢米莱图书馆（Shamela）4 应用</a>，且其中已下载书籍。</span><span class="ur">متطلبات کا یقین کر لیجیے: آپ کے آلے پر <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> ایپ، اور <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">المکتبۃ الشاملہ 4 ایپ</a> جس میں کتب ڈاؤن لوڈ شدہ ہوں۔</span><span class="fr">Assurez-vous d'avoir les prérequis : l'application <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> sur votre appareil, ainsi que <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">l'application de la bibliothèque Shamela 4</a> avec des livres installés.</span><span class="bn">প্রয়োজনীয় জিনিসগুলো নিশ্চিত করুন: আপনার ডিভাইসে <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> অ্যাপ, এবং কিতাব ডাউনলোড করা অবস্থায় <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">শামিলা (Shamela) 4 অ্যাপ</a>।</span><span class="id">Pastikan persyaratan terpenuhi: aplikasi <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> di perangkat Anda, dan <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">aplikasi Maktabah Syamilah (Shamela) 4</a> dengan kitab-kitab yang sudah diunduh.</span><span class="ms">Pastikan keperluan dipenuhi: aplikasi <a href="https://claude.com/download" target="_blank" rel="noopener"><b class="lat">Claude Desktop</b></a> pada peranti anda, dan <a href="https://shamela.ws/page/download" target="_blank" rel="noopener">aplikasi Maktabah Syamilah 4</a> yang mempunyai kitab yang dimuat turun.</span></div></li>
+      <li class="step"><div class="st"><span class="ar">نزّل ملف الإضافة (بامتداد <b class="lat">.mcpb</b>) من <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">صفحة الإصدار</a> (أو زر «تنزيل» بالأعلى).</span>
+        <span class="en">Download the extension file (<b class="lat">.mcpb</b>) from the <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">release page</a> (or the “Download” button above).</span><span class="fa">فایل افزونه (با پسوند <b class="lat">.mcpb</b>) را از <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">صفحهٔ انتشار</a> (یا دکمهٔ «دانلود» در بالا) دانلود کنید.</span><span class="sw">Pakua faili la kiendelezi (<b class="lat">.mcpb</b>) kutoka <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">ukurasa wa toleo</a> (au kitufe cha «Pakua» hapo juu).</span><span class="tr">Uzantı dosyasını (<b class="lat">.mcpb</b>) <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">sürüm sayfasından</a> (ya da yukarıdaki «İndir» düğmesinden) indirin.</span><span class="ru">Скачайте файл расширения (<b class="lat">.mcpb</b>) со <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">страницы релиза</a> (или кнопкой «Скачать» выше).</span><span class="zh">从<a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">发布页面</a>（或上方的「下载」按钮）下载扩展文件（<b class="lat">.mcpb</b>）。</span><span class="ur">ایکسٹینشن فائل (<b class="lat">.mcpb</b> لاحقے والی) کو <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">ریلیز کے صفحے</a> سے ڈاؤن لوڈ کیجیے (یا اوپر دیے گئے «ڈاؤن لوڈ» بٹن سے)۔</span><span class="fr">Téléchargez le fichier de l'extension (<b class="lat">.mcpb</b>) depuis la <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">page de version</a> (ou le bouton « Télécharger » ci-dessus).</span><span class="bn"><a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">রিলিজ পেজ</a> থেকে (অথবা উপরের «ডাউনলোড» বোতাম থেকে) এক্সটেনশন ফাইলটি (<b class="lat">.mcpb</b>) ডাউনলোড করুন।</span><span class="id">Unduh berkas ekstensi (berekstensi <b class="lat">.mcpb</b>) dari <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">halaman rilis</a> (atau tombol «Unduh» di atas).</span><span class="ms">Muat turun fail sambungan (berformat <b class="lat">.mcpb</b>) daripada <a href="https://github.com/alhoqbani/shamela-mcp/releases/latest" target="_blank" rel="noopener">halaman keluaran</a> (atau butang «Muat Turun» di atas).</span></div></li>
+      <li class="step"><div class="st"><span class="ar">في تطبيق <b class="lat">Claude Desktop</b> اضغط على اسمك في أسفل الشريط الجانبي.</span>
+        <span class="en">In the <b class="lat">Claude Desktop</b> app, click your name at the bottom of the sidebar.</span><span class="fa">در برنامهٔ <b class="lat">Claude Desktop</b> روی نام خود در پایین نوار کناری کلیک کنید.</span><span class="sw">Katika programu ya <b class="lat">Claude Desktop</b>, bofya jina lako lililoko chini ya upau wa kando.</span><span class="tr"><b class="lat">Claude Desktop</b> uygulamasında, kenar çubuğunun altındaki adınıza tıklayın.</span><span class="ru">В приложении <b class="lat">Claude Desktop</b> нажмите на своё имя внизу боковой панели.</span><span class="zh">在 <b class="lat">Claude Desktop</b> 应用中，点击侧边栏底部你的名字。</span><span class="ur"><b class="lat">Claude Desktop</b> ایپ میں سائیڈ بار کے نیچے اپنے نام پر کلک کیجیے۔</span><span class="fr">Dans l'application <b class="lat">Claude Desktop</b>, cliquez sur votre nom en bas de la barre latérale.</span><span class="bn"><b class="lat">Claude Desktop</b> অ্যাপে সাইডবারের একেবারে নিচে আপনার নামের উপর ক্লিক করুন।</span><span class="id">Pada aplikasi <b class="lat">Claude Desktop</b>, klik nama Anda di bagian bawah bilah sisi (sidebar).</span><span class="ms">Dalam aplikasi <b class="lat">Claude Desktop</b>, klik nama anda di bahagian bawah bar sisi.</span><figure class="shot" aria-hidden="true" style="max-width:760px"><img src="install/step-1.jpg" width="973" height="613" alt="" loading="lazy" decoding="async"><span class="pin" style="left:0.62%;top:93.8%;width:15.62%;height:4.89%"><i>3</i></span></figure></div></li>
+      <li class="step"><div class="st"><span class="ar">اختر <b class="lat">Settings</b> من القائمة التي تظهر.</span>
+        <span class="en">Choose <b class="lat">Settings</b> from the menu that appears.</span><span class="fa">از منویی که نمایان می‌شود <b class="lat">Settings</b> را برگزینید.</span><span class="sw">Chagua <b class="lat">Settings</b> (mipangilio) kutoka katika menyu inayojitokeza.</span><span class="tr">Açılan menüden <b class="lat">Settings</b> öğesini seçin.</span><span class="ru">Выберите <b class="lat">Settings</b> в появившемся меню.</span><span class="zh">在随即出现的菜单中选择 <b class="lat">Settings</b>（设置）。</span><span class="ur">ظاہر ہونے والی فہرست میں سے <b class="lat">Settings</b> منتخب کیجیے۔</span><span class="fr">Choisissez <b class="lat">Settings</b> (réglages) dans le menu qui apparaît.</span><span class="bn">যে মেনুটি খুলবে, সেখান থেকে <b class="lat">Settings</b> বেছে নিন।</span><span class="id">Pilih <b class="lat">Settings</b> dari menu yang muncul.</span><span class="ms">Pilih <b class="lat">Settings</b> daripada menu yang muncul.</span><figure class="shot" aria-hidden="true" style="max-width:760px"><img src="install/step-2.jpg" width="970" height="615" alt="" loading="lazy" decoding="async"><span class="pin" style="left:1.03%;top:58.05%;width:27.01%;height:3.9%"><i>4</i></span></figure></div></li>
+      <li class="step"><div class="st"><span class="ar">في نافذة الإعدادات، انزل إلى قسم <b class="lat">Desktop app</b> واختر <b class="lat">Extensions</b>.</span>
+        <span class="en">In the settings window, go down to the <b class="lat">Desktop app</b> section and choose <b class="lat">Extensions</b>.</span><span class="fa">در پنجرهٔ تنظیمات تا بخش <b class="lat">Desktop app</b> پایین بروید و <b class="lat">Extensions</b> را برگزینید.</span><span class="sw">Katika dirisha la mipangilio, shuka hadi sehemu ya <b class="lat">Desktop app</b> kisha uchague <b class="lat">Extensions</b>.</span><span class="tr">Ayarlar penceresinde <b class="lat">Desktop app</b> bölümüne inin ve <b class="lat">Extensions</b> öğesini seçin.</span><span class="ru">В окне настроек спуститесь до раздела <b class="lat">Desktop app</b> и выберите <b class="lat">Extensions</b>.</span><span class="zh">在设置窗口中，向下滚动到 <b class="lat">Desktop app</b>（桌面应用）一栏，选择 <b class="lat">Extensions</b>（扩展）。</span><span class="ur">ترتیبات کی ونڈو میں نیچے <b class="lat">Desktop app</b> کے حصے تک جائیے اور <b class="lat">Extensions</b> منتخب کیجیے۔</span><span class="fr">Dans la fenêtre des réglages, descendez jusqu'à la section <b class="lat">Desktop app</b> et choisissez <b class="lat">Extensions</b>.</span><span class="bn">সেটিংস উইন্ডোতে নিচে নেমে <b class="lat">Desktop app</b> বিভাগে যান এবং <b class="lat">Extensions</b> বেছে নিন।</span><span class="id">Pada jendela pengaturan, turunlah ke bagian <b class="lat">Desktop app</b> lalu pilih <b class="lat">Extensions</b>.</span><span class="ms">Dalam tetingkap tetapan, turun ke bahagian <b class="lat">Desktop app</b> lalu pilih <b class="lat">Extensions</b>.</span></div></li>
+      <li class="step"><div class="st"><span class="ar">اضغط زر <b class="lat">Advanced settings</b> — وعند هذه الخطوة يتوقف كثيرٌ من المستعملين، فزرّ التثبيت لا يظهر إلا بعد هذه الضغطة.</span>
+        <span class="en">Click <b class="lat">Advanced settings</b> — this is where many people get stuck: the install button only shows up after it.</span><span class="fa">دکمهٔ <b class="lat">Advanced settings</b> را بزنید — بسیاری از کاربران همین‌جا متوقف می‌شوند، زیرا دکمهٔ نصب تنها پس از آن نمایان می‌شود.</span><span class="sw">Bofya kitufe cha <b class="lat">Advanced settings</b> — hapa ndipo watumiaji wengi hukwama, kwani kitufe cha kusakinisha hakionekani ila baada yake.</span><span class="tr"><b class="lat">Advanced settings</b> düğmesine tıklayın — birçok kullanıcı burada takılıp kalır; çünkü kurulum düğmesi ancak bundan sonra görünür.</span><span class="ru">Нажмите кнопку <b class="lat">Advanced settings</b> — именно здесь останавливаются многие: кнопка установки появляется только после неё.</span><span class="zh">点击 <b class="lat">Advanced settings</b>（高级设置）按钮——许多人正是卡在这一步：安装按钮只有点击它之后才会出现。</span><span class="ur"><b class="lat">Advanced settings</b> کا بٹن دبائیے — یہیں بہت سے صارفین رک جاتے ہیں، کیونکہ تنصیب کا بٹن اِسی کے بعد ظاہر ہوتا ہے۔</span><span class="fr">Cliquez sur le bouton <b class="lat">Advanced settings</b> — c'est là que beaucoup d'utilisateurs s'arrêtent : le bouton d'installation n'apparaît qu'après.</span><span class="bn"><b class="lat">Advanced settings</b> বোতামে ক্লিক করুন — এখানেই অনেক ব্যবহারকারী আটকে যান, কারণ ইনস্টল বোতামটি এতে ক্লিক করার পরেই কেবল দেখা যায়।</span><span class="id">Klik tombol <b class="lat">Advanced settings</b> — di sinilah banyak pengguna tertahan, sebab tombol pemasangan baru muncul setelah langkah ini.</span><span class="ms">Klik butang <b class="lat">Advanced settings</b> — di sinilah ramai pengguna tersekat, kerana butang pemasangan hanya muncul selepas anda mengkliknya.</span><figure class="shot" aria-hidden="true" style="max-width:760px"><img src="install/step-3.jpg" width="935" height="537" alt="" loading="lazy" decoding="async"><span class="pin" style="left:0.64%;top:58.1%;width:16.9%;height:5.96%"><i>5</i></span><span class="pin" style="left:21.71%;top:55.49%;width:17.11%;height:5.96%"><i>6</i></span></figure></div></li>
+      <li class="step"><div class="st"><span class="ar">انزل إلى قسم <b class="lat">Extension Developer</b> واضغط <b class="lat">Install Extension</b>، ثم اختر ملف <b class="lat">.mcpb</b> الذي نزّلته.</span>
+        <span class="en">Scroll down to <b class="lat">Extension Developer</b>, click <b class="lat">Install Extension</b>, then pick the <b class="lat">.mcpb</b> file you downloaded.</span><span class="fa">تا بخش <b class="lat">Extension Developer</b> پایین بروید و <b class="lat">Install Extension</b> را بزنید، سپس فایل <b class="lat">.mcpb</b> را که دانلود کرده‌اید برگزینید.</span><span class="sw">Shuka hadi sehemu ya <b class="lat">Extension Developer</b>, bofya <b class="lat">Install Extension</b>, kisha chagua faili la <b class="lat">.mcpb</b> ulilopakua.</span><span class="tr"><b class="lat">Extension Developer</b> bölümüne inin, <b class="lat">Install Extension</b> düğmesine tıklayın, ardından indirdiğiniz <b class="lat">.mcpb</b> dosyasını seçin.</span><span class="ru">Спуститесь к разделу <b class="lat">Extension Developer</b>, нажмите <b class="lat">Install Extension</b>, затем выберите скачанный файл <b class="lat">.mcpb</b>.</span><span class="zh">向下滚动到 <b class="lat">Extension Developer</b>（扩展开发者）一栏，点击 <b class="lat">Install Extension</b>（安装扩展），然后选择你已下载的 <b class="lat">.mcpb</b> 文件。</span><span class="ur">نیچے <b class="lat">Extension Developer</b> کے حصے تک جائیے، <b class="lat">Install Extension</b> پر کلک کیجیے، پھر وہ <b class="lat">.mcpb</b> فائل منتخب کیجیے جو آپ نے ڈاؤن لوڈ کی تھی۔</span><span class="fr">Descendez jusqu'à la section <b class="lat">Extension Developer</b>, cliquez sur <b class="lat">Install Extension</b>, puis choisissez le fichier <b class="lat">.mcpb</b> que vous avez téléchargé.</span><span class="bn">নিচে নেমে <b class="lat">Extension Developer</b> বিভাগে যান, <b class="lat">Install Extension</b>-এ ক্লিক করুন, তারপর আপনার ডাউনলোড করা <b class="lat">.mcpb</b> ফাইলটি বেছে নিন।</span><span class="id">Turunlah ke bagian <b class="lat">Extension Developer</b> lalu klik <b class="lat">Install Extension</b>, kemudian pilih berkas <b class="lat">.mcpb</b> yang telah Anda unduh.</span><span class="ms">Turun ke bahagian <b class="lat">Extension Developer</b> dan klik <b class="lat">Install Extension</b>, kemudian pilih fail <b class="lat">.mcpb</b> yang anda muat turun tadi.</span><figure class="shot" aria-hidden="true" style="max-width:760px"><img src="install/step-4.jpg" width="972" height="649" alt="" loading="lazy" decoding="async"><span class="pin" style="left:31.28%;top:94.15%;width:14.2%;height:5.24%"><i>7</i></span></figure></div></li>
+      <li class="step"><div class="st"><span class="ar">تظهر صفحة الإضافة، وفيها التنبيه الذي يعرضه التطبيق لكل إضافة تُثبَّت من خارج متجره؛ اضغط <b class="lat">Install</b>.</span>
+        <span class="en">The extension's page appears, with the warning the app shows for any extension installed from outside its store; click <b class="lat">Install</b>.</span><span class="fa">صفحهٔ افزونه نمایان می‌شود و در آن همان هشداری هست که برنامه برای هر افزونه‌ای که از بیرونِ فروشگاهش نصب شود نشان می‌دهد؛ <b class="lat">Install</b> را بزنید.</span><span class="sw">Ukurasa wa kiendelezi utaonekana, ukiwa na tahadhari ambayo programu huionyesha kwa kila kiendelezi kinachosakinishwa nje ya duka lake; bofya <b class="lat">Install</b>.</span><span class="tr">Uzantının sayfası açılır; burada uygulamanın, mağazası dışından kurulan her uzantı için gösterdiği uyarı yer alır. <b class="lat">Install</b> düğmesine tıklayın.</span><span class="ru">Откроется страница расширения с предупреждением, которое приложение показывает для любого расширения, устанавливаемого не из его магазина; нажмите <b class="lat">Install</b>.</span><span class="zh">扩展的页面随即出现，其中带有该应用对任何自其商店之外安装的扩展都会显示的提示；点击 <b class="lat">Install</b>（安装）。</span><span class="ur">ایکسٹینشن کا صفحہ کھلتا ہے، اور اس میں وہ تنبیہ ہوتی ہے جو ایپ ہر اُس ایکسٹینشن کے لیے دکھاتی ہے جو اس کے اسٹور سے باہر سے نصب کی جائے؛ <b class="lat">Install</b> پر کلک کیجیے۔</span><span class="fr">La page de l'extension s'affiche, avec l'avertissement que l'application montre pour toute extension installée en dehors de sa boutique ; cliquez sur <b class="lat">Install</b>.</span><span class="bn">এক্সটেনশনের পাতাটি খুলবে, আর তাতে থাকবে সেই সতর্কবার্তা যা অ্যাপটি নিজের স্টোরের বাইরে থেকে ইনস্টল করা প্রতিটি এক্সটেনশনের জন্য দেখায়; <b class="lat">Install</b>-এ ক্লিক করুন।</span><span class="id">Halaman ekstensi pun terbuka, berisi peringatan yang ditampilkan aplikasi bagi setiap ekstensi yang dipasang dari luar tokonya; klik <b class="lat">Install</b>.</span><span class="ms">Halaman sambungan akan terpapar, berserta amaran yang ditunjukkan oleh aplikasi bagi setiap sambungan yang dipasang dari luar gedung aplikasinya; klik <b class="lat">Install</b>.</span><figure class="shot" aria-hidden="true" style="max-width:757px"><img src="install/step-5.jpg" width="757" height="569" alt="" loading="lazy" decoding="async"><span class="pin" style="left:79.0%;top:17.4%;width:13.74%;height:5.98%"><i>8</i></span></figure></div></li>
+      <li class="step"><div class="st"><span class="ar">يظهر مربع تأكيد، اضغط فيه <b class="lat">Install</b> — وبذلك تمّ التثبيت.</span>
+        <span class="en">A confirmation box appears; click <b class="lat">Install</b> in it — and the installation is done.</span><span class="fa">کادر تأیید نمایان می‌شود؛ در آن <b class="lat">Install</b> را بزنید — و نصب به پایان می‌رسد.</span><span class="sw">Kisanduku cha uthibitisho kitajitokeza; bofya <b class="lat">Install</b> humo — na hapo usakinishaji umekamilika.</span><span class="tr">Bir onay kutusu belirir; içindeki <b class="lat">Install</b> düğmesine tıklayın — ve kurulum tamamlanmış olur.</span><span class="ru">Появится окно подтверждения — нажмите в нём <b class="lat">Install</b>, и на этом установка завершена.</span><span class="zh">随后弹出一个确认框，在其中点击 <b class="lat">Install</b>——至此安装完成。</span><span class="ur">تصدیق کا ایک خانہ ظاہر ہوتا ہے، اس میں <b class="lat">Install</b> پر کلک کیجیے — اور یوں تنصیب مکمل ہو گئی۔</span><span class="fr">Une boîte de confirmation apparaît ; cliquez-y sur <b class="lat">Install</b> — et l'installation est achevée.</span><span class="bn">একটি নিশ্চিতকরণ বাক্স আসবে, তাতে <b class="lat">Install</b>-এ ক্লিক করুন — এতেই ইনস্টল সম্পন্ন।</span><span class="id">Muncul kotak konfirmasi; klik <b class="lat">Install</b> di dalamnya — dan pemasangan pun selesai.</span><span class="ms">Kotak pengesahan akan muncul; klik <b class="lat">Install</b> padanya — dan dengan itu selesailah pemasangan.</span><figure class="shot" aria-hidden="true" style="max-width:746px"><img src="install/step-6.jpg" width="746" height="571" alt="" loading="lazy" decoding="async"><span class="pin" style="left:66.76%;top:46.76%;width:11.53%;height:5.08%"><i>9</i></span></figure></div></li>
+      <li class="step"><div class="st"><span class="ar">تصبح أدوات الشاملة جاهزة في محادثتك. اسأل: «افحص إضافة الشاملة» للتأكد أنها تعمل.</span>
+        <span class="en">Shamela's tools become available in your chat. Ask “check the Shamela extension” to confirm it works.</span><span class="fa">ابزارهای الشامله در گفت‌وگوی شما آماده می‌شوند. برای اطمینان از کارکرد آن بپرسید: «افزونهٔ الشامله را بررسی کن».</span><span class="sw">Zana za Shamela zitakuwa tayari katika mazungumzo yako. Uliza: «kagua kiendelezi cha Shamela» ili kuthibitisha kuwa kinafanya kazi.</span><span class="tr">eş-Şâmile'nin araçları sohbetinizde kullanıma hazır hâle gelir. Çalıştığını doğrulamak için «eş-Şâmile uzantısını denetle» diye sorun.</span><span class="ru">Инструменты аш-Шамиля становятся доступны в вашем чате. Спросите: «проверь расширение аш-Шамиля», чтобы убедиться, что оно работает.</span><span class="zh">谢米莱的工具便会在你的对话中就绪。输入「检查谢米莱扩展」即可确认其正常运行。</span><span class="ur">الشاملہ کے اوزار آپ کی گفتگو میں دستیاب ہو جاتے ہیں۔ اس کے درست چلنے کی تصدیق کے لیے پوچھیے: «الشاملہ ایکسٹینشن کا معائنہ کریں»۔</span><span class="fr">Les outils de Shamela deviennent disponibles dans votre conversation. Demandez « vérifie l'extension Shamela » pour confirmer qu'elle fonctionne.</span><span class="bn">শামিলার টুলগুলো আপনার চ্যাটে প্রস্তুত হয়ে যাবে। এটি কাজ করছে কিনা নিশ্চিত হতে জিজ্ঞাসা করুন: «শামিলা এক্সটেনশনটি পরীক্ষা করো»।</span><span class="id">Perkakas Syamilah pun siap di percakapan Anda. Tanyakan: «periksa ekstensi Syamilah» untuk memastikan ia bekerja.</span><span class="ms">Alat Syamilah menjadi tersedia dalam perbualan anda. Tanya: «periksa sambungan Syamilah» untuk memastikan ia berfungsi.</span></div></li>
+    </ol>
 
-    <div class="block">
+    <div class="block ar" dir="rtl" lang="ar">
       <h3>تفعيل الأدوات في المحادثة</h3>
-      <p class="blead">بعد التثبيت تكون أدوات الإضافة متاحةً في المحادثة تلقائيًّا. فإن لم تظهر فتحقّق من تفعيلها بهذه الخطوات، فإن بقيت غائبةً فأغلق تطبيق كلود إغلاقًا كاملًا وأعد فتحه:</p>
+      <p class="blead">الأدوات لا تُفعَّل من نفسها: الإضافة المسجَّلة حديثًا تكون معطَّلة في المحادثة حتى تشغّلها مرةً واحدةً بهذه الخطوات، ثم يبقى الخيار محفوظًا بعدها. فإن بقيت غائبةً بعد تشغيلها فأغلق تطبيق كلود إغلاقًا كاملًا — نقرة يمين على أيقونته في شريط النظام ثم «إنهاء» — وأعِد فتحه:</p>
       <figure class="shot" aria-hidden="true" style="max-width:743px"><img src="install/chat-enable.jpg" width="743" height="280" alt="" loading="lazy" decoding="async"><span class="pin" style="left:8.08%;top:30.71%;width:5.11%;height:12.86%"><i>1</i></span><span class="pin" style="left:10.09%;top:71.43%;width:30.28%;height:11.43%"><i>2</i></span><span class="pin" style="left:44.41%;top:60%;width:40.11%;height:12.14%"><i>3</i></span></figure>
       <ol class="keys">
         <li>زر <b class="lat">+</b> — في صندوق كتابة الرسالة، ومنه تصل إلى ملحقات المحادثة.</li>
@@ -526,11 +719,24 @@
         <li><span class="ar"><b class="lat">Uninstall</b> — يحذف النسخة القديمة. ثم ثبّت الملف الجديد باتّباع خطوات التثبيت السابقة.</span><span class="en"><b class="lat">Uninstall</b> — removes the old version. Then install the new file by following the installation steps above.</span><span class="fa"><b class="lat">Uninstall</b> — نسخهٔ قدیمی را حذف می‌کند. سپس با همان گام‌های نصب که در بالا آمد، فایل جدید را نصب کنید.</span><span class="sw"><b class="lat">Uninstall</b> — huondoa toleo la zamani. Kisha sakinisha faili jipya kwa kufuata hatua za usakinishaji zilizotangulia.</span><span class="tr"><b class="lat">Uninstall</b> — eski sürümü kaldırır. Ardından yukarıdaki kurulum adımlarını izleyerek yeni dosyayı yükleyin.</span><span class="ru"><b class="lat">Uninstall</b> — удаляет старую версию. Затем установите новый файл, следуя приведённым выше шагам установки.</span><span class="zh"><b class="lat">Uninstall</b>（卸载）——删除旧版本。然后按上述安装步骤安装新文件。</span><span class="ur"><b class="lat">Uninstall</b> — پرانا ورژن حذف کر دیتا ہے۔ پھر اوپر دیے گئے تنصیب کے مراحل پر عمل کرتے ہوئے نئی فائل نصب کیجیے۔</span><span class="fr"><b class="lat">Uninstall</b> — supprime l'ancienne version. Installez ensuite le nouveau fichier en suivant les étapes d'installation ci-dessus.</span><span class="bn"><b class="lat">Uninstall</b> — পুরোনো সংস্করণটি মুছে ফেলে। তারপর উপরের ইনস্টলের ধাপগুলো অনুসরণ করে নতুন ফাইলটি ইনস্টল করুন।</span><span class="id"><b class="lat">Uninstall</b> — menghapus versi lama. Kemudian pasang berkas baru dengan mengikuti langkah-langkah pemasangan di atas.</span><span class="ms"><b class="lat">Uninstall</b> — membuang versi lama. Kemudian pasang fail baharu dengan mengikut langkah pemasangan di atas.</span></li>
       </ol>
     </div>
+
+    <div class="block ar" dir="rtl" lang="ar">
+      <h3>إذا لم تعمل</h3>
+      <p class="blead">أكثر ما يقع، ودواؤه — وتفصيلُ ما سوى ذلك في <a href="https://github.com/alhoqbani/shamela-mcp#readme" target="_blank" rel="noopener">صفحة المستودع</a>:</p>
+      <ul class="opts">
+        <li><b>الأدوات لا تظهر، أو توقّفت بعد أن كانت تعمل</b> أغلِق تطبيق كلود إغلاقًا كاملًا: نقرة يمين على أيقونته في شريط النظام ثم «إنهاء» — فإغلاق النافذة وحده لا يكفي — ثم افتحه من جديد. وهذا يعالج التثبيت الجديد الذي لم يُفعَّل بعد، والتسجيل الذي تعطَّل فجأة.</li>
+        <li><b>اختفت الإضافة من قائمة الإضافات بعد تحديث تطبيق كلود</b> قد يُفقِد التحديثُ الإضافاتِ المثبَّتة، وإعادةُ التشغيل لا تُعيدها لأن التطبيق لم يعد يعرف بوجودها؛ فأعِد تثبيت ملف <b class="lat">.mcpb</b> وتعود أدواتك وإعداداتك كما كانت.</li>
+        <li><b>الأدوات تعمل في محادثة ولا تعمل في أخرى</b> بعض واجهات المحادثة لا تُحمِّل إضافات سطح المكتب أصلًا؛ فجرِّب محادثةً نصيةً جديدة من النافذة الرئيسية، فإن عملت فيها فالعلة في نوع الواجهة لا في الإضافة.</li>
+        <li><b>رسالة: لم يُعثر على المكتبة الشاملة</b> لم يهتدِ الاكتشاف التلقائي إلى مكان التثبيت؛ فأدخِل المسار يدويًّا في حقل «مجلد المكتبة الشاملة» بصفحة الإعداد — وهو المجلد الذي يحتوي على <b class="lat">app</b> و<b class="lat">database</b>.</li>
+        <li><b>نتائج صفر لكلمةٍ تعلم أنها موجودة</b> اطلب بحثًا صرفيًّا ليشمل مشتقات الكلمة، أو استعمل البديلين <b class="lat">*</b> و<b class="lat">?</b> (ولا تخلطهما بالصرفي)، أو اطلب بحثًا مطابقًا إن كان مرادك التشكيل أو الهمزات أو نظام الأرقام.</li>
+        <li><b>رسالة تطلب تحديث برنامج المكتبة الشاملة</b> الإضافة تستعمل محرِّك البحث المرفق مع البرنامج نفسه ولا تحمل نسخةً خاصة بها، وبعض التثبيتات القديمة تحمل جيلًا أقدم لا يعمل معها؛ فحدِّث برنامج الشاملة إلى أحدث إصدار.</li>
+      </ul>
+    </div>
   </div>
 </section>
 
 <!-- SETTINGS -->
-<section id="settings">
+<section id="settings" dir="rtl" lang="ar" class="ar">
   <div class="wrap">
     <div class="eyebrow"><span class="ar">بعد التثبيت</span><span class="en">After installing</span><span class="fa">پس از نصب</span><span class="sw">Baada ya kusakinisha</span><span class="tr">Kurulumdan sonra</span><span class="ru">После установки</span><span class="zh">安装之后</span><span class="ur">تنصیب کے بعد</span><span class="fr">Après l'installation</span><span class="bn">ইনস্টলের পরে</span><span class="id">Setelah pemasangan</span><span class="ms">Selepas pemasangan</span></div>
     <h2><span class="ar">الإعدادات</span><span class="en">Settings</span><span class="fa">تنظیمات</span><span class="sw">Mipangilio</span><span class="tr">Ayarlar</span><span class="ru">Настройки</span><span class="zh">设置</span><span class="ur">ترتیبات</span><span class="fr">Réglages</span><span class="bn">সেটিংস</span><span class="id">Pengaturan</span><span class="ms">Tetapan</span></h2>
@@ -564,36 +770,31 @@
         <li>القائمة المنسدلة — تضبط بها سلوك المجموعة كلها دفعةً واحدة.</li>
         <li>أزرار كل أداة — ثلاثة أزرارٍ بجانب كل أداة تضبط سلوك تلك الأداة وحدها، فيمكنك بها مخالفة إعداد المجموعة في أداةٍ بعينها.</li>
       </ol>
-    </div>
-    <div class="block">
-      <h3>خيارات الإذن الأربعة</h3>
-      <p class="blead">وهي متاحةٌ للمجموعة كلها من القائمة المنسدلة، ولكل أداةٍ على حدة من أزرارها:</p>
-      <figure class="shot" aria-hidden="true" style="max-width:247px"><img src="install/settings-4.jpg" width="247" height="183" alt="" loading="lazy" decoding="async"></figure>
+      <p class="blead">وخيارات الإذن أربعة، تضبط بها المجموعة كلها من القائمة المنسدلة، أو أداةً بعينها من أزرارها:</p>
       <ul class="opts">
         <li><b class="lat">Always allow</b> — وهو الافتراض: يستعمل كلود الأداة متى احتاجها دون أن يستأذنك.</li>
         <li><b class="lat">Needs approval</b> — يستأذنك قبل كل استعمال، فلا تعمل الأداة حتى تأذن.</li>
         <li><b class="lat">Blocked</b> — يمنع الأداة منعًا تامًّا، فلا يستعملها كلود ولو طلبتَ ذلك منه.</li>
         <li><b class="lat">Custom</b> — ضبطٌ مفصَّل: لكل أداةٍ حكمها على حدة، بدل حكمٍ واحدٍ يعمّ المجموعة.</li>
       </ul>
-    </div>
   </div>
 </section>
 
 <!-- LIMITS -->
-<section id="limits">
+<section id="limits" dir="rtl" lang="ar" class="ar">
   <div class="wrap">
     <div class="eyebrow">قبل أن تعتمد النتائج</div>
     <h2>حدودٌ ينبغي معرفتها</h2>
     <p class="lead">الأداة تُقرِّب لك النصّ، ولا تُغنيك عن نظرك فيه. وهذه ثمانية مواضع يحسن أن تعرفها قبل أن تبني على نتيجةٍ بحثًا أو تُثبتها في حاشية:</p>
     <ul class="opts">
-      <li><b>خلوّ النتائج ليس نفيًا</b> — البحث لا يبلغ إلا ما نزّلتَه من الكتب. فإن لم تظهر نتيجة فقل: «لم أجده في كتبي المنزَّلة»، ولا تقل: «لم يقل به أحد». واسأل أداة اقتراح التنزيل عن الكتاب الغائب، تخبرك: أهو منزَّل عندك، أم متاح للتنزيل، أم ليس في الشاملة أصلًا.</li>
-      <li><b>الكلمات المتفرقة ليست عبارةً واحدة</b> — البحث العام يُظهر الصفحة إذا اجتمعت فيها كلماتُك ولو تفرَّقت وبَعُد ما بينها، فليس ظهورُها دليلًا على أن العبارة فيها. فإذا طلبت نصّ حديثٍ أو حدٍّ أو قاعدة بلفظه فاطلب البحث بالعبارة الحرفية، أو بالتقارب مع تحديد عدد الكلمات الفاصلة.</li>
-      <li><b>تغطية التفاسير منتقاة</b> — فهرس التفاسير في الشاملة ينتقي ولا يستوعب؛ فغيابُ آيةٍ عن كتابٍ فيه لا يعني أنه لم يفسّرها. ولهذا تعرض أداة تغطية التفاسير حال كل كتابٍ على حدة: أين وُجد موضع الآية، وأين لم يوجد، وما لم يُفهرس بعد — فيتميّز لك اليقين من موضع التوقّف.</li>
-      <li><b>الإحصاء الكبير مبنيٌّ على عيّنة</b> — مجموع نتائج الجذر دقيق. أما توزيعها على القرون والتصنيفات فإذا زادت على خمسة آلاف بُني على أعلاها وحدها، وتُصرِّح النتيجة بذلك. فلا تجعل نسبةً كهذه حجّةً على شيوع لفظٍ في عصرٍ أو مذهب حتى تضيّق النطاق ويقلّ العدد.</li>
-      <li><b>الاستثناء لا يعمّ كل النتائج</b> — «دون» في البحث المنطقي تعمل في عددٍ محدود من النتائج المرشَّحة، فقد يفلت منها ما أردت استثناءه. فضيّق النطاق بالكتب أو التصنيف أوّلًا، ثم استثنِ.</li>
-      <li><b>الحكم على الحديث نقلٌ لا اجتهاد</b> — ما تراه من تصحيحٍ أو تضعيفٍ فهو نقلٌ عن المحقّقين في الحواشي منسوبٌ إلى قائله، لا حكمٌ من الإضافة، ولا يقوم مقام التخريج ودراسة الإسناد.</li>
-      <li><b>الترقيم قد يخالف المطبوع</b> — من كتب الشاملة ما رُقِّم آليًّا لا على طبعةٍ ورقية، وأداة الإحالة تُخبرك بحال الترقيم. فإن عزوتَ في رسالةٍ أو تحقيق فقيِّده بأنه «بترقيم الشاملة»، أو قابِله على المطبوع قبل إثباته.</li>
-      <li><b>ما نزّلتَه الآن لا يظهر إلا بعد إعادة التشغيل</b> — الكتاب الذي تنزّله وتطبيقُ كلود مفتوح لا تبلغه الإضافة حتى تُغلق التطبيق إغلاقًا كاملًا وتفتحه من جديد. فإن بحثت عن كتابٍ نزّلته للتوّ فلم تجده، فهذا أوّل ما تتفقَّده.</li>
+      <li><b>خلوّ النتائج ليس نفيًا</b> البحث لا يبلغ إلا ما نزّلتَه من الكتب. فإن لم تظهر نتيجة فقل: «لم أجده في كتبي المنزَّلة»، ولا تقل: «لم يقل به أحد». واسأل أداة اقتراح التنزيل عن الكتاب الغائب، تخبرك: أهو منزَّل عندك، أم متاح للتنزيل، أم ليس في الشاملة أصلًا.</li>
+      <li><b>الكلمات المتفرقة ليست عبارةً واحدة</b> البحث العام يُظهر الصفحة إذا اجتمعت فيها كلماتُك ولو تفرَّقت وبَعُد ما بينها، فليس ظهورُها دليلًا على أن العبارة فيها. فإذا طلبت نصّ حديثٍ أو حدٍّ أو قاعدة بلفظه فاطلب البحث بالعبارة الحرفية، أو بالتقارب مع تحديد عدد الكلمات الفاصلة.</li>
+      <li><b>تغطية التفاسير منتقاة</b> فهرس التفاسير في الشاملة ينتقي ولا يستوعب؛ فغيابُ آيةٍ عن كتابٍ فيه لا يعني أنه لم يفسّرها. ولهذا تعرض أداة تغطية التفاسير حال كل كتابٍ على حدة: أين وُجد موضع الآية، وأين لم يوجد، وما لم يُفهرس بعد — فيتميّز لك اليقين من موضع التوقّف.</li>
+      <li><b>اقرأ أساس الإحصاء قبل أن تحتجّ به</b> توزيع الجذر على القرون والتصنيفات يُحسب على كل صفحةٍ مطابقة، فهو تامٌّ في الأصل. وقد يتعذَّر المسح التامّ في بعض الطلبات فيُبنى التوزيع على عيّنةٍ من أعلى النتائج، وتُصرِّح النتيجة بذلك في «أساس التغطية». فانظر أيَّهما جاءك قبل أن تجعل النسبة حجّةً على شيوع لفظٍ في عصرٍ أو مذهب.</li>
+      <li><b>الاستثناء لا يعمّ كل النتائج</b> «دون» في البحث المنطقي تعمل في عددٍ محدود من النتائج المرشَّحة، فقد يفلت منها ما أردت استثناءه. فضيّق النطاق بالكتب أو التصنيف أوّلًا، ثم استثنِ.</li>
+      <li><b>الحكم على الحديث نقلٌ لا اجتهاد</b> ما تراه من تصحيحٍ أو تضعيفٍ فهو نقلٌ عن المحقّقين في الحواشي منسوبٌ إلى قائله، لا حكمٌ من الإضافة، ولا يقوم مقام التخريج ودراسة الإسناد.</li>
+      <li><b>الترقيم قد يخالف المطبوع</b> من كتب الشاملة ما رُقِّم آليًّا لا على طبعةٍ ورقية، وأداة الإحالة تُخبرك بحال الترقيم. فإن عزوتَ في رسالةٍ أو تحقيق فقيِّده بأنه «بترقيم الشاملة»، أو قابِله على المطبوع قبل إثباته.</li>
+      <li><b>الكتاب الذي نزّلته الآن يُقرأ نصُّه بعد إعادة التشغيل</b> تلتقط الإضافة الكتاب الجديد خلال ثوانٍ من تنزيله، فيظهر في قائمة الكتب المنزَّلة وتُقرأ بياناته وفهرسه. أمّا نصّ صفحاته فمحرِّك البحث يقرأ فهارسه عند بداية الجلسة، فأغلِق تطبيق كلود إغلاقًا كاملًا وأعِد فتحه ليدخل الكتاب في البحث. فإن ظهر الكتاب في القائمة ولم تجده في نتائج البحث، فهذا أوّل ما تتفقَّده.</li>
     </ul>
     <div class="callout"><b>تنبيه:</b> هذه الإضافة أداةُ بحثٍ وتوثيق تعين طالب العلم، ولا تُفتي ولا تستنبط الأحكام، ولا تغني عن سؤال أهل العلم. وإذا أردت الاستشهاد بنصٍّ في بحثٍ أو كتاب فقابِله أولًا على نسخة الشاملة أو على الطبعة المطبوعة.</div>
   </div>
@@ -608,6 +809,8 @@
       <span class="en">The extension reads your Shamela library files locally, read-only, changing nothing, with no intermediary server of its own. Your conversation text is governed by Claude's usual app policy. “Faithful citation” is a design principle: every quote is cited, and no text is completed from outside your books.</span><span class="fa">افزونه فایل‌های کتابخانهٔ الشامله را روی دستگاه شما فقط‌خواندنی می‌خواند، چیزی در آن‌ها تغییر نمی‌دهد و سرور واسطِ ویژهٔ خود ندارد. اما متن گفت‌وگو تابع سیاست معمول برنامهٔ Claude است. اصلِ «دقت در نقل» بنیانِ طراحی است: هر نقل، ارجاع داده می‌شود و هیچ متنی از بیرونِ کتاب‌های شما تکمیل نمی‌شود.</span><span class="sw">Kiendelezi kinasoma faili za maktaba yako ya Shamela kwenye kifaa chako kwa kusoma tu, bila kubadilisha chochote, na bila seva ya kati yake yenyewe. Maandishi ya mazungumzo yako yanasimamiwa na sera ya kawaida ya programu ya Claude. «Usahihi wa unukuzi» ni msingi wa muundo: kila nukuu ina marejeo, na hakuna maandishi yanayokamilishwa kutoka nje ya vitabu vyako.</span><span class="tr">Uzantı, eş-Şâmile kütüphanesi dosyalarınızı cihazınızda yalnızca okuma amacıyla okur, içinde hiçbir şeyi değiştirmez ve kendine ait bir aracı sunucu kullanmaz. Sohbet metinleriniz ise Claude uygulamasının olağan politikasına tabidir. «Sadık nakil» ilkesi tasarımın temelidir: her nakil atfıyla verilir ve kitaplarınızın dışından hiçbir metin tamamlanmaz.</span><span class="ru">Расширение читает файлы вашей библиотеки аш-Шамиля на устройстве только для чтения, ничего в них не меняя и без собственного промежуточного сервера. Текст же ваших переписок подчиняется обычной политике приложения Claude. Принцип «точности передачи» лежит в основе разработки: каждая цитата снабжена указанием источника, и ни один текст не дополняется из-за пределов ваших книг.</span><span class="zh">本扩展仅以只读方式读取你设备上的谢米莱图书馆文件，不作任何改动，也不设自己的中间服务器。至于对话文本，则遵循 Claude 应用一贯的政策。「忠实征引」是其设计的核心原则：每处引文皆注明出处，绝不以你书籍之外的文本加以补足。</span><span class="ur">ایکسٹینشن آپ کے آلے پر المکتبۃ الشاملہ کی فائلوں کو صرف پڑھنے کے انداز میں پڑھتی ہے، ان میں کچھ تبدیل نہیں کرتی، اور اس کا اپنا کوئی درمیانی سرور نہیں۔ رہے گفتگو کے نصوص، تو وہ Claude ایپ کی معمول کی پالیسی کے تابع ہیں۔ اور «دقتِ نقل» کا اصول ڈیزائن میں بنیادی ہے: ہر نقل باحوالہ ہوتی ہے، اور آپ کی کتابوں سے باہر کا کوئی متن مکمل نہیں کیا جاتا۔</span><span class="fr">L'extension lit les fichiers de votre bibliothèque Shamela sur votre appareil, en lecture seule, sans rien y modifier, et sans serveur intermédiaire qui lui soit propre. Quant au texte de vos conversations, il est régi par la politique habituelle de l'application Claude. Le principe de « fidélité de la citation » est au cœur de sa conception : chaque citation est référencée, et aucun texte n'est complété à partir de sources extérieures à vos livres.</span><span class="bn">এক্সটেনশনটি আপনার আল-মাকতাবাতুশ শামিলা লাইব্রেরির ফাইলগুলো আপনার ডিভাইসেই শুধুমাত্র পড়ার মোডে পড়ে, তাতে কিছুই পরিবর্তন করে না, এবং এর নিজস্ব কোনো মধ্যবর্তী সার্ভার নেই। আর চ্যাটের লেখাগুলো Claude অ্যাপের স্বাভাবিক নীতিমালার অধীন। «নির্ভুল উদ্ধৃতি» নীতিটি এর নকশার মূল ভিত্তি: প্রতিটি উদ্ধৃতি সূত্রসহ দেওয়া হয়, এবং আপনার কিতাবের বাইরে থেকে কোনো লেখা বানিয়ে যোগ করা হয় না।</span><span class="id">Ekstensi ini membaca berkas Maktabah Syamilah di perangkat Anda secara baca-saja, tanpa mengubah apa pun, dan tanpa server perantara miliknya sendiri. Adapun teks percakapan tunduk pada kebijakan aplikasi Claude sebagaimana biasa. Prinsip «ketepatan penukilan» menjadi asas desain: setiap nukilan disertai sitasi, dan tidak ada teks yang dilengkapi dari luar kitab-kitab Anda.</span><span class="ms">Sambungan ini membaca fail perpustakaan Maktabah Syamilah pada peranti anda secara baca sahaja, tanpa mengubah apa-apa padanya, dan tanpa pelayan perantara tersendiri. Adapun teks perbualan, ia tertakluk kepada dasar biasa aplikasi Claude. Prinsip «ketepatan nukilan» menjadi asas dalam reka bentuknya: setiap nukilan disandarkan, dan tiada teks yang dilengkapkan daripada luar kitab anda.</span></p>
   </div>
 </section>
+
+</main>
 
 <footer>
   <svg class="fmotif" viewBox="0 0 24 24" aria-hidden="true">
@@ -653,7 +856,11 @@
     svg('<circle cx="11" cy="12" r="4"/><path d="M4 26 a7 7 0 0 1 14 0"/><circle cx="22" cy="10" r="3.4"/><path d="M19 21 a6.5 6.5 0 0 1 9 5"/>')
   ];
 
-  var TOOLS=[[{"t":"shamela_search_pages","ds":{"ar":"البحث في نصوص الصفحات المنزَّلة — المتن والحواشي والتعليقات — مع تضييق النطاق بالكتاب أو التصنيف، وخيارات الصرف والبدلاء."},"ex":{"ar":"مثال: «ابحث في كتب الفقه عن كلمة الاستصناع.»"}},{"t":"shamela_search_titles","ds":{"ar":"البحث في عناوين الفصول والأبواب داخل الكتب، فتصل إلى الموضع من فهرس الكتاب لا من نصّه."},"ex":{"ar":"مثال: «اعرض الأبواب التي في عناوينها باب الصيام.»"}},{"t":"shamela_search_books","ds":{"ar":"البحث في فهرس الكتب بالاسم أو المؤلف أو نص التعريف، ويعمل حتى قبل تنزيل أي كتاب."},"ex":{"ar":"مثال: «هل في فهرس الشاملة كتب عن القواعد الفقهية؟»"}},{"t":"shamela_search_authors","ds":{"ar":"البحث في فهرس المؤلفين بالاسم أو نص الترجمة؛ وعند غياب النتيجة تُجرَّب الكنية والنسبة والشهرة (ابن قدامة / الموفق)."},"ex":{"ar":"مثال: «ابحث عن ترجمة ابن قدامة ومتى توفي.»"}},{"t":"shamela_search_quran","ds":{"ar":"البحث في آيات القرآن الكريم (٦٢٣٦ آية) عبر الفهرس الإملائي، ويشمل الكلمات ذات البادئات (فكلمة الصبر تجدها في بالصبر)."},"ex":{"ar":"مثال: «ابحث في القرآن عن كلمة الصبر.»"}},{"t":"shamela_search_phrase","ds":{"ar":"البحث بالعبارة الحرفية المتتالية بالضبط، أو بالتقارب اللفظي: كلمتان لا يفصل بينهما أكثر من عددٍ محدَّد من الكلمات."},"ex":{"ar":"مثال: «ابحث عن عبارة الأعمال بالنيات بالترتيب.»"}},{"t":"shamela_search_exact","ds":{"ar":"بحث مطابق تمامًا يراعي التشكيل والهمزات (أ إ آ مقابل ا) ونظام الأرقام (٠-٩ مقابل 0-9)."},"ex":{"ar":"مثال: «ابحث عن كلمة عِلْم بهذا التشكيل بالضبط، لا عن عَلَم.»"}},{"t":"shamela_search_boolean","ds":{"ar":"بحث منطقي يجمع «و» و«أو» و«دون» (الاستثناء)، ويُنصح معه بتحديد النطاق."},"ex":{"ar":"مثال: «ابحث عن صفحات فيها الوقف مع المسجد أو المقبرة، وليس فيها البيع.»"}}],[{"t":"shamela_search_quran","ds":{"ar":"سبق تعريف وظائف هذه الأداة في فئة «البحث»؛ وذُكرت هنا لأن البحث في الآيات من مواضع استعمالها."}},{"t":"shamela_get_aya","ds":{"ar":"جلب آية محدَّدة بالرسم الإملائي والعثماني ومرسوم المجمَّع."},"ex":{"ar":"مثال: «اجلب آية الكرسي بالرسم العثماني.»"}},{"t":"shamela_get_tafseer_of_aya","ds":{"ar":"إخراج الكتب التي تحوي تفسير آيةٍ ما مع رقم الصفحة، من فهرس الشاملة المنتقى وحده — وهو قليل الكتب، فللاستيفاء انظر الأداة التالية."},"ex":{"ar":"مثال: «ما الكتب التي فيها تفسير آية الكرسي؟»"}},{"t":"shamela_list_tafsirs_for_aya","ds":{"ar":"بيان تغطية تفاسيرك المنزَّلة لآية بعينها مع التصريح بحال كل كتاب: أين وُجد موضع الآية — من فهرس الشاملة أو من عناوين الكتاب نفسه — وأين لم يوجد، وما لم يُفهرس بعد."},"ex":{"ar":"مثال: «أي تفاسيري المنزَّلة يغطي الآية ٢٥٥ من سورة البقرة؟»"}},{"t":"shamela_get_tafseer_texts","ds":{"ar":"جلب نصوص تفسير آية دفعةً واحدة من كل كتابٍ تحدَّد فيه موضعها، معزوَّةً إلى كتبها ومؤلفيها وصفحاتها."},"ex":{"ar":"مثال: «اجلب لي تفسير قوله تعالى (إياك نعبد وإياك نستعين) من ثلاثة تفاسير.»"}}],[{"t":"shamela_get_books_for_hadith","ds":{"ar":"بناءً على رقم حديث في الشاملة، إخراج الكتب المنزَّلة التي ترويه مع رقم الصفحة."},"ex":{"ar":"مثال: «ما الكتب المنزَّلة التي تروي هذا الحديث نفسه؟»"}},{"t":"shamela_get_page_services","ds":{"ar":"إشارات الصفحة: ما تحويه من آيات قرآنية وأحاديث وأسانيد."},"ex":{"ar":"مثال: «ما الآيات والأحاديث المذكورة في هذه الصفحة؟»"}},{"t":"shamela_search_hadith","ds":{"ar":"البحث عن حديث بنصه: مواضعه ومفاتيحه وتخريجه في الكتب المنزَّلة."},"ex":{"ar":"مثال: «خرِّج لي حديث إنما الأعمال بالنيات.»"}}],[{"t":"shamela_get_page","ds":{"ar":"جلب نص صفحة كاملة (المتن والحاشية والتعليق) مع موضعها من فهرس الكتاب، وتقطيع المتن الطويل إلى أجزاء."},"ex":{"ar":"مثال: «اقرأ لي صفحة ١٧ من كتاب الأصول من علم الأصول.»"}},{"t":"shamela_get_pages_range","ds":{"ar":"قراءة نطاق متتابع من الصفحات (من صفحة واحدة إلى عشرين صفحة) من كتاب منزَّل، مع التوقّف عند حدٍّ أقصى للحجم في النصوص الطويلة."},"ex":{"ar":"مثال: «اقرأ خمس صفحات متتالية من أول الكتاب.»"}},{"t":"shamela_get_toc","ds":{"ar":"جلب فهرس كتاب على هيئة شجرة، أو سلسلة الأبواب التي تحتوي صفحةً معيَّنة."},"ex":{"ar":"مثال: «اعرض لي فهرس كتاب زاد المستقنع.»"}},{"t":"shamela_get_book_section","ds":{"ar":"قراءة باب كامل من كتاب باستخدام عنوانه في الفهرس."},"ex":{"ar":"مثال: «اقرأ لي باب المياه كاملًا من هذا الكتاب.»"}},{"t":"shamela_get_book_parts","ds":{"ar":"أجزاء الكتاب ومجلَّداته مع عدد صفحات كل جزء."},"ex":{"ar":"مثال: «هل هذا الكتاب من جزء واحد أم أجزاء متعددة؟»"}}],[{"t":"shamela_list_categories","ds":{"ar":"قائمة بكل تصنيفات المكتبة (٤١ تصنيفًا) مع عدد الكتب وعدد المنزَّل منها في كل تصنيف."},"ex":{"ar":"مثال: «اعرض تصنيفات المكتبة وكم كتابًا منزَّلًا عندي في كل تصنيف.»"}},{"t":"shamela_list_downloaded_books","ds":{"ar":"قائمة الكتب المنزَّلة فعليًّا على هذا الجهاز، مع التصفية بالتصنيف وحالة المحتوى."},"ex":{"ar":"مثال: «ما الكتب المنزَّلة عندي في تصنيف العقيدة؟»"}},{"t":"shamela_get_book","ds":{"ar":"بيانات كتاب: المؤلف والتصنيف والنوع وحالة المحتوى، والمحقق والطبعة المستخرَجان من اسم الكتاب في الشاملة، وسنة تأريخه في الشاملة — وهي تتبع وفاة مؤلِّف الأصل لا سنة التأليف."},"ex":{"ar":"مثال: «أعطني بيانات كتاب مجموع الفتاوى: مؤلفه وسنة تأريخه وهل هو منزَّل عندي.»"}},{"t":"shamela_get_author","ds":{"ar":"بيانات مؤلف وقائمة كتبه، مع حال التنزيل لكل كتاب."},"ex":{"ar":"مثال: «من ابن قدامة؟ وما كتبه الموجودة في مكتبتي؟»"}},{"t":"shamela_resolve","ds":{"ar":"تعيين الكتاب أو المؤلف المقصود في فهارس الشاملة من اسم عربي ولو كان ناقصًا."},"ex":{"ar":"مثال: «أقصد كتاب الشرح الممتع — أي كتاب هو في المكتبة بالضبط؟»"}},{"t":"shamela_get_citation","ds":{"ar":"صياغة إحالة جاهزة بثلاثة أنماط: نمط الشاملة الافتراضي، أو مختصر، أو موسَّع."},"ex":{"ar":"مثال: «أعطني الإحالة المنسَّقة لهذه الصفحة بنمط الشاملة.»"}},{"t":"shamela_suggest_download","ds":{"ar":"البحث عن كتاب في فهرس الشاملة الكامل — منزَّلًا كان أو غير منزَّل — وبيان حاله: منزَّل عندك، أو متاح للتنزيل برقمه ورابط صفحته، أو في الفهرس دون إتاحة."},"ex":{"ar":"مثال: «الكتاب الذي أحال إليه المحقق غير موجود عندي — هل هو متاح في الشاملة؟»"}}],[{"t":"shamela_root_stats","ds":{"ar":"قياس انتشار جذر عربي في المكتبة المنزَّلة ببحثٍ صرفي، موزَّعًا حسب التصنيف والقرن الهجري والكتاب والمؤلف."},"ex":{"ar":"مثال: «ما مدى انتشار جذر صبر في مكتبتي حسب القرون؟»"}},{"t":"shamela_books_by_period","ds":{"ar":"تصفية فهرس الكتب زمنيًّا: بسنة تأريخ الكتاب في الشاملة، أو بسنة وفاة مؤلفه الرئيس؛ وسنة التأريخ في الشاملة ليست سنة التأليف، بل تتبع وفاة مؤلِّف الأصل. ويظهر الفرق بين البُعدين في الشروح ونحوها: فسنة التأريخ تتبع صاحبَ الأصل المتقدِّم، وسنة الوفاة تتبع الشارحَ المتأخر."},"ex":{"ar":"مثال: «اعرض كتب المؤلفين الذين توفوا في القرن الثامن الهجري.»"}}],[{"t":"shamela_health","ds":{"ar":"فحص ذاتي: نسخة الخادم، وعدد كتب الفهرس والمنزَّل منها، وتحقّق سريع من صلاحية المكتبة للقراءة. استعمله أولًا إذا بدت الأدوات معطَّلة أو رجعت نتائجها فارغة."},"ex":{"ar":"مثال: «افحص إضافة الشاملة وتأكد أنها تعمل.»"}},{"t":"shamela_guide","ds":{"ar":"عرض دليل استخدام الإضافة من داخل المحادثة، كاملًا أو قسمًا منه: الأدوات أو النصائح."},"ex":{"ar":"مثال: «ماذا تستطيع إضافة الشاملة أن تفعل؟»"}}]];
+  var TOOLS=[[{"t":"shamela_search_pages","ds":{"ar":"البحث في نصوص الصفحات المنزَّلة — المتن والحواشي والتعليقات — مع تضييق النطاق بالكتاب أو التصنيف، وخيارات الصرف والبدلاء."},"ex":{"ar":"مثال: «ابحث في كتب الفقه عن كلمة الاستصناع.»"}},{"t":"shamela_search_titles","ds":{"ar":"البحث في عناوين الفصول والأبواب داخل الكتب، فتصل إلى الموضع من فهرس الكتاب لا من نصّه."},"ex":{"ar":"مثال: «اعرض الأبواب التي في عناوينها باب الصيام.»"}},{"t":"shamela_search_books","ds":{"ar":"البحث في فهرس الكتب بالاسم أو المؤلف أو نص التعريف، ويعمل حتى قبل تنزيل أي كتاب."},"ex":{"ar":"مثال: «هل في فهرس الشاملة كتب عن القواعد الفقهية؟»"}},{"t":"shamela_search_authors","ds":{"ar":"البحث في فهرس المؤلفين بالاسم أو نص الترجمة؛ وعند غياب النتيجة تُجرَّب الكنية والنسبة والشهرة (ابن قدامة / الموفق)."},"ex":{"ar":"مثال: «ابحث عن ترجمة ابن قدامة ومتى توفي.»"}},{"t":"shamela_search_quran","ds":{"ar":"البحث في آيات القرآن الكريم (٦٢٣٦ آية) عبر الفهرس الإملائي، ويشمل الكلمات ذات البادئات (فكلمة الصبر تجدها في بالصبر)."},"ex":{"ar":"مثال: «ابحث في القرآن عن كلمة الصبر.»"}},{"t":"shamela_search_phrase","ds":{"ar":"البحث بالعبارة الحرفية المتتالية بالضبط، أو بالتقارب اللفظي: كلمتان لا يفصل بينهما أكثر من عددٍ محدَّد من الكلمات."},"ex":{"ar":"مثال: «ابحث عن عبارة الأعمال بالنيات بالترتيب.»"}},{"t":"shamela_search_exact","ds":{"ar":"بحث مطابق تمامًا يراعي التشكيل والهمزات (أ إ آ مقابل ا) ونظام الأرقام (٠-٩ مقابل 0-9)."},"ex":{"ar":"مثال: «ابحث عن كلمة عِلْم بهذا التشكيل بالضبط، لا عن عَلَم.»"}},{"t":"shamela_search_boolean","ds":{"ar":"بحث منطقي يجمع «و» و«أو» و«دون» (الاستثناء)، ويُنصح معه بتحديد النطاق."},"ex":{"ar":"مثال: «ابحث عن صفحات فيها الوقف مع المسجد أو المقبرة، وليس فيها البيع.»"}}],[{"t":"shamela_search_quran","ds":{"ar":"سبق تعريف وظائف هذه الأداة في فئة «البحث»؛ وذُكرت هنا لأن البحث في الآيات من مواضع استعمالها."}},{"t":"shamela_get_aya","ds":{"ar":"جلب آية محدَّدة بالرسم الإملائي والعثماني ومرسوم المجمَّع."},"ex":{"ar":"مثال: «اجلب آية الكرسي بالرسم العثماني.»"}},{"t":"shamela_get_tafseer_of_aya","ds":{"ar":"إخراج الكتب التي تحوي تفسير آيةٍ ما مع رقم الصفحة، من فهرس الشاملة المنتقى وحده — وهو قليل الكتب، فللاستيفاء انظر الأداة التالية."},"ex":{"ar":"مثال: «ما الكتب التي فيها تفسير آية الكرسي؟»"}},{"t":"shamela_list_tafsirs_for_aya","ds":{"ar":"بيان تغطية تفاسيرك المنزَّلة لآية بعينها مع التصريح بحال كل كتاب: أين وُجد موضع الآية — من فهرس الشاملة أو من عناوين الكتاب نفسه — وأين لم يوجد، وما لم يُفهرس بعد."},"ex":{"ar":"مثال: «أي تفاسيري المنزَّلة يغطي الآية ٢٥٥ من سورة البقرة؟»"}},{"t":"shamela_get_tafseer_texts","ds":{"ar":"جلب نصوص تفسير آية دفعةً واحدة من كل كتابٍ تحدَّد فيه موضعها، معزوَّةً إلى كتبها ومؤلفيها وصفحاتها."},"ex":{"ar":"مثال: «اجلب لي تفسير قوله تعالى (إياك نعبد وإياك نستعين) من ثلاثة تفاسير.»"}}],[{"t":"shamela_get_books_for_hadith","ds":{"ar":"بناءً على رقم حديث في الشاملة، إخراج الكتب المنزَّلة التي ترويه مع رقم الصفحة."},"ex":{"ar":"مثال: «ما الكتب المنزَّلة التي تروي هذا الحديث نفسه؟»"}},{"t":"shamela_get_page_services","ds":{"ar":"إشارات الصفحة: ما تحويه من آيات قرآنية وأحاديث وأسانيد."},"ex":{"ar":"مثال: «ما الآيات والأحاديث المذكورة في هذه الصفحة؟»"}},{"t":"shamela_search_hadith","ds":{"ar":"البحث عن حديث بنصه: مواضعه ومفاتيحه وتخريجه في الكتب المنزَّلة."},"ex":{"ar":"مثال: «خرِّج لي حديث إنما الأعمال بالنيات.»"}}],[{"t":"shamela_get_page","ds":{"ar":"جلب نص صفحة كاملة (المتن والحاشية والتعليق) مع موضعها من فهرس الكتاب، وتقطيع المتن الطويل إلى أجزاء."},"ex":{"ar":"مثال: «اقرأ لي صفحة ١٧ من كتاب الأصول من علم الأصول.»"}},{"t":"shamela_get_pages_range","ds":{"ar":"قراءة نطاق متتابع من الصفحات (من صفحة واحدة إلى عشرين صفحة) من كتاب منزَّل، مع التوقّف عند حدٍّ أقصى للحجم في النصوص الطويلة."},"ex":{"ar":"مثال: «اقرأ خمس صفحات متتالية من أول الكتاب.»"}},{"t":"shamela_get_toc","ds":{"ar":"جلب فهرس كتاب على هيئة شجرة، أو سلسلة الأبواب التي تحتوي صفحةً معيَّنة."},"ex":{"ar":"مثال: «اعرض لي فهرس كتاب زاد المستقنع.»"}},{"t":"shamela_get_book_section","ds":{"ar":"قراءة باب كامل من كتاب باستخدام عنوانه في الفهرس."},"ex":{"ar":"مثال: «اقرأ لي باب المياه كاملًا من هذا الكتاب.»"}},{"t":"shamela_get_book_parts","ds":{"ar":"أجزاء الكتاب ومجلَّداته مع عدد صفحات كل جزء."},"ex":{"ar":"مثال: «هل هذا الكتاب من جزء واحد أم أجزاء متعددة؟»"}}],[{"t":"shamela_list_categories","ds":{"ar":"قائمة بكل تصنيفات المكتبة (٤٠ تصنيفًا) مع عدد الكتب وعدد المنزَّل منها في كل تصنيف."},"ex":{"ar":"مثال: «اعرض تصنيفات المكتبة وكم كتابًا منزَّلًا عندي في كل تصنيف.»"}},{"t":"shamela_list_downloaded_books","ds":{"ar":"قائمة الكتب المنزَّلة فعليًّا على هذا الجهاز، مع التصفية بالتصنيف وحالة المحتوى."},"ex":{"ar":"مثال: «ما الكتب المنزَّلة عندي في تصنيف العقيدة؟»"}},{"t":"shamela_get_book","ds":{"ar":"بيانات كتاب: المؤلف والتصنيف والنوع وحالة المحتوى، والمحقق والطبعة المستخرَجان من اسم الكتاب في الشاملة، وسنة تأريخه في الشاملة — وهي تتبع وفاة مؤلِّف الأصل لا سنة التأليف."},"ex":{"ar":"مثال: «أعطني بيانات كتاب مجموع الفتاوى: مؤلفه وسنة تأريخه وهل هو منزَّل عندي.»"}},{"t":"shamela_get_author","ds":{"ar":"بيانات مؤلف وقائمة كتبه، مع حال التنزيل لكل كتاب."},"ex":{"ar":"مثال: «من ابن قدامة؟ وما كتبه الموجودة في مكتبتي؟»"}},{"t":"shamela_resolve","ds":{"ar":"تعيين الكتاب أو المؤلف المقصود في فهارس الشاملة من اسمٍ ولو كان ناقصًا — عربيًّا، أو مكتوبًا بحروف لاتينية مثل «Ibn Qudama» و«al-Mughni»، فتُقابَل حروفه على الأسماء العربية ويُصرَّح بأن الجواب جاء بهذا الطريق."},"ex":{"ar":"مثال: «أقصد كتاب الشرح الممتع — أي كتاب هو في المكتبة بالضبط؟»"}},{"t":"shamela_get_citation","ds":{"ar":"صياغة إحالة جاهزة بثلاثة أنماط: نمط الشاملة الافتراضي، أو مختصر، أو موسَّع."},"ex":{"ar":"مثال: «أعطني الإحالة المنسَّقة لهذه الصفحة بنمط الشاملة.»"}},{"t":"shamela_suggest_download","ds":{"ar":"البحث عن كتاب في فهرس الشاملة الكامل — منزَّلًا كان أو غير منزَّل — وبيان حاله: منزَّل عندك، أو متاح للتنزيل برقمه ورابط صفحته، أو في الفهرس دون إتاحة."},"ex":{"ar":"مثال: «الكتاب الذي أحال إليه المحقق غير موجود عندي — هل هو متاح في الشاملة؟»"}}],[{"t":"shamela_root_stats","ds":{"ar":"قياس انتشار جذر عربي في المكتبة المنزَّلة ببحثٍ صرفي، موزَّعًا حسب التصنيف والقرن الهجري والكتاب والمؤلف."},"ex":{"ar":"مثال: «ما مدى انتشار جذر صبر في مكتبتي حسب القرون؟»"}},{"t":"shamela_books_by_period","ds":{"ar":"تصفية فهرس الكتب زمنيًّا: بسنة تأريخ الكتاب في الشاملة، أو بسنة وفاة مؤلفه الرئيس؛ وسنة التأريخ في الشاملة ليست سنة التأليف، بل تتبع وفاة مؤلِّف الأصل. ويظهر الفرق بين البُعدين في الشروح ونحوها: فسنة التأريخ تتبع صاحبَ الأصل المتقدِّم، وسنة الوفاة تتبع الشارحَ المتأخر."},"ex":{"ar":"مثال: «اعرض كتب المؤلفين الذين توفوا في القرن الثامن الهجري.»"}}],[{"t":"shamela_health","ds":{"ar":"فحص ذاتي: نسخة الخادم، وعدد كتب الفهرس والمنزَّل منها، وتحقّق سريع من صلاحية المكتبة للقراءة. استعمله أولًا إذا بدت الأدوات معطَّلة أو رجعت نتائجها فارغة."},"ex":{"ar":"مثال: «افحص إضافة الشاملة وتأكد أنها تعمل.»"}},{"t":"shamela_guide","ds":{"ar":"عرض دليل استخدام الإضافة من داخل المحادثة، كاملًا أو قسمًا منه: الأدوات أو النصائح."},"ex":{"ar":"مثال: «ماذا تستطيع إضافة الشاملة أن تفعل؟»"}}]];
+
+  addEventListener("resize",function(){
+    [].forEach.call(document.querySelectorAll(".cat.open .body"),function(b){b.style.maxHeight=b.scrollHeight+"px"});
+  });
 
   var box=document.getElementById("cats");
   function renderCats(){
@@ -663,14 +870,16 @@
       var t=c[lang];
       var MAG='<svg width="15" height="15" viewBox="0 0 32 32" aria-hidden="true" style="fill:none;stroke:var(--coral);stroke-width:2.8;stroke-linecap:round"><circle cx="14" cy="14" r="9"/><line x1="20.5" y1="20.5" x2="27" y2="27"/></svg>';
       var items = c.old[lang].concat(c.neu[lang]).map(function(x,k){
-        var d=(TOOLS[ci]||[])[k]||{};
-        var h='<span class="trow"><b>'+x+'</b>'+(d.t?'<code>'+d.t+'</code>':'')+'</span>';
+        // labels and tool objects are zipped by index: a mismatch would mislabel every
+        // row after the insertion point, so pair only when the counts agree.
+        var td=TOOLS[ci]||[], d=(td.length===c.old[lang].length+c.neu[lang].length)?(td[k]||{}):{};
+        var h='<span class="trow"><b>'+x+'</b>'+(d.t?'<code lang="en">'+d.t+'</code>':'')+'</span>';
         if(d.ds&&d.ds[lang]) h+='<span class="td">'+d.ds[lang]+'</span>';
         if(d.ex&&d.ex[lang]) h+='<span class="tx">'+MAG+'<span>'+d.ex[lang]+'</span></span>';
         return '<li>'+h+'</li>';
       }).join('');
       var el=document.createElement("div"); el.className="cat";
-      el.innerHTML='<button class="acc" aria-expanded="false"><span class="cic">'+(ICONS[ci]||'')+'</span><span class="nm">'+t.nm+'</span><span class="ds">'+t.ds+'</span><span class="car"></span></button><div class="body"><ul>'+items+'</ul></div>';
+      el.innerHTML='<h3 class="acch"><button class="acc" aria-expanded="false" aria-controls="cat-'+ci+'"><span class="cic">'+(ICONS[ci]||'')+'</span><span class="nm">'+t.nm+'</span><span class="ds">'+t.ds+'</span><span class="car"></span></button></h3><div class="body" id="cat-'+ci+'"><ul>'+items+'</ul></div>';
       var acc=el.querySelector(".acc"), body=el.querySelector(".body");
       acc.addEventListener("click",function(){
         var open=el.classList.toggle("open");
@@ -701,6 +910,7 @@
   // ---- theme ----
   function setTheme(t){
     document.documentElement.setAttribute("data-theme",t);
+    var tb=document.getElementById("theme"); if(tb) tb.setAttribute("aria-pressed", t==="dark");
     try{localStorage.setItem("shamela-theme",t)}catch(e){}
   }
   document.getElementById("theme").addEventListener("click",function(){
@@ -708,6 +918,12 @@
     if(!cur){cur = matchMedia("(prefers-color-scheme:dark)").matches ? "dark":"light";}
     setTheme(cur==="dark" ? "light":"dark");
   });
+
+  // ---- print ----
+  // The print sheet reveals the collapsed tool panels itself (max-height is
+  // !important there, which outranks the inline height the accordion sets),
+  // so the button has nothing to undo first.
+  document.getElementById("print").addEventListener("click",function(){window.print()});
 
   // ---- init ----
   (function(){
