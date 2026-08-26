@@ -46,9 +46,27 @@ public final class SearchAuthors {
             return envelope;
         }
 
-        Query q = QueryBuilder.build(tokens, List.of("body"), wildcards, morphology, morphologyAnalyzer, null);
         IndexSearcher searcher = indexCache.searcher(INDEX);
         StoredFields stored = indexCache.storedFields(INDEX);
+
+        // «الموفق» and «موفق» are one laqab written two ways, and this index
+        // holds whole words, so the only way to reach both without rebuilding it
+        // is to ask for both. Morphology is left alone deliberately: AlKhalil
+        // already folds the article — measured, «الموفق المقدسي» and «موفق
+        // المقدسي» come back as the same 109 authors with it on — so expanding
+        // there would only make the query bigger.
+        //
+        // The highlighter is handed the same list. A hit reached through «موفق»
+        // but marked only for «الموفق» comes back with an empty snippet, and on
+        // a 35-query battery that was 55 evidence-less rows instead of 8; for
+        // «الموفق» alone it was 6 of the first 10, Ibn Qudamah among them.
+        List<List<String>> groups = morphology
+                ? null
+                : ArticleVariants.forTokens(searcher.getIndexReader(), "body", tokens);
+        List<String> highlightTokens = groups == null ? tokens : ArticleVariants.flatten(groups);
+        Query q = morphology
+                ? QueryBuilder.build(tokens, List.of("body"), wildcards, true, morphologyAnalyzer, null)
+                : QueryBuilder.buildExpanded(groups, List.of("body"), wildcards, false, null, null);
 
         int safeMax = Math.max(1, Math.min(maxResults, 100));
         int safeOffset = Math.max(0, offset);
@@ -77,7 +95,7 @@ public final class SearchAuthors {
 
             String bio = nullToEmpty(doc.get("body_store"));
             String snippet = Snippet.forHit(
-                    bio, tokens, morphology ? morphologyAnalyzer : null, morphRoots, highlightDeadline);
+                    bio, highlightTokens, morphology ? morphologyAnalyzer : null, morphRoots, highlightDeadline);
 
             Map<String, Object> hit = new LinkedHashMap<>();
             hit.put("author_id", authorId);

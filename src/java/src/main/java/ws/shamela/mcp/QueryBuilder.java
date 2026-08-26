@@ -47,12 +47,33 @@ public final class QueryBuilder {
             List<String> scopeBookKeys
     ) throws IOException {
         if (tokens.isEmpty()) return null;
+        List<List<String>> single = new java.util.ArrayList<>(tokens.size());
+        for (String tok : tokens) single.add(List.of(tok));
+        return buildExpanded(single, fields, wildcards, morphology, morphologyAnalyzer, scopeBookKeys);
+    }
+
+    /**
+     * The same query, but each token may carry alternative spellings. The
+     * alternatives sit in the SAME SHOULD-group as the token, so the clause is
+     * still one MUST: (الموفق OR موفق) AND (المقدسي OR مقدسي). Only the author
+     * path passes more than one; every other caller arrives through
+     * {@link #build}, whose groups are singletons, and is bit-for-bit unchanged.
+     */
+    public static Query buildExpanded(
+            List<List<String>> tokenVariants,
+            List<String> fields,
+            boolean wildcards,
+            boolean morphology,
+            Analyzer morphologyAnalyzer,
+            List<String> scopeBookKeys
+    ) throws IOException {
+        if (tokenVariants.isEmpty()) return null;
 
         BooleanQuery.Builder outer = new BooleanQuery.Builder();
-        for (String tok : tokens) {
+        for (List<String> variants : tokenVariants) {
             BooleanQuery.Builder inner = new BooleanQuery.Builder();
             inner.setMinimumNumberShouldMatch(1);
-            for (String field : fields) {
+            for (String tok : variants) for (String field : fields) {
                 Query sub;
                 if (morphology) {
                     String fieldName = field;

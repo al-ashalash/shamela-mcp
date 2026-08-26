@@ -74,3 +74,91 @@ describe("the scholar you named comes first", () => {
         expect(out.results.length).toBeGreaterThan(0);
     }, 120_000);
 });
+
+/**
+ * The definite article, on the same 3,190-author index.
+ *
+ * Measured before the fix: «الموفق المقدسي» returned exactly one author — a
+ * contemporary editor who died 1432 — while «موفق المقدسي», one definite
+ * article apart, returned five including Ibn Qudamah. His biography carries
+ * «موفق الدين»; nothing was missing but the ال. The tool's own description
+ * tells the reader to try «ابن قدامة / الموفق / المقدسي», so the advice
+ * produced one confidently wrong man.
+ */
+describe("the definite article does not decide who exists", () => {
+    it("finds Ibn Qudamah for the laqab written with ال", async () => {
+        // 1 hit before the fix, and it was not him. 5 after, and he is among
+        // them. NOT first, and nothing here should promise he would be: his
+        // NAME is «ابن قدامة», which carries neither word of the query, so
+        // rankByName has nothing to lift him by and he tiers with the other
+        // four biography matches. Within a tier the engine's order stands,
+        // and that order is Shamela's own — by death year — so ابن الدجاجي
+        // (d. 564) precedes him (d. 620). Reaching the right man through his
+        // shuhra is what this fix buys; ranking him above the others would
+        // need the biography HEADWORD read as name-like, which is separate work.
+        const out = await search("الموفق المقدسي", { limit: 5 });
+        expect(out.results.slice(0, 3).map((r) => r.author_id)).toContain(474);
+    }, 120_000);
+
+    it("answers the two spellings identically", async () => {
+        // The point of the fix, stated as the invariant it creates: one
+        // definite article must not decide who exists. Before it, «الموفق
+        // المقدسي» returned a single contemporary editor and «موفق المقدسي»
+        // returned five authors including Ibn Qudamah.
+        const withAl = await search("الموفق المقدسي", { limit: 5 });
+        const without = await search("موفق المقدسي", { limit: 5 });
+        expect(withAl.total_hits).toBe(without.total_hits);
+        expect(withAl.results.map((r) => r.author_id)).toEqual(without.results.map((r) => r.author_id));
+    }, 120_000);
+
+    it("reaches him from the laqab alone", async () => {
+        // 17 hits before and he was not among them; 31 after, and he is —
+        // ninth, behind eight men whose own NAME or bio headword carries
+        // «الموفق». Reachable is the claim; placed is not.
+        const out = await search("الموفق", { limit: 10 });
+        expect(out.results.some((r) => r.author_id === 474)).toBe(true);
+    }, 120_000);
+
+    it("finds the Hafiz for «الحافظ ابن حجر»", async () => {
+        // 22 hits before the fix and Ibn Hajar was not one of them, because his
+        // bio says «حافظ» and the query said «الحافظ». 32 after, him first.
+        const out = await search("الحافظ ابن حجر", { limit: 5 });
+        expect(out.results[0]!.author_id).toBe(202);
+    }, 120_000);
+
+    it("shows the evidence for a hit reached through the variant", async () => {
+        // The engine may match a bio through «موفق» while the query said
+        // «الموفق». Highlighting only the token as typed left 6 of these 10
+        // rows — Ibn Qudamah's included — with no snippet at all. The one row
+        // of slack is for an author matched on his NAME: `body` is
+        // "<name> <bio>" but `body_store` is the bio alone, so a name-only hit
+        // has nothing to quote. That predates this fix.
+        const out = await search("الموفق", { limit: 10 });
+        expect(out.results.length).toBe(10);
+        expect(out.results.filter((r) => r.snippet === "").length).toBeLessThanOrEqual(1);
+    }, 120_000);
+
+    it("does not let a common stem swallow the conjunction", async () => {
+        // «الله» strips to «له», which sits in 1,453 of 3,190 biographies.
+        // OR-ing it in unguarded takes «عبد الله» from 1,160 hits to 1,377,
+        // drifting toward the 1,739 that «عبد» alone returns — the answer
+        // collapses to the first word. The df ceiling holds it at 1,161.
+        const both = await search("عبد الله", { limit: 1 });
+        const first = await search("عبد", { limit: 1 });
+        expect(both.total_hits).toBeLessThan(1_250);
+        expect(both.total_hits).toBeLessThan(first.total_hits);
+    }, 120_000);
+
+    it("leaves a single common word exactly as narrow as it was", async () => {
+        // 1,368 before and after; 2,040 with the guard removed.
+        const out = await search("الله", { limit: 1 });
+        expect(out.total_hits).toBeLessThan(1_500);
+    }, 120_000);
+
+    it("still answers zero for a name in Latin letters", async () => {
+        // The transliteration fallback only fires on total_hits === 0, and an
+        // unguarded toggle would have added the empty term «الGhazali».
+        const out = await search("Ghazali", { limit: 5 });
+        expect(out.transliterated).toBe(true);
+    }, 120_000);
+});
