@@ -54,7 +54,7 @@ public final class SearchAuthors {
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
         int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
-        TopDocs top = searcher.search(q, fetch);
+        TopDocs top = Sorts.search(indexCache, INDEX, q, fetch);
 
         // A root search matches «الصابرين» for «صبر»; the root itself is not in
         // the bio, so the literal highlighter finds nothing there.

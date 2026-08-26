@@ -58,7 +58,7 @@ public final class SearchTitles {
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
         int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
-        TopDocs top = searcher.search(q, fetch);
+        TopDocs top = Sorts.search(indexCache, INDEX, q, fetch);
 
         Coverage coverage = new Coverage();
         // The scope is already inside the query here, so counting every match

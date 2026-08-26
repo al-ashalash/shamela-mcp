@@ -72,7 +72,7 @@ public final class SearchQuran {
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
         int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
-        TopDocs top = searcher.search(q, fetch);
+        TopDocs top = Sorts.search(indexCache, INDEX, q, fetch);
 
         List<Map<String, Object>> results = new ArrayList<>();
         int seen = 0;

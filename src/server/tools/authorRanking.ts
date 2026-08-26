@@ -3,18 +3,16 @@
  *
  * The author index is a BIOGRAPHY index: Lucene scores the bio text, and the
  * author's own name is not a field in it — it lives in master.db, on this
- * side. So «ابن قدامة» was answered by scoring bios, and because the matching
- * bios score alike, Lucene fell back to document order. Measured:
+ * side. So «ابن قدامة» is answered by matching bios, and every match scores
+ * alike: the engine wraps its queries in a ConstantScoreQuery and has no
+ * relevance ranking at all (see Sorts.java). Whatever order the hits arrive
+ * in — document order before that class existed, Shamela's own chronological
+ * sort since — it is an order that knows nothing about which of these 52
+ * people the caller asked for. Measured before this re-ranking existed:
  *
- *   shamela_search_authors({query:'ابن قدامة'})  ->  52 hits, in this order
- *     54  ابن تيمية                  (bio matches «بن» only)
- *     79  ابن عبد الهادي             (bio matches «بن» only)
- *     159 محمد خليل هراس             («ولابن قدامة كتاب في سيرته»)
- *     160 شهاب الدين العسكري
- *     164 عبد الله بن عبد المحسن التركي  («تحقيق كتاب المغني لابن قدامة»)
- *     474 ابن قدامة                  <- the man himself, sixth
- *
- * — strictly ascending by author_id, twice, on two different queries.
+ *   shamela_search_authors({query:'ابن قدامة'})  ->  52 hits, and the first
+ *   five were biographies matching «بن» alone or citing his المغني — Ibn
+ *   Qudamah himself sixth.
  *
  * That is worse than a bad sort. The tool's own description says to take the
  * author_id and pass it as scope.author_ids to search_pages, so a caller

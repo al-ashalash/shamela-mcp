@@ -105,7 +105,7 @@ public final class SearchPages {
         // for deep pagination but we rely on a single search with limit =
         // offset + safeMax, capped at COVERAGE_CAP so we don't OOM on huge totals.
         int fetch = Math.min(safeOffset + safeMax, PAGE_CEILING);
-        TopDocs top = searcher.search(q, fetch);
+        TopDocs top = Sorts.search(indexCache, INDEX, q, fetch);
 
         // Counting is cheap even for queries whose full traversal is not:
         // Lucene can total a query without visiting every match.

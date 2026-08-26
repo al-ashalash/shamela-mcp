@@ -9,6 +9,7 @@ import java.util.Map;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Sort;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
@@ -21,7 +22,8 @@ public final class IndexCache implements AutoCloseable {
     private final Path storeRoot;
     private final Map<String, Entry> entries = new HashMap<>();
 
-    private record Entry(Directory directory, DirectoryReader reader, IndexSearcher searcher, StoredFields stored) {}
+    private record Entry(Directory directory, DirectoryReader reader, IndexSearcher searcher, StoredFields stored,
+                         Sort sort) {}
 
     public IndexCache(Path databaseRoot) {
         this.storeRoot = databaseRoot.resolve("store");
@@ -33,6 +35,16 @@ public final class IndexCache implements AutoCloseable {
 
     public synchronized StoredFields storedFields(String name) throws IOException {
         return entry(name).stored;
+    }
+
+    /**
+     * The order this index's hits are returned in, or null for document order.
+     *
+     * A Sort is immutable, so it is built once when the reader opens and
+     * handed to every search against it rather than rebuilt per query.
+     */
+    public synchronized Sort sort(String name) throws IOException {
+        return entry(name).sort;
     }
 
     public synchronized int numDocs(String name) throws IOException {
@@ -60,7 +72,8 @@ public final class IndexCache implements AutoCloseable {
             DirectoryReader fresh = DirectoryReader.openIfChanged(e.reader);
             if (fresh == null) continue; // unchanged — keep the existing reader
             IndexSearcher searcher = new IndexSearcher(fresh);
-            entries.put(en.getKey(), new Entry(e.directory, fresh, searcher, fresh.storedFields()));
+            entries.put(en.getKey(),
+                    new Entry(e.directory, fresh, searcher, fresh.storedFields(), Sorts.forIndex(en.getKey())));
             try {
                 e.reader.close();
             } catch (IOException ignore) {
@@ -80,7 +93,7 @@ public final class IndexCache implements AutoCloseable {
         DirectoryReader reader = DirectoryReader.open(dir);
         IndexSearcher searcher = new IndexSearcher(reader);
         StoredFields stored = reader.storedFields();
-        e = new Entry(dir, reader, searcher, stored);
+        e = new Entry(dir, reader, searcher, stored, Sorts.forIndex(name));
         entries.put(name, e);
         return e;
     }

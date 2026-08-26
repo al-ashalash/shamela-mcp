@@ -1,11 +1,13 @@
 /**
- * The re-ranking, against the real 3,188-author index.
+ * The re-ranking, against the real 3,190-author index.
  *
- * Measured before the fix: «ابن قدامة» returned 52 hits ordered 54, 79, 159,
- * 160, 164, 474 — strictly ascending by id, with Ibn Qudamah himself sixth
- * behind five biographies that merely contain «بن» or cite his المغني. The
- * tool tells the caller to take the id and pass it as scope.author_ids, so
- * the first row silently scoped whole searches to Ibn Taymiyyah.
+ * Measured before the fix: «ابن قدامة» returned 52 hits with Ibn Qudamah
+ * himself sixth, behind five biographies that merely contain «بن» or cite his
+ * المغني. Nothing in the engine's order knows which of the 52 was asked for —
+ * every match scores alike under ConstantScoreQuery — so the tool has to say
+ * so itself. And it tells the caller to take the id and pass it as
+ * scope.author_ids, so the first row silently scoped whole searches to the
+ * wrong man.
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -33,9 +35,18 @@ describe("the scholar you named comes first", () => {
         expect(out.results[0]!.author_name).toBe("ابن قدامة");
     }, 120_000);
 
-    it("returns him first for the distinctive token alone", async () => {
+    it("leads with the men actually called «قدامة», not the bios that cite them", async () => {
+        // The bare token names two scholars — قدامة بن جعفر (ت ٣٣٧) and
+        // ابن قدامة (ت ٦٢٠) — and nothing in the query says which is meant.
+        // Both are name matches, so the tier is a tie and the engine's own
+        // order settles it: oldest first, per search-engine-spec §7.2. What
+        // the re-ranking still guarantees is that neither falls behind a
+        // biography that merely mentions him.
         const out = await search("قدامة", { limit: 6 });
-        expect(out.results[0]!.author_id).toBe(474);
+        const ids = out.results.map((r) => r.author_id);
+        expect(ids.slice(0, 2)).toEqual([843, 474]);
+        // ابن تيمية matched on «بن» alone and used to lead this very query.
+        expect(ids).not.toContain(54);
     }, 120_000);
 
     it("still reports the true total, not the re-ranked pool", async () => {

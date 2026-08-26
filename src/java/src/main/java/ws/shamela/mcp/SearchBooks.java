@@ -60,7 +60,7 @@ public final class SearchBooks {
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
         int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
-        TopDocs top = searcher.search(q, fetch);
+        TopDocs top = Sorts.search(indexCache, INDEX, q, fetch);
 
         // Optional scope filter applied post-fetch since book/ index doesn't have book_key.
         java.util.Set<Integer> scopeIds = null;
