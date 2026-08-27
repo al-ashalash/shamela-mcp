@@ -32,12 +32,20 @@ JDK to compile:
 
 ```bash
 brew install openjdk@21          # the temurin@21 cask needs sudo; this does not
-export JAVA_HOME="/opt/homebrew/opt/openjdk@21"
-export PATH="$JAVA_HOME/bin:$PATH"
 cp ~/Library/Application\ Support/Shamela/app/lucene/2/AlKhalil-Analyzer-2.1.jar src/java/libs/
 cp ~/Library/Application\ Support/Shamela/app/lucene/2/shamela-misc-1.0.0.jar   src/java/libs/
 npm run build:java && npm run test
 ```
+
+No `JAVA_HOME` and no `PATH` export. `openjdk@21` is keg-only — Homebrew does
+not symlink it, and `/usr/libexec/java_home` cannot see it — so `build:java`
+probes the Homebrew prefixes directly.
+
+Note that macOS ships `/usr/bin/javac` as a **stub**: it exists, it resolves on
+`PATH`, and it fails on invocation with "Unable to locate a Java Runtime". Any
+check of the form "is javac on PATH" therefore succeeds on a Mac with no JDK at
+all. `build:java` runs `javac -version` on each candidate instead of testing for
+the file, and that is why. Do not weaken it back to an existence check.
 
 **Integration tests must not assume an incomplete library.** Never hardcode a
 book id to mean "not downloaded" (use `findNotDownloadedBookId` from
