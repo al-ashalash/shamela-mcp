@@ -45,6 +45,32 @@ book id to mean "not downloaded" (use `findNotDownloadedBookId` from
 Both mistakes pass on a partial install and fail on a full one — see
 [docs/review-1.3.0.md](docs/review-1.3.0.md).
 
+## Branching — `main` is protected
+
+**Nothing is pushed to `main` directly. Every change goes through a pull
+request**, including the maintainer's own and including one-line fixes.
+Protection is enforced on GitHub, not by convention: a PR is required, it
+applies to administrators, the `unit` check must pass, and force-pushes and
+deletions are refused.
+
+```bash
+git checkout -b <type>/<short-name>
+# … work, commit …
+git push -u origin <type>/<short-name>
+gh pr create --fill
+```
+
+Required approvals is deliberately **0**. GitHub does not let you approve your
+own pull request, so any higher number would leave a solo maintainer unable to
+merge anything. The gate here is the PR itself — a reviewable diff and a green
+CI run before code reaches `main` — not a second pair of eyes.
+
+If a push to `main` is rejected, that is the protection doing its job. Open a
+PR; do not look for a way around it.
+
+Tags are not covered by branch protection, so `npm run release` still pushes
+`v*` and publishes normally.
+
 ## Release workflow
 
 Releases publish a `.mcpb` to GitHub Releases on this repo. The flow is
@@ -60,13 +86,22 @@ bump and rationale in one sentence before proceeding, so the user can override
 if they disagree.
 
 The release is one command: `npm run release`. Before running it, Claude
-must do the version bump:
+must do the version bump — **on a branch, through a PR**, because `main` is
+protected and the old "commit and push" step is now refused:
 
 1. Read the current version from `manifest.json` (single source of truth).
 2. Decide the bump per the rules below; compute the new version `X.Y.Z`.
 3. Update **both** `manifest.json` and `package.json` to `X.Y.Z`.
-4. `git commit -am "release: vX.Y.Z — <one-line summary>"` and push.
-5. `npm run release`.
+4. Branch, commit `release: vX.Y.Z — <one-line summary>`, push the branch,
+   open a PR, and merge it once CI is green.
+5. `git checkout main && git pull`, then `npm run release`.
+
+**Claude does not run step 5.** `npm run release` publishes to the world and is
+effectively irreversible — users download the artifact. Claude prepares
+everything up to it (merge, `npm run release:dry` until all eight checks pass,
+`npm run pack` + `npm run verify:mcpb` so there is a bundle to test), then hands
+the command over. Do not reach for `git tag` / `gh release create` to work
+around this.
 
 `npm run release` runs eight pre-flight checks (clean tree, on main, in sync
 with origin, version consistency, tag unused, commits since last tag, vitest
