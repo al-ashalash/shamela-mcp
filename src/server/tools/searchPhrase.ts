@@ -1,27 +1,34 @@
 /**
  * shamela_search_phrase (#19) — exact-phrase and proximity search.
  *
- * The Lucene index AND-combines tokens but exposes no phrase/proximity query
- * through the helper. This tool implements both with a two-stage strategy that
- * needs no Java change:
- *   1. Ask the helper for pages where ALL query words occur (candidate set).
- *   2. Fetch each candidate's full text and keep only pages where the words are
- *      actually adjacent (phrase) or within `distance` words (near), checked in
- *      Node against the same normalization used everywhere else.
+ * The search runs inside the engine. It used to run in two stages outside it —
+ * fetch a bounded window of pages where the words merely co-occur, then re-read
+ * each page here and keep the ones where the words were actually arranged as
+ * asked. The arrangement test was exact but the window was not, so a phrase
+ * common enough to fill thousands of pages was answered from the first hundred
+ * of them, with a note admitting as much.
  *
- * A native Lucene PhraseQuery/SpanNearQuery implementation can later replace
- * this Node-only two-stage verification without changing the tool's contract.
+ * Shamela's index records where each word sits on a page, not merely that it is
+ * there, so the engine can answer adjacency and proximity directly and over the
+ * whole library. `total_candidates_scanned` therefore now means every matching
+ * page, and `candidate_cap_hit` is false: there is no longer a cap to hit. Both
+ * fields are kept so callers reading them do not break.
  */
 
 import { z } from "zod";
 
-import { containsPhrase, tokenizeArabic, withinProximity } from "../arabic.js";
+import { tokenizeArabic } from "../arabic.js";
 import { CatalogScope, type Catalog } from "../catalog.js";
 import { badArg, emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { depthLimited, depthNote } from "../i18n/tools/paging.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
+import { searchPhraseLabels } from "../i18n/tools/searchPhrase.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const searchPhraseInputShape = {
     query: z
@@ -67,18 +74,9 @@ interface RawEnvelope {
     total_hits: number;
     returned: number;
     has_more: boolean;
+    next_offset?: number;
     results: RawHit[];
-}
-interface BatchPage {
-    page_id: number;
-    found: boolean;
-    body: string;
-    foot: string;
-    comment: string;
-}
-interface BatchEnvelope {
-    book_id: number;
-    results: BatchPage[];
+    dropped_tokens?: string[];
 }
 
 export interface PhraseHit {
@@ -90,6 +88,8 @@ export interface PhraseHit {
     page_id: number;
     printed_page: string | null;
     matched_in: string[];
+    /** False when the book's page file is not on disk (issue #47). */
+    readable: boolean;
     snippet_body: string;
     snippet_foot: string;
 }
@@ -98,10 +98,24 @@ export interface SearchPhraseOutput {
     mode: "phrase" | "near";
     query: string;
     distance: number;
+    /** Every page the engine matched, across the whole scope. */
+    total_hits: number;
+    /** Kept for callers that read it: now the same exhaustive number. */
     total_candidates_scanned: number;
+    /** Kept for callers that read it: always false, there is no cap now. */
     candidate_cap_hit: boolean;
     returned: number;
+    offset: number;
+    has_more: boolean;
+    next_offset?: number;
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
     results: PhraseHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchPhrase(
@@ -125,55 +139,18 @@ export async function runSearchPhrase(
         scopeBookKeys = resolved.book_ids.map(String);
     }
 
-    // Stage 1: candidate pages where all words co-occur.
-    const candidateCap = Math.min(Math.max(args.limit * 8, 40), 100);
-    const raw = await helper.request<RawEnvelope>("search_pages", {
+    const raw = await helper.request<RawEnvelope>("search_phrase", {
         query: args.query,
+        mode: args.mode,
+        distance: args.distance,
         scope_book_keys: scopeBookKeys,
-        max_results: candidateCap,
-        offset: 0,
+        max_results: args.limit,
+        offset: args.offset,
         options: { search_in: args.search_in },
     });
-    const candidates = raw.results;
-    const candidateCapHit = raw.has_more || raw.total_hits > candidates.length;
 
-    // Fetch full text for candidates, grouped by book (one batch per book).
-    const byBook = new Map<number, number[]>();
-    for (const c of candidates) {
-        const list = byBook.get(c.book_id) ?? [];
-        list.push(c.page_id);
-        byBook.set(c.book_id, list);
-    }
-    const text = new Map<string, BatchPage>();
-    for (const [bookId, pageIds] of byBook) {
-        const batch = await helper.request<BatchEnvelope>("get_pages_batch", {
-            book_id: bookId,
-            page_ids: pageIds,
-        });
-        for (const p of batch.results) text.set(`${bookId}:${p.page_id}`, p);
-    }
-
-    // Stage 2: keep only pages where the words are actually adjacent / near.
-    const fields = args.search_in;
     const results: PhraseHit[] = [];
-    for (const c of candidates) {
-        if (results.length >= args.limit) break;
-        const page = text.get(`${c.book_id}:${c.page_id}`);
-        if (!page || !page.found) continue;
-
-        const matchedFields: string[] = [];
-        for (const f of fields) {
-            const fieldText = f === "body" ? page.body : f === "foot" ? page.foot : page.comment;
-            if (!fieldText) continue;
-            const hayTokens = tokenizeArabic(fieldText);
-            const ok =
-                args.mode === "phrase"
-                    ? containsPhrase(hayTokens, qTokens)
-                    : withinProximity(hayTokens, qTokens, args.distance);
-            if (ok) matchedFields.push(f);
-        }
-        if (matchedFields.length === 0) continue;
-
+    for (const c of raw.results) {
         const rec = catalog.bookRecord(c.book_id);
         const printed = await pages.printedPage(c.book_id, c.page_id);
         results.push({
@@ -184,7 +161,8 @@ export async function runSearchPhrase(
             book_date: rec?.book_date ?? null,
             page_id: c.page_id,
             printed_page: printed,
-            matched_in: matchedFields,
+            matched_in: c.matched_in,
+            readable: catalog.isDownloaded(c.book_id) || catalog.confirmOnDisk(c.book_id),
             snippet_body: c.snippet_body,
             snippet_foot: c.snippet_foot,
         });
@@ -194,39 +172,60 @@ export async function runSearchPhrase(
         mode: args.mode,
         query: args.query,
         distance: args.distance,
-        total_candidates_scanned: candidates.length,
-        candidate_cap_hit: candidateCapHit,
+        total_hits: raw.total_hits,
+        total_candidates_scanned: raw.total_hits,
+        candidate_cap_hit: false,
         returned: results.length,
+        offset: args.offset,
+        has_more: raw.has_more,
+        ...(raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
+        ...(raw.total_hits === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      scopeCount: scopeBookKeys?.length ?? -1,
+                      tokenCount: qTokens.length,
+                      toolSpecific: pick(noResultsLabels).phraseLoosen,
+                  }),
+              }
+            : {}),
         results,
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(searchPhraseLabels);
         const lines = [
             header(
                 1,
                 data.mode === "phrase"
-                    ? `بحث بالعبارة الحرفية: «${data.query}»`
-                    : `بحث بالتقارب اللفظي (ضمن ${arabize(data.distance)} كلمات): «${data.query}»`,
+                    ? L.phraseHeading(data.query)
+                    : L.nearHeading(num(data.distance), data.query, data.distance),
             ),
         ];
-        lines.push(
-            `**${arabize(data.returned)}** صفحة مطابقة (من ${arabize(data.total_candidates_scanned)} صفحة مرشَّحة فُحصت).`,
-        );
-        if (data.candidate_cap_hit) {
-            lines.push(
-                "*ملاحظة: عدد الصفحات المرشَّحة تجاوز سقف الفحص؛ ضيِّق النطاق (scope) لتغطية أشمل.*",
-            );
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
+        lines.push(L.summary(num(data.total_hits), num(data.returned), data.total_hits));
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
         }
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? ` (ص ${arabize(r.printed_page)})` : ""} — page_id=${r.page_id}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
+            // Under the heading, not inside it — see searchPages for why, and
+            // for why the blank line has to be there.
+            if (!r.readable) lines.push(`**${L.unreadableHit}**`, "");
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet_body) lines.push("", `> ${r.snippet_body}`);
-            if (r.snippet_foot) lines.push("", `> _حاشية_: ${r.snippet_foot}`);
+            if (r.snippet_foot) lines.push("", `> ${L.footLabel}${r.snippet_foot}`);
             lines.push("");
         }
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
+        else if (depthLimited(data)) lines.push(depthNote(data));
         return lines.join("\n");
     });
 }

@@ -3,7 +3,9 @@ import { z } from "zod";
 import type { Catalog } from "../catalog.js";
 import { authorNotFound } from "../errors.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { renderResponse, type RenderedResponse, header, arabize } from "../format.js";
+import { renderResponse, type RenderedResponse, header } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getAuthorLabels } from "../i18n/tools/getAuthor.js";
 
 export const getAuthorInputShape = {
     author_id: z.number().int().positive().describe("The author id (e.g. 57 for Ibn Uthaymeen)."),
@@ -45,7 +47,7 @@ export function runGetAuthor(
                   book_id: id,
                   book_name: b?.book_name ?? `(unknown ${id})`,
                   book_date: b?.book_date ?? null,
-                  downloaded: b ? b.major_ondisk > 0 : false,
+                  downloaded: b ? catalog.isDownloaded(b.book_id) : false,
               };
           })
         : [];
@@ -58,16 +60,17 @@ export function runGetAuthor(
         books,
     };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(getAuthorLabels);
         const lines = [header(1, data.author_name)];
-        lines.push(`- **المعرِّف**: ${data.author_id}`);
-        if (data.death_year) lines.push(`- **سنة الوفاة**: ${arabize(data.death_year)}هـ`);
-        else if (data.death_text) lines.push(`- **سنة الوفاة**: ${data.death_text}`);
-        lines.push(`- **عدد الكتب**: ${arabize(data.book_count)}`);
+        lines.push(`- **${L.authorId}**: ${data.author_id}`);
+        if (data.death_year) lines.push(`- **${L.deathYear}**: ${L.hijri(num(data.death_year))}`);
+        else if (data.death_text) lines.push(`- **${L.deathYear}**: ${data.death_text}`);
+        lines.push(`- **${L.bookCount}**: ${num(data.book_count)}`);
         if (args.include_books && data.books.length) {
-            lines.push("", header(2, "الكتب"));
+            lines.push("", header(2, L.booksHeading));
             for (const b of data.books) {
                 lines.push(
-                    `- **${b.book_name}** (id=${b.book_id})${b.book_date ? ` — ${arabize(b.book_date)}هـ` : ""}${b.downloaded ? " — منزَّل" : ""}`,
+                    `- **${b.book_name}** (id=${b.book_id})${b.book_date ? ` — ${L.hijri(num(b.book_date))}` : ""}${b.downloaded ? L.downloadedSuffix : ""}`,
                 );
             }
         }

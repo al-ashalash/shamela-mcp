@@ -55,6 +55,10 @@ const EXPECTED_TOOL_NAMES = [
     "shamela_list_tafsirs_for_aya",
     "shamela_get_tafseer_texts",
     "shamela_guide",
+    "shamela_suggest_download",
+    "shamela_verify_quote",
+    "shamela_scan_consensus",
+    "shamela_research_scope",
 ] as const;
 
 
@@ -78,7 +82,7 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
         await client.close();
     });
 
-    it("lists all 30 expected tools", async () => {
+    it("lists every expected tool", async () => {
         const result = await client.listTools();
         const names = new Set(result.tools.map((t) => t.name));
         for (const expected of EXPECTED_TOOL_NAMES) {
@@ -116,7 +120,7 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             expect(text).toBe(buildGuideText());
         });
 
-        it("drift guard: the guide names all 30 tools", () => {
+        it("drift guard: the guide names every registered tool", () => {
             const text = buildGuideText();
             for (const toolName of EXPECTED_TOOL_NAMES) {
                 expect(text, `guide must mention tool ${toolName}`).toContain(toolName);
@@ -498,14 +502,24 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             expect(typeof sc.totals.indexed_no_entry_for_this_aya).toBe("number");
             expect(typeof sc.totals.not_indexed_coverage_unknown).toBe("number");
             expect(sc.note.length).toBeGreaterThan(0);
-            const allowed = new Set([
-                "indexed_covers",
+            // A verse can be located two ways — Shamela's own table, or the
+            // book's chapter titles — and everything else is a distinct way of
+            // NOT locating it. They are separate states because collapsing them
+            // would hide the difference between a found verse and an unplaced
+            // book.
+            const locating = new Set(["indexed_covers", "title_index", "title_index_group"]);
+            const unlocated = new Set([
                 "indexed_no_entry_for_this_aya",
+                "covered_no_locus",
+                "index_pending",
                 "not_indexed_coverage_unknown",
             ]);
             for (const b of sc.books) {
-                expect(allowed.has(b.status), `unexpected status ${b.status}`).toBe(true);
-                if (b.status === "indexed_covers") expect(b.page_id).not.toBeNull();
+                const known = locating.has(b.status) || unlocated.has(b.status);
+                expect(known, `unexpected status ${b.status}`).toBe(true);
+                // The invariant that matters: a page is returned only when a
+                // state claims to have located the verse.
+                if (locating.has(b.status)) expect(b.page_id).not.toBeNull();
                 else expect(b.page_id).toBeNull();
             }
         });
@@ -590,7 +604,13 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             };
             let offset = 0;
             let found = false;
-            for (let page = 0; page < 20; page++) {
+            // Page to exhaustion. This was capped at 20 pages of 100, which is
+            // 2,000 books — enough for a partial library, and short of a full
+            // one, where the fixture sorts past the cap and was never reached.
+            // The bound below only stops a runaway: it cannot end the walk
+            // early, because it exceeds the whole catalogue.
+            const maxPages = backend.catalog.bookCount() + 1;
+            for (let page = 0; page < maxPages; page++) {
                 const r = (await client.callTool({
                     name: "shamela_list_downloaded_books",
                     arguments: { limit: 100, offset, response_format: "json" },

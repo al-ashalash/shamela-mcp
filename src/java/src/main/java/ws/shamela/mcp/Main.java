@@ -158,6 +158,18 @@ public final class Main {
             Object argsObj = req.get("args");
             Map<String, Object> args = argsObj instanceof Map ? (Map<String, Object>) argsObj : new LinkedHashMap<>();
             Object data = switch (cmd) {
+                case "reopen" -> {
+                    // Shamela wrote to the indexes while we were running (the
+                    // user downloaded a book). Readers only see the segments
+                    // they opened with, so pick up what has been committed.
+                    java.util.List<String> changed = indexCache.reopen();
+                    yield Json.obj(
+                            "reopened", changed,
+                            "page_docs", safeNumDocs(indexCache, "page"),
+                            "book_docs", safeNumDocs(indexCache, "book"),
+                            "author_docs", safeNumDocs(indexCache, "author")
+                    );
+                }
                 case "ping" -> Json.obj(
                         "pong", Boolean.TRUE,
                         "java_version", System.getProperty("java.version"),
@@ -178,6 +190,49 @@ public final class Main {
                             asInt(args.get("offset"), 0),
                             boolFlag(opts, "morphology"),
                             boolFlag(opts, "wildcards"),
+                            asStringList(opts.get("search_in")),
+                            // Coverage is on unless the caller says it does not
+                            // want it, so an older client keeps what it had.
+                            !boolFlag(opts, "skip_coverage"));
+                }
+                case "search_phrase" -> {
+                    Map<String, Object> opts = (Map<String, Object>) args.getOrDefault("options", new LinkedHashMap<>());
+                    rejectPreservation(opts);
+                    yield SearchAdvanced.runPhrase(
+                            indexCache,
+                            asString(args.get("query")),
+                            asString(args.get("mode")),
+                            asInt(args.get("distance"), 5),
+                            asStringList(args.get("scope_book_keys")),
+                            asInt(args.get("max_results"), 20),
+                            asInt(args.get("offset"), 0),
+                            asStringList(opts.get("search_in")));
+                }
+                case "search_near_groups" -> {
+                    Map<String, Object> opts = (Map<String, Object>) args.getOrDefault("options", new LinkedHashMap<>());
+                    rejectPreservation(opts);
+                    yield SearchAdvanced.runNearGroups(
+                            indexCache,
+                            asStringList(args.get("groups")),
+                            asIntList(args.get("group_gaps")),
+                            asInt(args.get("distance"), 10),
+                            asStringList(args.get("scope_book_keys")),
+                            asInt(args.get("max_results"), 20),
+                            asInt(args.get("offset"), 0),
+                            asStringList(opts.get("search_in")),
+                            !boolFlag(opts, "skip_coverage"));
+                }
+                case "search_boolean" -> {
+                    Map<String, Object> opts = (Map<String, Object>) args.getOrDefault("options", new LinkedHashMap<>());
+                    rejectPreservation(opts);
+                    yield SearchAdvanced.runBoolean(
+                            indexCache,
+                            asStringList(args.get("all_of")),
+                            asStringList(args.get("any_of")),
+                            asStringList(args.get("none_of")),
+                            asStringList(args.get("scope_book_keys")),
+                            asInt(args.get("max_results"), 20),
+                            asInt(args.get("offset"), 0),
                             asStringList(opts.get("search_in")));
                 }
                 case "search_titles" -> {

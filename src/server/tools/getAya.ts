@@ -1,10 +1,12 @@
 import { z } from "zod";
 
-import { ayaNotFound, badArg } from "../errors.js";
+import { ayaNotFound, ayaOutOfSurah, badArg } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getAyaLabels } from "../i18n/tools/getAya.js";
 
 export const getAyaInputShape = {
     aya_id: z.number().int().min(1).max(6236).optional().describe("Cumulative aya id, 1..6236. Mutually exclusive with surah/aya."),
@@ -33,7 +35,7 @@ export async function runGetAya(
         resolvedId = args.aya_id;
     } else if (args.surah !== undefined && args.aya !== undefined) {
         const id = ayaIdFromSurahAya(args.surah, args.aya);
-        if (id === null) throw ayaNotFound(`surah=${args.surah} aya=${args.aya}`);
+        if (id === null) throw ayaOutOfSurah(args.surah!, args.aya!);
         resolvedId = id;
     } else {
         throw badArg("Provide either aya_id or both surah and aya.");
@@ -62,13 +64,14 @@ export async function runGetAya(
         majma: raw.majma,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `${data.surah_name} ${arabize(data.surah)}:${arabize(data.aya)}`)];
+        const L = pick(getAyaLabels);
+        const lines = [header(1, L.heading(data.surah_name, num(data.surah), num(data.aya)))];
         if (data.body) {
-            lines.push("", header(3, "بالرسم الإملائي"));
+            lines.push("", header(3, L.imlaei));
             lines.push(data.body);
         }
         if (data.amiri) {
-            lines.push("", header(3, "بالرسم العثماني (Amiri)"));
+            lines.push("", header(3, L.uthmani));
             lines.push(data.amiri);
         }
         return lines.join("\n");

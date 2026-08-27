@@ -72,7 +72,7 @@ public final class QueryBuilder {
         if (scopeBookKeys != null && !scopeBookKeys.isEmpty()) {
             BooleanQuery.Builder withScope = new BooleanQuery.Builder();
             withScope.add(main, BooleanClause.Occur.MUST);
-            withScope.add(buildScopeQuery(scopeBookKeys), BooleanClause.Occur.MUST);
+            withScope.add(scopeQuery(scopeBookKeys), BooleanClause.Occur.MUST);
             main = withScope.build();
         }
         return new ConstantScoreQuery(main);
@@ -88,7 +88,8 @@ public final class QueryBuilder {
         }
     }
 
-    private static Query buildScopeQuery(List<String> bookKeys) {
+    /** Restrict a query to a set of books, by the key the index stores. */
+    static Query scopeQuery(List<String> bookKeys) {
         if (bookKeys.size() == 1) {
             return new TermQuery(new Term("book_key", bookKeys.get(0)));
         }

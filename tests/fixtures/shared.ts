@@ -10,6 +10,7 @@ import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 
+import { AyaIndexStore } from "../../src/server/ayaIndex/store.js";
 import { Catalog } from "../../src/server/catalog.js";
 import { Helper } from "../../src/server/helper.js";
 import { PageStore } from "../../src/server/pages.js";
@@ -47,7 +48,7 @@ export async function getCatalog(): Promise<Catalog> {
     if (cachedCatalog) return cachedCatalog;
     const paths = await getPaths();
     const wasm = getSqlWasm();
-    cachedCatalog = await Catalog.load(path.join(paths.database, "master.db"), wasm);
+    cachedCatalog = await Catalog.load(path.join(paths.database, "master.db"), wasm, { databaseRoot: paths.database });
     return cachedCatalog;
 }
 
@@ -79,13 +80,16 @@ export async function getHelper(): Promise<Helper> {
 /** Build a Backend object that the MCP integration test can wire into createServer. */
 export async function getBackend(): Promise<Backend> {
     if (cachedBackend) return cachedBackend;
-    cachedBackend = {
+    const backend: Backend = {
         helper: await getHelper(),
         catalog: await getCatalog(),
         pages: await getPageStore(),
         services: await getServiceStore(),
+        ayaIndex: new AyaIndexStore((await getPaths()).database, await getPageStore()),
+        paths: await getPaths(),
     };
-    return cachedBackend;
+    cachedBackend = backend;
+    return backend;
 }
 
 // --- Canonical fixture book -------------------------------------------------
@@ -99,3 +103,24 @@ export async function getBackend(): Promise<Backend> {
  */
 export const FIXTURE_BOOK_ID = 9942;
 export const FIXTURE_BOOK_NAME = "الأصول من علم الأصول";
+
+// --- A book the library does not have ---------------------------------------
+
+/**
+ * Find a book that is in the catalogue but has no file on disk.
+ *
+ * Tests about "not downloaded" used to name a book id outright. That encodes
+ * the author's own library into the suite: book 80 is absent from a partial
+ * install and present in a complete one, so the same correct code passed on
+ * one machine and failed on another. A maintainer with the whole library saw
+ * red for a defect that did not exist.
+ *
+ * Ask the catalogue instead. Returns null when every catalogued book is on
+ * disk — a real state, not an error, and callers decide what it means for them.
+ */
+export function findNotDownloadedBookId(catalog: Catalog): number | null {
+    for (const b of catalog.allBooks()) {
+        if (!catalog.isDownloaded(b.book_id)) return b.book_id;
+    }
+    return null;
+}

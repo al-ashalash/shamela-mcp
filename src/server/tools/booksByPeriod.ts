@@ -1,17 +1,28 @@
 /**
  * shamela_books_by_period — catalog-only temporal filter that keeps the two
- * temporal dimensions DISTINCT (#21):
+ * date FIELDS as separate AND-combined constraints (#21):
  *
- *   - composed_from / composed_to  → book.book_date  (year the BOOK was composed)
- *   - died_from    / died_to       → author.death_year (year the MAIN AUTHOR died)
+ *   - composed_from / composed_to  → book.book_date      (Shamela's dating year)
+ *   - died_from    / died_to       → author.death_year   (MAIN AUTHOR's death)
  *
  * The legacy `scope.period_from`/`period_to` (see CatalogScope.resolveBookIds)
- * CONFLATES these — it unions books whose composition year OR whose author's
- * death year falls in a single range. That is wrong for real research: a book
- * composed in 800h by an author who died in 850h answers a different question
- * than a book whose author died in 800h. This tool separates them: a book
- * matches only if it satisfies ALL provided constraints simultaneously
- * (composition-year AND death-year AND category AND downloaded), never a union.
+ * unions the two into one range; this tool intersects them, so a book matches
+ * only if it satisfies ALL provided constraints at once (dating-year AND
+ * death-year AND category AND downloaded).
+ *
+ * WHAT book_date IS NOT — measured, 15 Aug 2026, against this machine's
+ * master.db: it is NOT the year the book was written. It equals the main
+ * author's death year for **8,467 of 8,593** catalogue books, and the 126
+ * exceptions are abridgements and commentaries carrying the ORIGINAL author's
+ * death year (id 171 «صحيح الترغيب والترهيب» → 656, المنذري's death, not
+ * الألباني's). Books published posthumously carry the death year too.
+ *
+ * So the two fields are separate, but they are not the two temporal
+ * DIMENSIONS this file used to claim: neither answers "what was composed in
+ * this century". Every label, description and note now says so, because a
+ * filter that reads as a composition filter and is not one produces
+ * confident, wrong period claims — the worst kind for an argument that rests
+ * on when something was written.
  *
  * Pure Node / master.db logic — deterministic, read-only, no Java helper.
  * Returns matching book_ids the caller then passes as scope.book_ids to the
@@ -21,9 +32,12 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
+import type { PageStore } from "../pages.js";
 import { badArg } from "../errors.js";
 import { ResponseFormatInput, PaginationInput } from "../schemas.js";
-import { renderResponse, type RenderedResponse, header, arabize } from "../format.js";
+import { renderResponse, type RenderedResponse, header } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { booksByPeriodLabels } from "../i18n/tools/booksByPeriod.js";
 
 export const booksByPeriodInputShape = {
     composed_from: z
@@ -33,7 +47,7 @@ export const booksByPeriodInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive LOWER bound on the BOOK's composition year (book.book_date). Distinct from author death year — use died_from for that. Pair with composed_to.",
+            "Hijri year, inclusive LOWER bound on book.book_date — Shamela's DATING year for the work, which is NOT the year it was written: it tracks the original author's death year and equals the main author's death year for 8,467 of 8,593 catalogue books. Use died_from for the main author's death. Pair with composed_to.",
         ),
     composed_to: z
         .number()
@@ -42,7 +56,7 @@ export const booksByPeriodInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive UPPER bound on the BOOK's composition year (book.book_date). Pair with composed_from.",
+            "Hijri year, inclusive UPPER bound on book.book_date — Shamela's dating year for the work, not the year it was written. Pair with composed_from.",
         ),
     died_from: z
         .number()
@@ -51,7 +65,7 @@ export const booksByPeriodInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive LOWER bound on the MAIN AUTHOR's death year (author.death_year). Distinct from the book's composition year — use composed_from for that. Pair with died_to.",
+            "Hijri year, inclusive LOWER bound on the MAIN AUTHOR's death year (author.death_year). This is the dimension the catalogue actually records well. Pair with died_to.",
         ),
     died_to: z
         .number()
@@ -74,7 +88,7 @@ export const booksByPeriodInputShape = {
         .boolean()
         .default(false)
         .describe(
-            "If true, restrict to books actually downloaded on this machine (master.db.book.major_ondisk > 0) — the only ones with searchable page content.",
+            "If true, restrict to books whose file is actually present on this machine — the only ones with searchable page content.",
         ),
     ...PaginationInput,
     ...ResponseFormatInput,
@@ -92,8 +106,15 @@ export interface BooksByPeriodRow {
     book_date: number | null;
     category_id: number | null;
     category: string | null;
-    /** master.db.book.major_ondisk > 0 (flagged downloaded on this machine). */
+    /** The per-book file is present on this machine. */
     downloaded: boolean;
+    /**
+     * Whether the book can actually be read, which `downloaded` alone does not
+     * say: a file can be present and hold no text (an image/scan-only title).
+     * Resolved for the returned page only — opening every matched book's file
+     * would make a catalogue browse pay for content it was not asked about.
+     */
+    content_status: "readable" | "downloaded_no_pages" | "not_downloaded";
 }
 
 export interface BooksByPeriodOutput {
@@ -121,16 +142,15 @@ export interface BooksByPeriodOutput {
  * as DISTINCT AND-combined constraints. Catalog-only and synchronous.
  * Throws BAD_ARG if none of the four temporal bounds is provided.
  */
-export function runBooksByPeriod(
+export async function runBooksByPeriod(
     catalog: Catalog,
+    pages: PageStore,
     args: z.infer<typeof booksByPeriodInput>,
-): RenderedResponse<BooksByPeriodOutput> {
+): Promise<RenderedResponse<BooksByPeriodOutput>> {
     const hasComposed = args.composed_from !== undefined || args.composed_to !== undefined;
     const hasDied = args.died_from !== undefined || args.died_to !== undefined;
     if (!hasComposed && !hasDied) {
-        throw badArg(
-            "حدِّد نطاقًا زمنيًّا واحدًا على الأقل: composed_from/composed_to (سنة التأليف) أو died_from/died_to (سنة وفاة المؤلف). هذه الأداة تفصل سنة التأليف عن سنة الوفاة.",
-        );
+        throw badArg(pick(booksByPeriodLabels).needRange);
     }
 
     // Open-ended bounds: a missing side of a provided range is treated as the
@@ -162,7 +182,7 @@ export function runBooksByPeriod(
         if (args.category_id !== undefined && b.book_category !== args.category_id) continue;
 
         // Downloaded constraint.
-        const downloaded = b.major_ondisk > 0;
+        const downloaded = catalog.isDownloaded(b.book_id);
         if (args.downloaded_only && !downloaded) continue;
 
         matched.push({
@@ -174,12 +194,18 @@ export function runBooksByPeriod(
             category_id: b.book_category,
             category: catalog.categoryPath(b.book_category)[0] ?? null,
             downloaded,
+            content_status: "not_downloaded", // resolved for the returned page below
         });
     }
 
     matched.sort((x, y) => x.book_id - y.book_id);
 
     const slice = matched.slice(args.offset, args.offset + args.limit);
+    // Only the rows actually being returned pay for a page-count lookup.
+    for (const row of slice) {
+        if (!row.downloaded) continue;
+        row.content_status = (await pages.pageCount(row.book_id)) > 0 ? "readable" : "downloaded_no_pages";
+    }
     const hasMore = args.offset + slice.length < matched.length;
     const out: BooksByPeriodOutput = {
         total: matched.length,
@@ -200,44 +226,44 @@ export function runBooksByPeriod(
     };
 
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(booksByPeriodLabels);
         const f = data.filter;
         const parts: string[] = [];
         if (f.composed_from !== null || f.composed_to !== null) {
-            parts.push(
-                `سنة التأليف ${arabize(f.composed_from ?? "…")}–${arabize(f.composed_to ?? "…")}هـ`,
-            );
+            parts.push(L.composedRange(num(f.composed_from ?? "…"), num(f.composed_to ?? "…")));
         }
         if (f.died_from !== null || f.died_to !== null) {
-            parts.push(`سنة وفاة المؤلف ${arabize(f.died_from ?? "…")}–${arabize(f.died_to ?? "…")}هـ`);
+            parts.push(L.diedRange(num(f.died_from ?? "…"), num(f.died_to ?? "…")));
         }
         if (f.category_id !== null) {
             parts.push(
-                `التصنيف ${catalog.category(f.category_id)?.category_name ?? f.category_id}`,
+                L.categoryFilter(
+                    catalog.category(f.category_id)?.category_name ?? String(f.category_id),
+                ),
             );
         }
-        if (f.downloaded_only) parts.push("المنزَّلة فقط");
-        const scope = parts.length ? ` (${parts.join("، ")})` : "";
+        if (f.downloaded_only) parts.push(L.downloadedOnly);
+        const scope = parts.length ? ` (${parts.join(L.filterSep)})` : "";
 
         const lines = [
-            header(1, `كتب حسب المدة${scope} — ${arabize(data.total)}`),
-            `عرض ${arabize(data.returned)} من ${arabize(data.total)} ابتداءً من ${arabize(data.offset)}`,
+            header(1, L.heading(scope, num(data.total))),
+            L.counts(num(data.returned), num(data.total), num(data.offset)),
             "",
         ];
         for (const b of data.books) {
-            lines.push(`## ${b.book_name} (id=${b.book_id})${b.downloaded ? " — منزَّل" : ""}`);
+            lines.push(
+                `## ${b.book_name} (id=${b.book_id})${b.downloaded ? L.downloadedSuffix : ""}`,
+            );
             if (b.main_author_name) {
-                const dy = b.main_author_death_year ? ` (ت ${arabize(b.main_author_death_year)}هـ)` : "";
-                lines.push(`- المؤلف: ${b.main_author_name}${dy}`);
+                const dy = b.main_author_death_year ? L.died(num(b.main_author_death_year)) : "";
+                lines.push(`- ${L.author}: ${b.main_author_name}${dy}`);
             }
-            if (b.book_date) lines.push(`- سنة التأليف: ${arabize(b.book_date)}هـ`);
-            if (b.category) lines.push(`- التصنيف: ${b.category} (id=${b.category_id})`);
+            if (b.book_date) lines.push(`- ${L.composedYear}: ${L.hijri(num(b.book_date))}`);
+            if (b.category) lines.push(`- ${L.category}: ${b.category} (id=${b.category_id})`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
-        lines.push(
-            "",
-            "*تنبيه: هذه الأداة تفصل سنة التأليف (book_date) عن سنة وفاة المؤلف الرئيس (death_year)، بخلاف scope.period القديم الذي يخلط بينهما. مرِّر `book_ids` الناتجة إلى scope.book_ids في أدوات البحث.*",
-        );
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
+        lines.push("", L.note);
         return lines.join("\n");
     });
 }

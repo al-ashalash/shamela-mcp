@@ -3,7 +3,9 @@ import { z } from "zod";
 import type { Catalog } from "../catalog.js";
 import type { PageStore } from "../pages.js";
 import { ResponseFormatInput, PaginationInput } from "../schemas.js";
-import { renderResponse, type RenderedResponse, header, arabize } from "../format.js";
+import { renderResponse, type RenderedResponse, header } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { listDownloadedBooksLabels } from "../i18n/tools/listDownloadedBooks.js";
 
 export const listDownloadedBooksInputShape = {
     category_id: z
@@ -68,7 +70,10 @@ export async function runListDownloadedBooks(
     const libraryByCategory: CategoryTally[] = Array.from(tally.entries())
         .map(([cid, count]) => ({
             category_id: cid,
-            category_name: cid >= 0 ? catalog.category(cid)?.category_name ?? `(${cid})` : "(غير مصنَّف)",
+            category_name:
+                cid >= 0
+                    ? catalog.category(cid)?.category_name ?? `(${cid})`
+                    : pick(listDownloadedBooksLabels).uncategorised,
             count,
         }))
         .sort((a, b) => b.count - a.count);
@@ -110,30 +115,38 @@ export async function runListDownloadedBooks(
         books,
     };
     return renderResponse(out, args.response_format, (data) => {
-        const scope = data.filtered_category_id !== null
-            ? ` في تصنيف ${catalog.category(data.filtered_category_id)?.category_name ?? data.filtered_category_id}`
-            : "";
+        const L = pick(listDownloadedBooksLabels);
+        const category = data.filtered_category_id !== null
+            ? String(catalog.category(data.filtered_category_id)?.category_name ?? data.filtered_category_id)
+            : null;
         const lines = [
-            header(1, `الكتب المنزَّلة محليًّا${scope} (${arabize(data.total)})`),
-            `عرض ${arabize(data.returned)} من ${arabize(data.total)} ابتداءً من ${arabize(data.offset)}`,
+            header(1, L.heading(category, num(data.total))),
+            L.counts(num(data.returned), num(data.total), num(data.offset)),
             "",
         ];
         if (data.filtered_category_id === null && data.library_by_category.length) {
-            lines.push(header(3, "توزيع المكتبة على التصنيفات"));
+            lines.push(header(3, L.byCategoryHeading));
             for (const t of data.library_by_category.slice(0, 12)) {
-                lines.push(`- ${t.category_name}: ${arabize(t.count)}`);
+                // Real category names come from the catalog and stay as they are
+                // in every language; only the synthetic "no category" bucket
+                // (category_id < 0, the one this file invents) is translated.
+                const name = t.category_id < 0 ? L.uncategorized : t.category_name;
+                lines.push(`- ${name}: ${num(t.count)}`);
             }
             lines.push("");
         }
         for (const b of data.books) {
-            const status = b.content_status === "readable" ? "" : "  ⚠️ منزَّل بلا صفحات مقروءة";
-            lines.push(`## ${b.book_name} (id=${b.book_id})${status}`);
-            if (b.author_name) lines.push(`- المؤلف: ${b.author_name}`);
-            if (b.category) lines.push(`- التصنيف: ${b.category} (id=${b.category_id})`);
-            if (b.book_date) lines.push(`- سنة التأليف: ${arabize(b.book_date)}هـ`);
+            lines.push(`## ${b.book_name} (id=${String(b.book_id)})`);
+            // Under the name, not inside it — a heading is what a reader copies
+            // when they refer to the book, and a caveat welded to it travels
+            // wherever the name goes.
+            if (b.content_status !== "readable") lines.push(`**${L.noPagesWarning}**`);
+            if (b.author_name) lines.push(`- ${L.author}: ${b.author_name}`);
+            if (b.category) lines.push(`- ${L.category}: ${b.category} (id=${String(b.category_id)})`);
+            if (b.book_date) lines.push(`- ${L.composedYear}: ${L.hijri(num(b.book_date))}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
         return lines.join("\n");
     });
 }

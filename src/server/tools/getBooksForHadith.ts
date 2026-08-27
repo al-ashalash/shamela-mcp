@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { serviceKeyNotFound } from "../errors.js";
+import { serviceEmpty, serviceKeyNotFound } from "../errors.js";
 import type { ServiceStore } from "../services.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getBooksForHadithLabels } from "../i18n/tools/getBooksForHadith.js";
 
 export const getBooksForHadithInputShape = {
     hadith_key: z
@@ -40,7 +42,14 @@ export async function runGetBooksForHadith(
     args: z.infer<typeof getBooksForHadithInput>,
 ): Promise<RenderedResponse<GetBooksForHadithOutput>> {
     const hits = await services.getBooksForKey("hadeeth", args.hadith_key);
-    if (hits.length === 0) throw serviceKeyNotFound("hadeeth", args.hadith_key);
+    if (hits.length === 0) {
+        // Blame the right thing. On an install whose hadith service table is
+        // empty, EVERY key returned the same "no books indexed for key N" —
+        // which reads as "this key is wrong, try another", inviting an endless
+        // walk through keys that must all fail the same way.
+        if (await services.isEmpty("hadeeth")) throw serviceEmpty("hadeeth");
+        throw serviceKeyNotFound("hadeeth", args.hadith_key);
+    }
     const filtered = args.downloaded_only ? hits.filter((h) => catalog.isDownloaded(h.book_id)) : hits;
     const results: HadithHit[] = filtered.map((h) => {
         const rec = catalog.bookRecord(h.book_id);
@@ -59,13 +68,16 @@ export async function runGetBooksForHadith(
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(getBooksForHadithLabels);
         const lines = [
-            header(1, `كتب تتضمَّن الحديث ذو المفتاح ${arabize(data.hadith_key)}`),
-            `**${arabize(data.total)}** كتاب، منها ${arabize(data.returned)} ضمن النطاق الحالي.`,
+            // The key is this tool's own required input, so it is a number the
+            // reader types back — Latin digits, per the rule in i18n/labels.ts.
+            header(1, L.heading(String(data.hadith_key))),
+            L.summary(num(data.total), num(data.returned)),
             "",
         ];
         for (const r of data.results) {
-            lines.push(`- **${r.book_name}**${r.author_name ? ` — ${r.author_name}` : ""} (page_id=${r.page_id}${r.downloaded ? ", منزَّل" : ""})`);
+            lines.push(L.resultLine(r.book_name, r.author_name, String(r.page_id), r.downloaded));
         }
         return lines.join("\n");
     });

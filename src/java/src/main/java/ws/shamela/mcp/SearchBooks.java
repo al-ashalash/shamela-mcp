@@ -31,10 +31,12 @@ public final class SearchBooks {
             boolean morphology,
             boolean wildcards
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery);
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(rawQuery, Normalize.Variant.PAGE);
+        List<String> tokens = parsed.tokens();
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("query", rawQuery == null ? "" : rawQuery);
         envelope.put("normalized_tokens", tokens);
+        envelope.put("dropped_tokens", parsed.dropped());
         envelope.put("offset", offset);
 
         if (tokens.isEmpty()) {
@@ -57,7 +59,7 @@ public final class SearchBooks {
         int safeMax = Math.max(1, Math.min(maxResults, 100));
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
-        int fetch = Math.min(safeOffset + safeMax, 5_000);
+        int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
         TopDocs top = searcher.search(q, fetch);
 
         // Optional scope filter applied post-fetch since book/ index doesn't have book_key.
@@ -70,6 +72,18 @@ public final class SearchBooks {
         }
 
         Coverage coverage = new Coverage();
+        // Only a scope-free search can be counted over every match: the scope
+        // here is applied after the fetch, so a full pass would count books the
+        // caller asked to leave out.
+        boolean fullCoverage = scopeIds == null && coverage.collectAll(searcher, q);
+
+        // A root search matches «الصابرين» for «صبر»; the root itself is not in
+        // the bibliography, so the literal highlighter finds nothing there.
+        List<String> morphRoots = morphology
+                ? MorphologySpans.rootsOfQuery(morphologyAnalyzer, tokens)
+                : List.of();
+        final long highlightDeadline = MorphologySpans.deadline();
+
         List<Map<String, Object>> results = new ArrayList<>();
         int seen = 0;
         for (ScoreDoc sd : top.scoreDocs) {
@@ -81,13 +95,14 @@ public final class SearchBooks {
             catch (NumberFormatException e) { continue; }
             if (scopeIds != null && !scopeIds.contains(bookId)) continue;
 
-            coverage.recordBookKey(idField);
+            if (!fullCoverage) coverage.recordBookKey(idField);
 
             if (seen++ < safeOffset) continue;
             if (results.size() >= safeMax) continue;
 
             String biblio = nullToEmpty(doc.get("body_store"));
-            String snippet = !biblio.isEmpty() ? Snippet.make(biblio, tokens) : "";
+            String snippet = Snippet.forHit(
+                    biblio, tokens, morphology ? morphologyAnalyzer : null, morphRoots, highlightDeadline);
 
             Map<String, Object> hit = new LinkedHashMap<>();
             hit.put("book_id", bookId);
@@ -98,11 +113,18 @@ public final class SearchBooks {
         Map<String, Object> coverageMap = new LinkedHashMap<>();
         coverageMap.put("by_book_key", coverage.snapshot());
         coverageMap.put("total_seen", coverage.total());
+        coverageMap.put("basis", coverage.basis() == Coverage.Basis.ALL_RESULTS ? "all_results" : "window");
 
         envelope.put("total_hits", (int) Math.min(total, Integer.MAX_VALUE));
         envelope.put("returned", results.size());
-        envelope.put("has_more", (long) (safeOffset + results.size()) < total);
-        if ((long) (safeOffset + results.size()) < total) {
+        // Paging stops where fetching does. Computed against the exhaustive
+        // total, has_more stayed true past the 5,000-row ceiling and handed back
+        // the offset it was given — a caller following next_offset never
+        // finished. total_hits still reports every match, so the gap between the
+        // two is visible and the renderers name it.
+        long reachable = Math.min(total, SearchPages.PAGE_CEILING);
+        envelope.put("has_more", (long) (safeOffset + results.size()) < reachable);
+        if ((long) (safeOffset + results.size()) < reachable) {
             envelope.put("next_offset", safeOffset + results.size());
         }
         envelope.put("coverage", coverageMap);

@@ -30,10 +30,12 @@ public final class SearchAuthors {
             boolean morphology,
             boolean wildcards
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery);
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(rawQuery, Normalize.Variant.PAGE);
+        List<String> tokens = parsed.tokens();
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("query", rawQuery == null ? "" : rawQuery);
         envelope.put("normalized_tokens", tokens);
+        envelope.put("dropped_tokens", parsed.dropped());
         envelope.put("offset", offset);
 
         if (tokens.isEmpty()) {
@@ -51,8 +53,15 @@ public final class SearchAuthors {
         int safeMax = Math.max(1, Math.min(maxResults, 100));
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
-        int fetch = Math.min(safeOffset + safeMax, 5_000);
+        int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
         TopDocs top = searcher.search(q, fetch);
+
+        // A root search matches «الصابرين» for «صبر»; the root itself is not in
+        // the bio, so the literal highlighter finds nothing there.
+        List<String> morphRoots = morphology
+                ? MorphologySpans.rootsOfQuery(morphologyAnalyzer, tokens)
+                : List.of();
+        final long highlightDeadline = MorphologySpans.deadline();
 
         List<Map<String, Object>> results = new ArrayList<>();
         int seen = 0;
@@ -67,7 +76,8 @@ public final class SearchAuthors {
             catch (NumberFormatException e) { continue; }
 
             String bio = nullToEmpty(doc.get("body_store"));
-            String snippet = !bio.isEmpty() ? Snippet.make(bio, tokens) : "";
+            String snippet = Snippet.forHit(
+                    bio, tokens, morphology ? morphologyAnalyzer : null, morphRoots, highlightDeadline);
 
             Map<String, Object> hit = new LinkedHashMap<>();
             hit.put("author_id", authorId);
@@ -77,8 +87,14 @@ public final class SearchAuthors {
 
         envelope.put("total_hits", (int) Math.min(total, Integer.MAX_VALUE));
         envelope.put("returned", results.size());
-        envelope.put("has_more", (long) (safeOffset + results.size()) < total);
-        if ((long) (safeOffset + results.size()) < total) {
+        // Paging stops where fetching does. Computed against the exhaustive
+        // total, has_more stayed true past the 5,000-row ceiling and handed back
+        // the offset it was given — a caller following next_offset never
+        // finished. total_hits still reports every match, so the gap between the
+        // two is visible and the renderers name it.
+        long reachable = Math.min(total, SearchPages.PAGE_CEILING);
+        envelope.put("has_more", (long) (safeOffset + results.size()) < reachable);
+        if ((long) (safeOffset + results.size()) < reachable) {
             envelope.put("next_offset", safeOffset + results.size());
         }
         envelope.put("results", results);

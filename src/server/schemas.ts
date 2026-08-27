@@ -54,7 +54,7 @@ export const ScopeInputShape = {
         .array(z.number().int().positive())
         .optional()
         .describe(
-            "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs.",
+            "Restrict to books in these categories. Categories are flat in master.db (no parent_id, no transitive subtree expansion). Use `shamela_list_categories` to find IDs. When comparing schools of law, run one search per school's category rather than a single search across them — a school you did not search cannot be reported as silent on the question.",
         ),
     period_from: z
         .number()
@@ -63,7 +63,7 @@ export const ScopeInputShape = {
         .max(2000)
         .optional()
         .describe(
-            "Hijri year, inclusive lower bound. Matches book.book_date (composition year) OR author.death_number (death year). Pair with period_to.",
+            "Hijri year, inclusive lower bound. Matches book.book_date (Shamela's dating year — see period_basis) OR author.death_number (death year). Pair with period_to.",
         ),
     period_to: z
         .number()
@@ -72,6 +72,18 @@ export const ScopeInputShape = {
         .max(2000)
         .optional()
         .describe("Hijri year, inclusive upper bound. Pair with period_from."),
+    period_basis: z
+        .enum(["composed", "died", "either"])
+        .optional()
+        .describe(
+            "Which date the period bounds apply to. 'composed' = book.book_date; 'died' = the main author's death year; 'either' (default) = the union. CAUTION: book_date is NOT the year the book was written — it is Shamela's dating stamp for the work and tracks the ORIGINAL author's death year, equalling the main author's death year for 8,467 of 8,593 catalogue books. So 'composed' and 'died' separate very little here, and neither answers 'what was written in this century'. Say which basis you used when a period carries the argument.",
+        ),
+    madhhab: z
+        .array(z.enum(["hanafi", "maliki", "shafii", "hanbali"]))
+        .optional()
+        .describe(
+            "Restrict to the fiqh categories of these schools of law. A convenience over category_ids so a comparison does not depend on remembering four numbers. Note this covers each school's own fiqh category only — general fiqh, fatwa collections and usul are separate categories and are NOT included.",
+        ),
     downloaded_only: z
         .boolean()
         .default(false)
@@ -119,7 +131,7 @@ export const OptionsInputShape = {
         .array(z.enum(["body", "foot", "comment"]))
         .default(["body", "foot"])
         .describe(
-            "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. To search chapter titles use the separate `shamela_search_titles` tool.",
+            "Which page sections to search. 'body' = matn (المتن), 'foot' = footnotes (الحواشي), 'comment' = user comments (التعليقات). Default ['body','foot']. Narrowing to ['foot'] alone targets the editor's apparatus — where printed hadith referencing and source citations live — and keeps the matn out of the results. To search chapter titles use the separate `shamela_search_titles` tool.",
         ),
 };
 

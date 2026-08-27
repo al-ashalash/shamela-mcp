@@ -1,11 +1,13 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { ayaNotFound, badArg, serviceKeyNotFound } from "../errors.js";
+import { ayaNotFound, ayaOutOfSurah, badArg, serviceKeyNotFound } from "../errors.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import { ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getTafseerOfAyaLabels } from "../i18n/tools/getTafseerOfAya.js";
 
 export const getTafseerOfAyaInputShape = {
     aya_id: z.number().int().min(1).max(6236).optional().describe("Aya id 1..6236."),
@@ -20,7 +22,8 @@ export interface TafseerHit {
     book_id: number;
     book_name: string;
     author_name: string | null;
-    page_id: number;
+    /** Where the commentary sits — several when it runs across pages. */
+    page_ids: number[];
     downloaded: boolean;
 }
 
@@ -29,15 +32,15 @@ export interface GetTafseerOfAyaOutput {
     surah: number;
     surah_name: string;
     aya: number;
+    /** Distinct books, not index rows. */
     total: number;
+    /** Rows behind that count; one book can span pages. */
+    index_rows: number;
     returned: number;
     /** Honest coverage caveat: this index is curated and may omit downloaded tafsirs. */
     coverage_note: string;
     results: TafseerHit[];
 }
-
-const COVERAGE_NOTE =
-    "هذه القائمة من فهرس الخدمة المنتقى (service/tafseer.db) وقد لا يشمل كل تفاسيرك المنزَّلة — كثير من التفاسير لا تحمل علامات آيات على صفحاتها فلا تظهر هنا. لاستيفاء تفاسيرك المنزَّلة، راجع تصنيفات التفسير عبر shamela_list_downloaded_books(category_id=3) و(category_id=4)، ثم تنقّل إليها بفهرسها (shamela_get_toc).";
 
 export async function runGetTafseerOfAya(
     catalog: Catalog,
@@ -48,7 +51,7 @@ export async function runGetTafseerOfAya(
     if (args.aya_id !== undefined) resolvedId = args.aya_id;
     else if (args.surah !== undefined && args.aya !== undefined) {
         const id = ayaIdFromSurahAya(args.surah, args.aya);
-        if (id === null) throw ayaNotFound(`surah=${args.surah} aya=${args.aya}`);
+        if (id === null) throw ayaOutOfSurah(args.surah!, args.aya!);
         resolvedId = id;
     } else throw badArg("Provide either aya_id or both surah and aya.");
     const sa = surahAyaFromId(resolvedId);
@@ -56,39 +59,62 @@ export async function runGetTafseerOfAya(
 
     const hits = await services.getBooksForKey("tafseer", resolvedId);
     if (hits.length === 0) throw serviceKeyNotFound("tafseer", resolvedId);
+    // A book can appear several times for one verse — the table has a row per
+    // page, and one commentary can run across pages. Counting rows and calling
+    // them books reported thirteen commentaries where there were five.
+    const distinctBooks = new Set(hits.map((h) => h.book_id)).size;
 
     const filtered = args.downloaded_only ? hits.filter((h) => catalog.isDownloaded(h.book_id)) : hits;
-    const results: TafseerHit[] = filtered.map((h) => {
+    // One entry per BOOK, its pages gathered and de-duplicated. Row-per-page
+    // results made `returned` (rows) exceed `total` (distinct books) in one
+    // response — 13 over 5 measured — and duplicate table rows repeated
+    // identical entries, so the list overstated the coverage it presented.
+    const byBook = new Map<number, TafseerHit>();
+    for (const h of filtered) {
+        const existing = byBook.get(h.book_id);
+        if (existing) {
+            if (!existing.page_ids.includes(h.page_id)) existing.page_ids.push(h.page_id);
+            continue;
+        }
         const rec = catalog.bookRecord(h.book_id);
-        return {
+        byBook.set(h.book_id, {
             book_id: h.book_id,
             book_name: rec?.book_name ?? `(unknown ${h.book_id})`,
             author_name: rec ? catalog.mainAuthorName(rec) : null,
-            page_id: h.page_id,
+            page_ids: [h.page_id],
             downloaded: catalog.isDownloaded(h.book_id),
-        };
-    });
+        });
+    }
+    const results = [...byBook.values()];
+    for (const r of results) r.page_ids.sort((a, b) => a - b);
+    const L = pick(getTafseerOfAyaLabels);
     const out: GetTafseerOfAyaOutput = {
         aya_id: resolvedId,
         surah: sa.surah,
         surah_name: sa.surah_name,
         aya: sa.aya,
-        total: hits.length,
+        total: distinctBooks,
+        index_rows: hits.length,
         returned: results.length,
-        coverage_note: COVERAGE_NOTE,
+        coverage_note: L.coverageNote,
         results,
     };
     return renderResponse(out, args.response_format, (data) => {
         const lines = [
-            header(1, `تفاسير الآية ${data.surah_name} ${arabize(data.surah)}:${arabize(data.aya)}`),
-            `**${arabize(data.total)}** كتاب يعلِّق على هذه الآية، منها ${arabize(data.returned)} في النطاق الحالي.`,
+            header(1, L.heading(data.surah_name, num(data.surah), num(data.aya))),
+            L.summary(num(data.total), num(data.returned)),
             "",
-            `> *${data.coverage_note}*`,
+            `> *${L.coverageNote}*`,
             "",
         ];
         for (const r of data.results) {
             lines.push(
-                `- **${r.book_name}**${r.author_name ? ` — ${r.author_name}` : ""} (page_id=${r.page_id}${r.downloaded ? ", منزَّل" : ""})`,
+                L.bookLine(
+                    r.book_name,
+                    r.author_name ?? "",
+                    r.page_ids.join(", "),
+                    r.downloaded,
+                ),
             );
         }
         return lines.join("\n");

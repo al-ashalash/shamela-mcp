@@ -1,151 +1,64 @@
 /**
- * The in-app Arabic user guide («دليل استخدام الإضافة»), served two ways:
- * as the shamela://guide resource (manual attachment) and as the
- * shamela_guide tool (model-callable — resources cannot be fetched by the
- * model itself, so the tool is the reliable in-conversation path).
+ * The in-app user guide, served two ways: as the shamela://guide resource
+ * (which the user attaches by hand) and as the shamela_guide tool — the model
+ * cannot fetch a resource itself, so the tool is the reliable in-conversation
+ * path.
  *
  * Ordinary users install the .mcpb and never visit the repository, so the
- * extension itself carries the user guide. Pure text assembly (no backend),
- * exported as functions so the integration suite can drift-guard it: the
- * returned text must name all 30 tools.
- *
- * Content rules: every tool line is grounded in its actual
- * manifest.json description — no invented capabilities.
+ * extension carries its own guide. The text lives in the language catalogue
+ * (src/server/i18n/guide.*.ts); this file is only assembly, which is what lets
+ * the integration suite drift-guard it: whatever comes back must name every
+ * registered tool.
  */
 
-/** Top-level guide parts addressable via the shamela_guide `section` input. */
+import { messages } from "./i18n/index.js";
+
+/**
+ * The parts of the guide addressable through shamela_guide's `section` input.
+ *
+ * The Arabic names are the wire values and stay the wire values — they are a
+ * declared input, and renaming them would break every caller that learned them.
+ * The English names are aliases onto the same parts, so a user reading the
+ * guide in English can ask for a section in the language they are reading.
+ */
 export const GUIDE_SECTION_NAMES = ["الكل", "الأدوات", "النصائح"] as const;
 export type GuideSectionName = (typeof GUIDE_SECTION_NAMES)[number];
 
-const GUIDE_INTRO = `# دليل استخدام إضافة «بحث ودراسة في المكتبة الشاملة»
+/** What a caller may type, in either language, for each part. */
+// Prototype-free: a plain object answers to "constructor" and "toString" with
+// things that are not sections, and resolveGuideSection would hand a caller a
+// function where it promised a heading.
+const SECTION_ALIASES: Record<string, GuideSectionName> = Object.assign(Object.create(null), {
+    "الكل": "الكل",
+    all: "الكل",
+    full: "الكل",
+    "الأدوات": "الأدوات",
+    tools: "الأدوات",
+    "النصائح": "النصائح",
+    tips: "النصائح",
+});
 
-## مقدمة
+/** Resolve what the caller typed to a section, or null if it means nothing. */
+export function resolveGuideSection(raw: string): GuideSectionName | null {
+    return SECTION_ALIASES[raw.trim().toLowerCase()] ?? SECTION_ALIASES[raw.trim()] ?? null;
+}
 
-تصل هذه الإضافة تطبيقَ كلود بنسختك من **المكتبة الشاملة ٤** المثبَّتة على جهازك، فتتيح البحث والقراءة والتوثيق في كتبك المنزَّلة من داخل المحادثة مباشرة. وتقوم على ثلاثة مبادئ:
-
-- **محلية المصدر**: تقرأ الإضافة قاعدة بيانات الشاملة على جهازك مباشرة دون خادم وسيط خاص بها.
-- **قراءة فقط**: لا تعدِّل الإضافة على بيانات المكتبة أبدًا.
-- **أمانة النسبة**: لا يُنسب نصٌّ إلى كتاب إلا من نتيجة أداة، ويُميَّز المتنُ عن الحاشية، ويُصرَّح بالبيانات الناقصة دون اختلاق.
-
-لا تحتاج إلى حفظ أسماء الأدوات؛ اكتب طلبك بالعربية كما تخاطب باحثًا، وكلود يختار الأداة المناسبة. الأمثلة الآتية طلبات طبيعية تكتبها كما هي.`;
-
-const GUIDE_TOOLS = `## الأدوات الثلاثون
-
-### أولًا: البحث في الكتب
-
-- **\`shamela_search_pages\`** — البحث في نصوص الصفحات المنزَّلة (المتن والحواشي والتعليقات) مع تصفية النطاق وخيارات الصرف والبدلاء.
-  مثال: «ابحث في كتب الفقه عن كلمة الاستصناع.»
-- **\`shamela_search_phrase\`** — البحث بالعبارة الحرفية المتتالية، أو بالتقارب اللفظي (كلمتان ضمن مسافة كلمات محددة).
-  مثال: «ابحث عن عبارة الأعمال بالنيات بالترتيب.»
-- **\`shamela_search_exact\`** — بحث مطابق تمامًا يراعي التشكيل والهمزات (أ إ آ مقابل ا) ونظام الأرقام (٠-٩ مقابل 0-9).
-  مثال: «ابحث عن كلمة عِلْم بهذا التشكيل بالضبط، لا عن عَلَم.»
-- **\`shamela_search_boolean\`** — بحث منطقي يجمع «و» و«أو» و«دون» (الاستثناء)، ويُنصح معه بتحديد النطاق.
-  مثال: «ابحث عن صفحات فيها الوقف مع المسجد أو المقبرة، وليس فيها البيع.»
-- **\`shamela_search_titles\`** — البحث في عناوين الفصول والأبواب داخل الكتب.
-  مثال: «اعرض الأبواب التي في عناوينها باب الصيام.»
-- **\`shamela_search_books\`** — البحث في فهرس الكتب بالاسم أو المؤلف أو نص التعريف؛ يعمل حتى قبل تنزيل أي كتاب.
-  مثال: «هل في فهرس الشاملة كتب عن القواعد الفقهية؟»
-- **\`shamela_search_authors\`** — البحث في فهرس المؤلفين بالاسم أو نص الترجمة؛ وعند غياب النتيجة جرِّب الكنية والنسبة والشهرة (ابن قدامة / الموفق).
-  مثال: «ابحث عن ترجمة ابن قدامة ومتى توفي.»
-
-### ثانيًا: القرآن والتفسير
-
-- **\`shamela_search_quran\`** — البحث في آيات القرآن الكريم (٦٢٣٦ آية)، ويشمل الكلمات ذات البادئات (الصبر تجد بالصبر).
-  مثال: «ابحث في القرآن عن كلمة الصبر.»
-- **\`shamela_get_aya\`** — جلب آية محدَّدة بالرسم الإملائي والعثماني ومرسوم المجمَّع.
-  مثال: «اجلب آية الكرسي بالرسم العثماني.»
-- **\`shamela_get_tafseer_of_aya\`** — إخراج الكتب التي تحوي تفسير آيةٍ ما مع رقم الصفحة (من فهرس منتقًى قد لا يشمل كل التفاسير المنزَّلة).
-  مثال: «ما الكتب التي فيها تفسير آية الكرسي؟»
-- **\`shamela_list_tafsirs_for_aya\`** — بيان تغطية تفاسيرك المنزَّلة لآية بعينها بحالة صريحة لكل كتاب: مفهرس ويشملها، أو مفهرس بلا مدخل لها، أو غير مفهرس فالتغطية غير معلومة.
-  مثال: «أي تفاسيري المنزَّلة يغطي الآية ٢٥٥ من سورة البقرة؟»
-- **\`shamela_get_tafseer_texts\`** — جلب نصوص تفسير آية من عدة مصادر مفهرسة دفعة واحدة، معزوَّةً إلى كتبها ومؤلفيها وصفحاتها.
-  مثال: «اجلب لي تفسير قوله تعالى (إياك نعبد وإياك نستعين) من ثلاثة تفاسير.»
-
-### ثالثًا: الحديث
-
-- **\`shamela_search_hadith\`** — البحث عن حديث بنصه: مواضعه ومفاتيحه وتخريجه عبر الكتب المنزَّلة.
-  مثال: «خرِّج لي حديث إنما الأعمال بالنيات.»
-- **\`shamela_get_books_for_hadith\`** — بناءً على رقم حديث في الشاملة، إخراج الكتب التي ترويه مع رقم الصفحة.
-  مثال: «ما الكتب المنزَّلة التي تروي هذا الحديث نفسه؟»
-- **\`shamela_get_page_services\`** — إشارات الصفحة: ما تحويه من آيات قرآنية وأحاديث وأسانيد.
-  مثال: «ما الآيات والأحاديث المذكورة في هذه الصفحة؟»
-
-### رابعًا: القراءة والتصفح
-
-- **\`shamela_get_page\`** — جلب نص صفحة كاملة (المتن والحاشية والتعليق) مع موضعها من فهرس الكتاب، وتقطيع المتن الطويل إلى أجزاء.
-  مثال: «اقرأ لي صفحة ١٧ من كتاب الأصول من علم الأصول.»
-- **\`shamela_get_pages_range\`** — قراءة نطاق متتابع من الصفحات (من صفحة إلى عشرين) من كتاب منزَّل.
-  مثال: «اقرأ خمس صفحات متتالية من أول الكتاب.»
-- **\`shamela_get_toc\`** — جلب فهرس كتاب على هيئة شجرة، أو سلسلة الأبواب التي تحتوي صفحة معيَّنة.
-  مثال: «اعرض لي فهرس كتاب زاد المستقنع.»
-- **\`shamela_get_book_section\`** — قراءة باب كامل من كتاب باستخدام عنوانه في الفهرس.
-  مثال: «اقرأ لي باب المياه كاملًا من هذا الكتاب.»
-- **\`shamela_get_book_parts\`** — أجزاء/مجلَّدات الكتاب مع عدد صفحات كل منها.
-  مثال: «هل هذا الكتاب من جزء واحد أم أجزاء متعددة؟»
-
-### خامسًا: الفهارس والبيانات
-
-- **\`shamela_list_categories\`** — قائمة بكل تصنيفات المكتبة (٤١ تصنيفًا) مع عدد الكتب وعدد المنزَّل منها في كل تصنيف.
-  مثال: «اعرض تصنيفات المكتبة وكم كتابًا منزَّلًا عندي في كل تصنيف.»
-- **\`shamela_list_downloaded_books\`** — قائمة الكتب المنزَّلة فعليًّا على هذا الجهاز مع الترشيح بالتصنيف وحالة المحتوى.
-  مثال: «ما الكتب المنزَّلة عندي في تصنيف العقيدة؟»
-- **\`shamela_get_book\`** — بيانات كتاب: المؤلف والتصنيف والنوع وسنة التأليف وحالة المحتوى.
-  مثال: «أعطني بيانات كتاب مجموع الفتاوى: مؤلفه وسنة تأليفه وهل هو منزَّل عندي.»
-- **\`shamela_get_author\`** — بيانات مؤلف وقائمة كتبه، مع حال التنزيل لكل كتاب.
-  مثال: «من ابن قدامة؟ وما كتبه الموجودة في مكتبتي؟»
-- **\`shamela_resolve\`** — تحويل اسم عربي جزئي إلى الكتاب أو المؤلف المقصود في فهارس الشاملة.
-  مثال: «أقصد كتاب الشرح الممتع — أي كتاب هو في المكتبة بالضبط؟»
-- **\`shamela_get_citation\`** — صياغة إحالة جاهزة بثلاثة أنماط: نمط الشاملة الافتراضي، أو مختصر، أو موسَّع.
-  مثال: «أعطني الإحالة المنسَّقة لهذه الصفحة بنمط الشاملة.»
-
-### سادسًا: الإحصاء والزمن
-
-- **\`shamela_root_stats\`** — قياس انتشار جذر عربي في المكتبة المنزَّلة عبر بحث صرفي، موزَّعًا حسب التصنيف والقرن الهجري والكتاب والمؤلف.
-  مثال: «ما مدى انتشار جذر صبر في مكتبتي حسب القرون؟»
-- **\`shamela_books_by_period\`** — تصفية فهرس الكتب زمنيًّا مع التمييز بين سنة تأليف الكتاب وسنة وفاة مؤلفه الرئيس.
-  مثال: «اعرض كتب المؤلفين الذين توفوا في القرن الثامن الهجري.»
-
-### سابعًا: التشخيص والدليل
-
-- **\`shamela_health\`** — فحص ذاتي: نسخة الخادم، وعدد كتب الفهرس والمنزَّل منها، وتحقق سريع من قابلية القراءة. استعمله أولًا إذا بدت الأدوات معطَّلة أو فارغة.
-  مثال: «افحص إضافة الشاملة وتأكد أنها تعمل.»
-- **\`shamela_guide\`** — عرض دليل استخدام الإضافة (هذا الدليل) من داخل المحادثة، كاملًا أو قسمًا منه: الأدوات أو النصائح.
-  مثال: «ماذا تستطيع إضافة الشاملة أن تفعل؟»`;
-
-const GUIDE_TIPS = `## نصائح الباحث
-
-**ضيِّق النطاق بالتصنيفات.** المكتبة ٤١ تصنيفًا، وكتب التفسير وحدها موزَّعة على ثلاثة تصنيفات (التفسير، وعلوم القرآن وأصول التفسير، والتجويد والقراءات). اطلب حصر البحث في التصنيف المناسب («ابحث في كتب الفقه الحنبلي فقط») تصفُ النتائج وتسرع.
-
-**اختر أسلوب البحث المناسب.**
-- كلمة ومشتقاتها: اطلب «بحثًا صرفيًّا» فتجد صابر ويصبر واصطبار عند البحث عن صبر.
-- بداية كلمة أو نمط: استعمل الحرفين البديلين «*» و«?» (لا يجتمعان مع البحث الصرفي).
-- عبارة بنصّها المتتابع أو كلمتان متقاربتان: اطلب البحث «بالعبارة» أو «بالتقارب».
-- التشكيل أو الهمزات أو نظام الأرقام: اطلب «بحثًا مطابقًا».
-- جمع واستثناء: اطلب البحث المنطقي («فيها كذا وكذا، وليس فيها كذا»).
-
-**اعرف حدود الإضافة (وهذه أمانتها).**
-- البحث مقصور على الكتب المنزَّلة على جهازك؛ غياب النتيجة لا يعني غياب القول من كتب لم تنزِّلها.
-- الإضافة لا تحكم على حديث صحةً وضعفًا من عندها؛ إنما تنقل ما جاء في نتائج الأدوات (كتخريج المحقق في الحاشية)، والحاشية كلام المحقق لا كلام المصنِّف.
-- فهرس ربط الآيات بالتفاسير منتقًى ولا يشمل كل التفاسير المنزَّلة؛ ولذلك تعرض أداةُ التغطية حالَ كل كتاب صراحةً، وغياب الكتاب من الفهرس ليس دليلًا على خلوّه من تفسير الآية.
-- بيانات النشر (الطبعة والناشر والمحقق) ناقصة في قاعدة الشاملة غالبًا، فتصرِّح الإحالات بنقصها ولا تختلقها؛ وترقيم الصفحات يُصرَّح بحاله إن كان بترقيم الشاملة الآلي.
-
-وللمزيد: صفحة الإضافة على غيت هب تشمل التثبيت وحلول المشكلات الشائعة.`;
-
-/** Build the full Arabic markdown text of the user guide. */
 export function buildGuideText(): string {
-    return `${GUIDE_INTRO}\n\n${GUIDE_TOOLS}\n\n${GUIDE_TIPS}\n`;
+    const g = messages().guide;
+    return `${g.intro}\n\n${g.tools}\n\n${g.tips}\n`;
 }
 
 /**
- * Build one top-level part of the guide. «الكل» returns the full guide;
- * the other section names return just their part (heading included).
+ * Build one part of the guide. «الكل» returns the whole thing; the others
+ * return just their part, heading included.
  */
 export function buildGuideSectionText(section: GuideSectionName): string {
+    const g = messages().guide;
     switch (section) {
         case "الأدوات":
-            return `${GUIDE_TOOLS}\n`;
+            return `${g.tools}\n`;
         case "النصائح":
-            return `${GUIDE_TIPS}\n`;
+            return `${g.tips}\n`;
         case "الكل":
             return buildGuideText();
     }

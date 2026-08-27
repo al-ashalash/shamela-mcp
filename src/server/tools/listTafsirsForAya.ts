@@ -1,35 +1,51 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { ayaNotFound, badArg } from "../errors.js";
+import { ayaNotFound, ayaOutOfSurah, badArg } from "../errors.js";
 import type { PageStore } from "../pages.js";
 import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
+import type { AyaIndexStore } from "../ayaIndex/store.js";
+import { locateAya } from "../ayaIndex/build.js";
+import type { Helper } from "../helper.js";
 import { ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { listTafsirsForAyaLabels } from "../i18n/tools/listTafsirsForAya.js";
 
 /**
  * Per-aya tafsir coverage report (#18).
  *
- * Cross-references the DOWNLOADED tafsir shelves (categories 3 + 4 — tafsir
- * spans both) against the curated service/tafseer.db index and reports an
- * honest tri-state per book:
+ * Cross-references the DOWNLOADED tafsir shelves (TAFSIR_CATEGORY_IDS) against
+ * two indexes — Shamela's curated service/tafseer.db and the index built from
+ * each book's own chapter headings — and reports an honest state per book:
  *
- *   indexed_covers                — the index has an entry for this aya in this book.
- *   indexed_no_entry_for_this_aya — the book participates in the index but has
- *                                   no entry for this aya.
- *   not_indexed_coverage_unknown  — the book is absent from the curated index,
- *                                   so coverage CANNOT be determined. This is
- *                                   explicitly NOT evidence the book lacks
+ *   indexed_covers                — Shamela's table places the verse on a page.
+ *   title_index                   — the book's own headings place it.
+ *   title_index_group             — placed, but by a heading covering a range of
+ *                                   verses rather than this one alone.
+ *   covered_no_locus              — we indexed the book; it carries no marker for
+ *                                   this verse.
+ *   indexed_no_entry_for_this_aya — in Shamela's table with no entry for this
+ *                                   verse, and its headings place none either.
+ *   index_pending                 — not indexed yet: this call's build budget ran
+ *                                   out, or the search engine has not read the
+ *                                   book's titles. Calling again continues.
+ *   not_indexed_coverage_unknown  — nothing places verses in this book at all.
+ *                                   Explicitly NOT evidence that it lacks
  *                                   commentary on the verse.
  *
  * No text-search fallback: a text scan was prototyped and withdrawn for
- * misattributing verses (shared phrases, basmala). The unknown state stays
- * unknown until a per-book ayah→page index exists.
+ * misattributing verses (shared phrases, basmala). A verse that cannot be
+ * placed stays unplaced, and the report says so rather than guessing.
  */
 
-/** Shamela categories that hold tafsir books (tafsir spans BOTH 3 and 4). */
-const TAFSIR_CATEGORY_IDS = [3, 4] as const;
+/**
+ * Shamela files tafsir across three categories, not two: commentary proper,
+ * Qur'anic sciences, and recitation. Leaving 5 out silently hid part of the
+ * shelf from every coverage answer.
+ */
+const TAFSIR_CATEGORY_IDS = [3, 4, 5] as const;
 
 export const listTafsirsForAyaInputShape = {
     aya_id: z.number().int().min(1).max(6236).optional().describe("Aya id 1..6236."),
@@ -40,8 +56,19 @@ export const listTafsirsForAyaInputShape = {
 export const listTafsirsForAyaInput = z.object(listTafsirsForAyaInputShape).strict();
 
 export type TafsirCoverageStatus =
+    /** Shamela's own curated table places this verse on a page. */
     | "indexed_covers"
+    /** Located from the book's own chapter titles. */
+    | "title_index"
+    /** Located, but the marker covers a group of verses rather than this one. */
+    | "title_index_group"
+    /** In Shamela's table, but with no entry for this verse. */
     | "indexed_no_entry_for_this_aya"
+    /** We indexed the book and it has no marker for this verse. */
+    | "covered_no_locus"
+    /** The book has not been indexed yet; its search index was not ready. */
+    | "index_pending"
+    /** Nothing places verses in this book — it is not arranged by verse. */
     | "not_indexed_coverage_unknown";
 
 export interface TafsirCoverageRow {
@@ -51,13 +78,19 @@ export interface TafsirCoverageRow {
     death_year: number | null;
     category_id: number | null;
     category_name: string | null;
-    /** True when the book sits in the tafsir categories (3 or 4). Index hits from other shelves (e.g. mawsuʿat) are included with false. */
+    /** True when the book sits in the tafsir categories (3, 4 or 5). Index hits from other shelves (e.g. mawsuʿat) are included with false. */
     in_tafsir_categories: boolean;
     downloaded: boolean;
     status: TafsirCoverageStatus;
-    /** Page carrying the tafsir of this aya — only when status is indexed_covers. */
+    /** Page carrying the tafsir of this aya — only when a status locates one. */
     page_id: number | null;
     printed_page: string | null;
+    /** Which index placed it: Shamela's table, or the book's own titles. */
+    locus_source: "service" | "titles" | null;
+    /** The chapter title that placed it, so the reader can verify it directly. */
+    title_id: number | null;
+    /** How far the title index for this book may be trusted. */
+    confidence: "high" | "medium" | null;
 }
 
 export interface ListTafsirsForAyaOutput {
@@ -65,46 +98,47 @@ export interface ListTafsirsForAyaOutput {
     surah: number;
     surah_name: string;
     aya: number;
-    totals: {
-        indexed_covers: number;
-        indexed_no_entry_for_this_aya: number;
-        not_indexed_coverage_unknown: number;
-    };
-    /** Honest coverage caveat: the index is curated; unknown-status books may well comment on the verse. */
+    /** One count per state. Summing them into a single number would hide
+     *  the difference between a located verse and a book we could not place. */
+    totals: Record<string, number>;
+    /** Books left unindexed because this call's build budget ran out. */
+    index_pending_book_ids: number[];
+    /** Honest coverage caveat: a book neither index places may well comment on the verse. */
     note: string;
     books: TafsirCoverageRow[];
 }
 
-const COVERAGE_NOTE =
-    "فهرس التفسير (service/tafseer.db) فهرسٌ منتقًى لا يشمل كل الكتب؛ فالكتب التي حالتها «غير مفهرس — التغطية غير معلومة» قد تتضمن تفسيرًا للآية فعلًا ولا سبيل للجزم من الفهرس، وليس غيابها منه دليلًا على خلوّها من الكلام عليها. للوصول إليها تصفَّح فهارسها بـ shamela_get_toc أو shamela_get_book_section.";
-
 const STATUS_ORDER: Record<TafsirCoverageStatus, number> = {
     indexed_covers: 0,
-    indexed_no_entry_for_this_aya: 1,
-    not_indexed_coverage_unknown: 2,
-};
-
-const STATUS_LABEL: Record<TafsirCoverageStatus, string> = {
-    indexed_covers: "يشمل الآية في الفهرس",
-    indexed_no_entry_for_this_aya: "مشارك في الفهرس ولا مدخل له لهذه الآية",
-    not_indexed_coverage_unknown: "غير مفهرس — التغطية غير معلومة",
+    title_index: 1,
+    title_index_group: 2,
+    indexed_no_entry_for_this_aya: 3,
+    covered_no_locus: 4,
+    index_pending: 5,
+    not_indexed_coverage_unknown: 6,
 };
 
 export async function runListTafsirsForAya(
     catalog: Catalog,
     services: ServiceStore,
     pages: PageStore,
+    helper: Helper | null,
+    ayaIndex: AyaIndexStore | null,
     args: z.infer<typeof listTafsirsForAyaInput>,
 ): Promise<RenderedResponse<ListTafsirsForAyaOutput>> {
     let resolvedId: number;
     if (args.aya_id !== undefined) resolvedId = args.aya_id;
     else if (args.surah !== undefined && args.aya !== undefined) {
         const id = ayaIdFromSurahAya(args.surah, args.aya);
-        if (id === null) throw ayaNotFound(`surah=${args.surah} aya=${args.aya}`);
+        if (id === null) throw ayaOutOfSurah(args.surah!, args.aya!);
         resolvedId = id;
     } else throw badArg("Provide either aya_id or both surah and aya.");
     const sa = surahAyaFromId(resolvedId);
     if (!sa) throw ayaNotFound(String(resolvedId));
+    const surah = sa.surah;
+    const ayaInSurahNumber = sa.aya;
+    const pendingIds: number[] = [];
+    ayaIndex?.resetBudget();
 
     // Curated index: hits for this aya (deduped per book, first page kept) +
     // the set of books participating in the index at all.
@@ -113,7 +147,7 @@ export async function runListTafsirsForAya(
     for (const h of hits) if (!hitPageByBook.has(h.book_id)) hitPageByBook.set(h.book_id, h.page_id);
     const inService = new Set(await services.listInService("tafseer"));
 
-    // Downloaded tafsir shelves — categories 3 AND 4 (never assume one bucket).
+    // Downloaded tafsir shelves — all three of them (never assume one bucket).
     const shelfBookIds = new Set<number>();
     for (const cid of TAFSIR_CATEGORY_IDS) {
         for (const id of catalog.booksInCategory(cid)) {
@@ -129,18 +163,52 @@ export async function runListTafsirsForAya(
         const downloaded = catalog.isDownloaded(bookId);
         let status: TafsirCoverageStatus;
         let pageId: number | null = null;
+        let locusSource: "service" | "titles" | null = null;
+        let titleId: number | null = null;
+        let confidence: "high" | "medium" | null = null;
+
         if (hitPageByBook.has(bookId)) {
+            // Shamela's own table wins when it has an answer: it is their data
+            // about their books.
             status = "indexed_covers";
             pageId = hitPageByBook.get(bookId)!;
+            locusSource = "service";
+        } else if (downloaded && ayaIndex && helper) {
+            // Their table is curated and covers a fraction of a real shelf, so
+            // fall back to what the book itself says in its chapter titles.
+            const availability = await ayaIndex.get(helper, bookId);
+            if (availability.state === "ready") {
+                const idx = availability.index;
+                const found = locateAya(idx, surah, ayaInSurahNumber);
+                if (found) {
+                    status = found.group ? "title_index_group" : "title_index";
+                    pageId = found.page_id;
+                    titleId = found.title_id || null;
+                    locusSource = "titles";
+                    confidence = idx.confidence === "low" ? null : idx.confidence;
+                } else if (idx.coverage.ayat > 0) {
+                    status = "covered_no_locus";
+                } else {
+                    status = inService.has(bookId)
+                        ? "indexed_no_entry_for_this_aya"
+                        : "not_indexed_coverage_unknown";
+                }
+            } else if (availability.state === "pending" || availability.state === "not_built") {
+                status = "index_pending";
+                pendingIds.push(bookId);
+            } else {
+                status = inService.has(bookId)
+                    ? "indexed_no_entry_for_this_aya"
+                    : "not_indexed_coverage_unknown";
+            }
         } else if (inService.has(bookId)) {
             status = "indexed_no_entry_for_this_aya";
         } else {
             status = "not_indexed_coverage_unknown";
         }
+
         const printed =
-            status === "indexed_covers" && downloaded && pageId !== null
-                ? await pages.printedPage(bookId, pageId)
-                : null;
+            pageId !== null && downloaded ? await pages.printedPage(bookId, pageId) : null;
         return {
             book_id: bookId,
             book_name: rec?.book_name ?? `(unknown ${bookId})`,
@@ -154,6 +222,9 @@ export async function runListTafsirsForAya(
             status,
             page_id: pageId,
             printed_page: printed,
+            locus_source: locusSource,
+            title_id: titleId,
+            confidence,
         };
     };
 
@@ -171,11 +242,12 @@ export async function runListTafsirsForAya(
         return a.book_id - b.book_id;
     });
 
-    const totals = {
-        indexed_covers: rows.filter((r) => r.status === "indexed_covers").length,
-        indexed_no_entry_for_this_aya: rows.filter((r) => r.status === "indexed_no_entry_for_this_aya").length,
-        not_indexed_coverage_unknown: rows.filter((r) => r.status === "not_indexed_coverage_unknown").length,
-    };
+    // Counted per state on purpose. Collapsing these into one number would
+    // put "we found the verse" and "we could not place it" under one heading.
+    const totals: Record<string, number> = {};
+    for (const key of Object.keys(STATUS_ORDER)) {
+        totals[key] = rows.filter((r) => r.status === key).length;
+    }
 
     const out: ListTafsirsForAyaOutput = {
         aya_id: resolvedId,
@@ -183,29 +255,50 @@ export async function runListTafsirsForAya(
         surah_name: sa.surah_name,
         aya: sa.aya,
         totals,
-        note: COVERAGE_NOTE,
+        index_pending_book_ids: pendingIds,
+        // A caveat written for a reader, not a value a caller branches on, so
+        // it follows the reader's language even though it rides in
+        // structuredContent alongside the ids and the counts.
+        note: pick(listTafsirsForAyaLabels).note,
         books: rows,
     };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(listTafsirsForAyaLabels);
+        const located =
+            (data.totals.indexed_covers ?? 0) +
+            (data.totals.title_index ?? 0) +
+            (data.totals.title_index_group ?? 0);
+        const unlocated =
+            (data.totals.covered_no_locus ?? 0) +
+            (data.totals.indexed_no_entry_for_this_aya ?? 0) +
+            (data.totals.not_indexed_coverage_unknown ?? 0);
         const lines = [
-            header(1, `تغطية تفاسير الآية ${data.surah_name} ${arabize(data.surah)}:${arabize(data.aya)}`),
-            `في الفهرس لهذه الآية: **${arabize(data.totals.indexed_covers)}**، مشارك في الفهرس بلا مدخل لها: **${arabize(data.totals.indexed_no_entry_for_this_aya)}**، غير مفهرس (التغطية غير معلومة): **${arabize(data.totals.not_indexed_coverage_unknown)}**.`,
+            header(1, L.heading(data.surah_name, num(data.surah), num(data.aya))),
+            L.summary(
+                located,
+                unlocated,
+                data.index_pending_book_ids.length
+                    ? L.pendingClause(data.index_pending_book_ids.length)
+                    : "",
+            ),
             "",
             `> *${data.note}*`,
         ];
         for (const status of Object.keys(STATUS_ORDER) as TafsirCoverageStatus[]) {
             const group = data.books.filter((r) => r.status === status);
             if (!group.length) continue;
-            lines.push("", header(3, STATUS_LABEL[status]));
+            lines.push("", header(3, L.statusLabel[status]));
             for (const r of group) {
                 const bits: string[] = [];
-                if (r.author_name) bits.push(`${r.author_name}${r.death_year ? ` (ت ${arabize(r.death_year)}هـ)` : ""}`);
-                if (r.status === "indexed_covers" && r.page_id !== null) {
-                    bits.push(`page_id=${r.page_id}${r.printed_page ? `، ص ${arabize(r.printed_page)}` : ""}`);
+                if (r.author_name) {
+                    bits.push(`${r.author_name}${r.death_year ? L.deathYear(num(r.death_year)) : ""}`);
                 }
-                if (!r.in_tafsir_categories && r.category_name) bits.push(`من تصنيف: ${r.category_name}`);
-                if (!r.downloaded) bits.push("غير منزَّل");
-                lines.push(`- **${r.book_name}**${bits.length ? ` — ${bits.join("؛ ")}` : ""}`);
+                if (r.page_id !== null) {
+                    bits.push(L.pageBit(String(r.page_id), r.printed_page ? num(r.printed_page) : ""));
+                }
+                if (!r.in_tafsir_categories && r.category_name) bits.push(L.fromCategory(r.category_name));
+                if (!r.downloaded) bits.push(L.notDownloaded);
+                lines.push(L.bookLine(r.book_name, bits.join(L.bitSeparator)));
             }
         }
         return lines.join("\n");

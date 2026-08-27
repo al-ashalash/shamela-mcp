@@ -1,19 +1,20 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { bookNotDownloaded, bookNotFound } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore, TocEntry } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getTocLabels } from "../i18n/tools/getToc.js";
+import { requireDownloadedBook } from "../gate.js";
 
 export const getTocInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
     parent_id: z.number().int().min(0).default(0).describe("Title id whose children to expand. 0 (default) returns top-level chapters."),
     depth: z.number().int().min(1).max(5).default(1).describe("How many levels deep to recurse (1–5, default 1)."),
     containing_page_id: z.number().int().positive().optional().describe("Alternate mode: instead of returning a subtree, return the ancestor chain (root → leaf chapter) for this page."),
-    ...ResponseFormatInput,
-};
+    ...ResponseFormatInput };
 export const getTocInput = z.object(getTocInputShape).strict();
 
 export interface TocNode {
@@ -49,8 +50,7 @@ function attachTitles(entries: TocEntry[], titleMap: Map<number, string>): TocNo
         page_id: e.page_id,
         parent_id: e.parent_id,
         has_children: e.has_children,
-        ...(e.children ? { children: attachTitles(e.children, titleMap) } : {}),
-    }));
+        ...(e.children ? { children: attachTitles(e.children, titleMap) } : {}) }));
 }
 
 export async function runGetToc(
@@ -59,9 +59,7 @@ export async function runGetToc(
     pages: PageStore,
     args: z.infer<typeof getTocInput>,
 ): Promise<RenderedResponse<GetTocOutput>> {
-    const rec = catalog.bookRecord(args.book_id);
-    if (!rec) throw bookNotFound(args.book_id);
-    if (rec.major_ondisk === 0) throw bookNotDownloaded(args.book_id, rec.book_name);
+    const rec = requireDownloadedBook(catalog, args.book_id);
 
     let mode: "subtree" | "ancestor_chain";
     let entries: TocEntry[];
@@ -91,21 +89,28 @@ export async function runGetToc(
         parent_id: mode === "subtree" ? args.parent_id : null,
         depth: mode === "subtree" ? args.depth : null,
         titles: mode === "subtree" ? titles : [],
-        ancestor_chain: mode === "ancestor_chain" ? titles : [],
-    };
+        ancestor_chain: mode === "ancestor_chain" ? titles : [] };
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(getTocLabels);
         const lines: string[] = [];
-        lines.push(header(1, `فهرس «${data.book_name}»`));
+        lines.push(header(1, L.heading(data.book_name)));
         if (data.mode === "ancestor_chain") {
-            lines.push("**سلسلة الأبواب** (الجذر → الحالي):");
+            lines.push(L.chainHeading);
             for (const t of data.ancestor_chain) {
-                lines.push(`- ${t.title_text} (title_id=${t.title_id}, page_id=${t.page_id})`);
+                lines.push(L.chainLine(t.title_text, String(t.title_id), String(t.page_id)));
             }
         } else {
             const render = (nodes: TocNode[], indent: number) => {
                 for (const n of nodes) {
+                    // Both numbers on this line are ids the reader types back, so
+                    // both are Latin. The page_id used to be arabized here, and
+                    // that was recorded as a decision to leave the Arabic output
+                    // alone — but the chain branch twelve lines up was already
+                    // printing the same id as page_id=1204, so one tool gave two
+                    // answers for one number, and «(title_id=11, page=١٢٠٤)» had
+                    // one line disagreeing with itself.
                     lines.push(
-                        `${"  ".repeat(indent)}- **${n.title_text || "(بدون عنوان)"}** (title_id=${n.title_id}, page=${arabize(n.page_id)})`,
+                        `${"  ".repeat(indent)}${L.nodeLine(n.title_text || L.untitled, String(n.title_id), String(n.page_id))}`,
                     );
                     if (n.children) render(n.children, indent + 1);
                 }

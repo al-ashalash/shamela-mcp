@@ -1,15 +1,16 @@
 import { z } from "zod";
 
 import type { Catalog } from "../catalog.js";
-import { bookNotDownloaded, bookNotFound } from "../errors.js";
 import type { BookPart, PageStore } from "../pages.js";
 import { ResponseFormatInput } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { getBookPartsLabels } from "../i18n/tools/getBookParts.js";
+import { requireDownloadedBook } from "../gate.js";
 
 export const getBookPartsInputShape = {
     book_id: z.number().int().positive().describe("The book id."),
-    ...ResponseFormatInput,
-};
+    ...ResponseFormatInput };
 export const getBookPartsInput = z.object(getBookPartsInputShape).strict();
 
 export interface GetBookPartsOutput {
@@ -25,9 +26,9 @@ export async function runGetBookParts(
     pages: PageStore,
     args: z.infer<typeof getBookPartsInput>,
 ): Promise<RenderedResponse<GetBookPartsOutput>> {
-    const book = catalog.bookRecord(args.book_id);
-    if (!book) throw bookNotFound(args.book_id);
-    if (book.major_ondisk === 0) throw bookNotDownloaded(args.book_id, book.book_name);
+    // Served from the per-book SQLite file, so a book downloaded during
+    // this session works right away — no Lucene reader involved.
+    const book = requireDownloadedBook(catalog, args.book_id, { needsTextIndex: false });
     const parts = await pages.getBookParts(args.book_id);
     const total = await pages.pageCount(args.book_id);
     const out: GetBookPartsOutput = {
@@ -35,21 +36,21 @@ export async function runGetBookParts(
         book_name: book.book_name,
         is_multi_volume: parts.length > 0,
         total_pages: total,
-        parts,
-    };
+        parts };
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `أجزاء «${data.book_name}»`)];
-        lines.push(`- **مجلَّد متعدِّد الأجزاء؟** ${data.is_multi_volume ? "نعم" : "لا"}`);
-        lines.push(`- **عدد الصفحات الإجمالي**: ${arabize(data.total_pages)}`);
+        const L = pick(getBookPartsLabels);
+        const lines = [header(1, L.heading(data.book_name))];
+        lines.push(`- **${L.multiVolume}** ${data.is_multi_volume ? L.yes : L.no}`);
+        lines.push(`- **${L.totalPages}**: ${num(data.total_pages)}`);
         if (data.parts.length) {
-            lines.push("", header(2, "الأجزاء"));
+            lines.push("", header(2, L.partsHeading));
             for (const p of data.parts) {
                 lines.push(
-                    `- **${p.part}**: ${arabize(p.page_count)} صفحة (page_id ${arabize(p.first_page_id)}–${arabize(p.last_page_id)})`,
+                    L.partLine(p.part, num(p.page_count), String(p.first_page_id), String(p.last_page_id)),
                 );
             }
         } else {
-            lines.push("", "_هذا الكتاب من جزء واحد._");
+            lines.push("", L.singleVolume);
         }
         return lines.join("\n");
     });

@@ -87,7 +87,7 @@ async function main(): Promise<number> {
     const sqlWasm = new Uint8Array(fs.readFileSync(sqlWasmPath));
 
     const helper = new Helper({ paths });
-    const catalog = await Catalog.load(path.join(paths.database, "master.db"), sqlWasm);
+    const catalog = await Catalog.load(path.join(paths.database, "master.db"), sqlWasm, { databaseRoot: paths.database });
     const pages = new PageStore(paths.database, sqlWasm);
     const services = new ServiceStore(paths.database, sqlWasm);
 
@@ -108,8 +108,21 @@ async function main(): Promise<number> {
         check("list_categories contains فقه", fiqhCat !== undefined, fiqhCat ? `id=${fiqhCat.category_id} count=${fiqhCat.book_count}` : "");
 
         // ---------------- 18. list_downloaded_books ----------------
+        // The fixture book must be reachable through the listing wherever it
+        // falls: this library holds hundreds of books, so the first page of the
+        // list is the wrong place to look for one id. Walk to its page.
         const dl = await runListDownloadedBooks(catalog, pages, listDownloadedBooksInput.parse({ limit: 100, offset: 0, response_format: "json" }));
-        check("list_downloaded_books contains 9942", dl.structuredContent.books.some((b) => b.book_id === 9942));
+        check("list_downloaded_books returns books and a total", dl.structuredContent.books.length > 0 && dl.structuredContent.total >= dl.structuredContent.books.length, `total=${dl.structuredContent.total}`);
+        {
+            let found = dl.structuredContent.books.some((b) => b.book_id === 9942);
+            let offset = 100;
+            while (!found && offset < dl.structuredContent.total) {
+                const page = await runListDownloadedBooks(catalog, pages, listDownloadedBooksInput.parse({ limit: 100, offset, response_format: "json" }));
+                found = page.structuredContent.books.some((b) => b.book_id === 9942);
+                offset += 100;
+            }
+            check("list_downloaded_books contains 9942 (walking its pages)", found);
+        }
         const dlMd = await runListDownloadedBooks(
             catalog,
             pages,
@@ -195,9 +208,12 @@ async function main(): Promise<number> {
             pages,
             searchPagesInput.parse({ query: "الكلام", limit: 20, offset: 0, response_format: "json" }),
         );
+        // Unscoped, the count is a fact about however many books this machine
+        // holds; the EXACT anchor of 9 belongs to the scoped call below, which
+        // asks book 9942 alone. Here: at least those nine, and never fewer.
         check(
-            "search_pages('الكلام') == 9 hits",
-            sp.structuredContent.total_hits === 9,
+            "search_pages('الكلام') unscoped >= 9 hits",
+            sp.structuredContent.total_hits >= 9,
             `total=${sp.structuredContent.total_hits}`,
         );
         const covSizes = {

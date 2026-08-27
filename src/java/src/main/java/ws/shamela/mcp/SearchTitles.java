@@ -34,10 +34,12 @@ public final class SearchTitles {
             boolean morphology,
             boolean wildcards
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery);
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(rawQuery, Normalize.Variant.PAGE);
+        List<String> tokens = parsed.tokens();
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("query", rawQuery == null ? "" : rawQuery);
         envelope.put("normalized_tokens", tokens);
+        envelope.put("dropped_tokens", parsed.dropped());
         envelope.put("offset", offset);
 
         if (tokens.isEmpty()) {
@@ -55,10 +57,13 @@ public final class SearchTitles {
         int safeMax = Math.max(1, Math.min(maxResults, 100));
         int safeOffset = Math.max(0, offset);
         long total = searcher.count(q);
-        int fetch = Math.min(safeOffset + safeMax, 5_000);
+        int fetch = Math.min(safeOffset + safeMax, SearchPages.PAGE_CEILING);
         TopDocs top = searcher.search(q, fetch);
 
         Coverage coverage = new Coverage();
+        // The scope is already inside the query here, so counting every match
+        // counts exactly what the caller asked about.
+        boolean fullCoverage = coverage.collectAll(searcher, q);
         List<Map<String, Object>> results = new ArrayList<>();
         int seen = 0;
         for (ScoreDoc sd : top.scoreDocs) {
@@ -75,7 +80,7 @@ public final class SearchTitles {
                 continue;
             }
             // book_key is indexed but not stored — derive it from id.
-            coverage.recordBookKey(idField.substring(0, dash));
+            if (!fullCoverage) coverage.recordBookKey(idField.substring(0, dash));
 
             if (seen++ < safeOffset) continue;
             if (results.size() >= safeMax) continue;
@@ -97,11 +102,18 @@ public final class SearchTitles {
         Map<String, Object> coverageMap = new LinkedHashMap<>();
         coverageMap.put("by_book_key", coverage.snapshot());
         coverageMap.put("total_seen", coverage.total());
+        coverageMap.put("basis", coverage.basis() == Coverage.Basis.ALL_RESULTS ? "all_results" : "window");
 
         envelope.put("total_hits", (int) Math.min(total, Integer.MAX_VALUE));
         envelope.put("returned", results.size());
-        envelope.put("has_more", (long) (safeOffset + results.size()) < total);
-        if ((long) (safeOffset + results.size()) < total) {
+        // Paging stops where fetching does. Computed against the exhaustive
+        // total, has_more stayed true past the 5,000-row ceiling and handed back
+        // the offset it was given — a caller following next_offset never
+        // finished. total_hits still reports every match, so the gap between the
+        // two is visible and the renderers name it.
+        long reachable = Math.min(total, SearchPages.PAGE_CEILING);
+        envelope.put("has_more", (long) (safeOffset + results.size()) < reachable);
+        if ((long) (safeOffset + results.size()) < reachable) {
             envelope.put("next_offset", safeOffset + results.size());
         }
         envelope.put("coverage", coverageMap);

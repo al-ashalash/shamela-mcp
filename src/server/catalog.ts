@@ -8,11 +8,16 @@
  *   categoryById   — category_id → CategoryRecord
  *   booksByAuthor  — author_id → [book_id]  (author_book ∪ coauthor_book)
  *   booksByCategory — category_id → [book_id]  (flat; no transitive)
- *   downloadedBookIds — Set<book_id> where major_ondisk > 0
+ *   downloadedBookIds — Set<book_id> whose per-book file exists on disk (∩ catalog);
+ *                       master.db's major_ondisk is kept separately as an index hint,
+ *                       since a copied or restored library has files but no flags
  */
 
 import * as fs from "node:fs";
 import initSqlJs, { type Database } from "sql.js";
+
+import { UNDATED_BOOK_DATE } from "./constants.js";
+import { DiskIndex } from "./diskIndex.js";
 
 function toArrayBuffer(view: Uint8Array): ArrayBuffer {
     if (view.byteOffset === 0 && view.byteLength === view.buffer.byteLength) {
@@ -44,7 +49,14 @@ export interface BookRecord {
 }
 
 export interface BookMeta {
-    date?: string; // DDMMYYYY Hijri
+    /**
+     * Shamela's stamp for this catalogue entry: eight digits, ddMMyyyy Hijri
+     * (verified against all 8,593 shipped rows). NOT the book's publication
+     * date — every value falls in 1431–1447 AH, and 56% of them are the single
+     * value 08121431, the day the v4 library was seeded. It records when the
+     * entry was added or refreshed.
+     */
+    date?: string;
     group?: number;
     coauthor?: number[];
     prefix?: string;
@@ -76,6 +88,8 @@ export interface ScopeInputData {
     category_ids?: number[];
     period_from?: number;
     period_to?: number;
+    period_basis?: "composed" | "died" | "either";
+    madhhab?: Array<"hanafi" | "maliki" | "shafii" | "hanbali">;
     downloaded_only?: boolean;
 }
 
@@ -83,6 +97,18 @@ export interface ScopeResolution {
     book_ids: number[];
     diagnostics: Array<{ source: string; contributed: number }>;
 }
+
+/**
+ * Shamela files each school's fiqh under its own flat category. These are the
+ * ids on the shipped catalogue; the general-fiqh, fatwa and usul categories are
+ * deliberately NOT in this map — a comparison should not silently absorb them.
+ */
+export const MADHHAB_CATEGORY: Record<"hanafi" | "maliki" | "shafii" | "hanbali", number> = {
+    hanafi: 14,
+    maliki: 15,
+    shafii: 16,
+    hanbali: 17,
+};
 
 // --- Catalog ----------------------------------------------------------------
 
@@ -92,11 +118,28 @@ export class Catalog {
     private readonly categories = new Map<number, CategoryRecord>();
     private readonly _booksByAuthor = new Map<number, Set<number>>();
     private readonly _booksByCategory = new Map<number, Set<number>>();
-    private readonly _downloadedBookIds = new Set<number>();
+    /** Books whose per-book file exists on disk AND that the catalog knows. */
+    private _downloadedBookIds = new Set<number>();
+    /** Books master.db flags as downloaded — an index hint, not the authority. */
+    private readonly _flaggedBookIds = new Set<number>();
+    /** Files on disk with no catalog row; reported, never listed as books. */
+    private readonly _orphanFileIds = new Set<number>();
+    /** Books that appeared after the first scan — Lucene has not indexed them. */
+    private readonly _sessionDiscovered = new Set<number>();
+    private _diskScanFellBack = false;
+    private diskIndex: DiskIndex | null = null;
+    /** book_id → author_ids from coauthor_book, which authors_csv omits. */
+    private readonly _coauthorsByBook = new Map<number, number[]>();
+    /** authors_csv tokens that were not a plain id; surfaced in health. */
+    private _authorsCsvAnomalies = 0;
 
     private constructor() {}
 
-    static async load(masterDbPath: string, wasmBinary: Uint8Array): Promise<Catalog> {
+    static async load(
+        masterDbPath: string,
+        wasmBinary: Uint8Array,
+        opts: { databaseRoot: string; diskIndex?: DiskIndex },
+    ): Promise<Catalog> {
         if (!fs.existsSync(masterDbPath)) {
             throw new Error(`master.db not found at ${masterDbPath}`);
         }
@@ -109,9 +152,33 @@ export class Catalog {
             cat.loadAuthors(db);
             cat.loadBooks(db);
             cat.buildAuthorJoins(db);
+            const idx = opts.diskIndex ?? new DiskIndex(opts.databaseRoot);
+            if (!idx.scanned) idx.scan();
+            cat.applyDiskIndex(idx);
             return cat;
         } finally {
             db.close();
+        }
+    }
+
+    /**
+     * Decide what counts as downloaded: files on disk, intersected with the
+     * catalog so a stray file never surfaces as a nameless book.
+     */
+    private applyDiskIndex(idx: DiskIndex): void {
+        this.diskIndex = idx;
+        for (const id of idx.ids) {
+            if (this.books.has(id)) this._downloadedBookIds.add(id);
+            else this._orphanFileIds.add(id);
+        }
+        // If the book folder could not be listed at all — wrong path,
+        // permissions, a disconnected drive — fall back to the catalog flags.
+        // An empty but readable folder is a genuinely empty library and gets no
+        // fallback; only an unreadable one does, because announcing that the
+        // user's library vanished is worse than a stale flag.
+        if (!idx.rootReadable && this._flaggedBookIds.size > 0) {
+            this._downloadedBookIds = new Set(this._flaggedBookIds);
+            this._diskScanFellBack = true;
         }
     }
 
@@ -142,7 +209,9 @@ export class Catalog {
                 const id = r[0] as number;
                 const death = r[2];
                 const deathYear =
-                    typeof death === "number" && death > 0 && death !== 99999 ? death : null;
+                    typeof death === "number" && death > 0 && death !== UNDATED_BOOK_DATE
+                        ? death
+                        : null;
                 this.authors.set(id, {
                     author_id: id,
                     author_name: (r[1] as string) ?? "",
@@ -172,7 +241,15 @@ export class Catalog {
                     book_name: (r[1] as string) ?? "",
                     book_category: typeof r[2] === "number" ? r[2] : null,
                     book_type: (r[3] as number) ?? 1,
-                    book_date: typeof r[4] === "number" && r[4] > 0 ? r[4] : null,
+                    // 99999 is Shamela's "no date" sentinel, exactly as it is
+                    // for an author's death year above. It used to survive into
+                    // BookRecord, so three call sites filtered it and three did
+                    // not — and a citation printed «٩٩٩٩٩هـ» as a Hijri year.
+                    // Normalised here, once, so no consumer has to know.
+                    book_date:
+                        typeof r[4] === "number" && r[4] > 0 && r[4] !== UNDATED_BOOK_DATE
+                            ? r[4]
+                            : null,
                     authors_csv: (r[5] as string) ?? null,
                     main_author: typeof r[6] === "number" ? r[6] : null,
                     printed: (r[7] as number) ?? 0,
@@ -187,7 +264,7 @@ export class Catalog {
                     parent: typeof r[16] === "number" ? r[16] : null,
                 };
                 this.books.set(bookId, rec);
-                if (rec.major_ondisk > 0) this._downloadedBookIds.add(bookId);
+                if (rec.major_ondisk > 0) this._flaggedBookIds.add(bookId);
                 if (rec.book_category !== null) {
                     let bucket = this._booksByCategory.get(rec.book_category);
                     if (!bucket) {
@@ -210,6 +287,14 @@ export class Catalog {
                     const r = stmt.get();
                     const a = r[0] as number;
                     const b = r[1] as number;
+                    if (table === "coauthor_book") {
+                        const list = this._coauthorsByBook.get(b);
+                        if (list) {
+                            if (!list.includes(a)) list.push(a);
+                        } else {
+                            this._coauthorsByBook.set(b, [a]);
+                        }
+                    }
                     let bucket = this._booksByAuthor.get(a);
                     if (!bucket) {
                         bucket = new Set();
@@ -271,6 +356,82 @@ export class Catalog {
         return this._downloadedBookIds.has(bookId);
     }
 
+    /** master.db's own flag. Kept for reporting; it is not what gates reading. */
+    isFlaggedOnDisk(bookId: number): boolean {
+        return this._flaggedBookIds.has(bookId);
+    }
+
+    flaggedBookCount(): number {
+        return this._flaggedBookIds.size;
+    }
+
+    /**
+     * Check one book's file directly and remember the answer. Costs a stat, so
+     * callers use it only after isDownloaded() said no — which is how a book
+     * that appeared since the scan (copied in, or just downloaded) starts
+     * working without restarting the server.
+     */
+    confirmOnDisk(bookId: number): boolean {
+        if (this._downloadedBookIds.has(bookId)) return true;
+        if (!this.books.has(bookId)) return false;
+        if (!this.diskIndex?.confirm(bookId)) return false;
+        this._downloadedBookIds.add(bookId);
+        this._sessionDiscovered.add(bookId);
+        return true;
+    }
+
+    /** Flagged as downloaded but with no file — an interrupted download or a moved folder. */
+    flaggedFileMissingIds(): number[] {
+        const out: number[] = [];
+        for (const id of this._flaggedBookIds) {
+            if (!this._downloadedBookIds.has(id)) out.push(id);
+        }
+        return out;
+    }
+
+    /** Book files with no catalog row. Diagnostic only; never listed as books. */
+    orphanFileIds(): number[] {
+        return Array.from(this._orphanFileIds);
+    }
+
+    /** True when the disk scan failed and the catalog flags were used instead. */
+    diskScanFellBack(): boolean {
+        return this._diskScanFellBack;
+    }
+
+    authorsCsvAnomalyCount(): number {
+        return this._authorsCsvAnomalies;
+    }
+
+    /**
+     * Books that showed up after the first scan. The Java helper opens Shamela's
+     * Lucene indexes once at startup, so their text is not searchable or
+     * readable until it reopens them — which is why these are tracked at all.
+     */
+    markSessionDiscovered(ids: Iterable<number>): void {
+        for (const id of ids) if (this.books.has(id)) this._sessionDiscovered.add(id);
+    }
+
+    isSessionDiscovered(bookId: number): boolean {
+        return this._sessionDiscovered.has(bookId);
+    }
+
+    sessionDiscoveredIds(): number[] {
+        return Array.from(this._sessionDiscovered);
+    }
+
+    /** Called once the helper has reopened its index readers. */
+    clearSessionDiscovered(): void {
+        this._sessionDiscovered.clear();
+    }
+
+    /** Carry forward books discovered mid-session across a catalog reload. */
+    adoptSessionDiscovered(previous: Catalog): void {
+        for (const id of previous._sessionDiscovered) {
+            if (this.books.has(id)) this._sessionDiscovered.add(id);
+        }
+    }
+
     /** Display name of the book's main author, joining the catalog. */
     mainAuthorName(book: BookRecord): string | null {
         if (book.main_author === null) return null;
@@ -284,12 +445,26 @@ export class Catalog {
         if (book.main_author !== null) ids.push(book.main_author);
         if (book.authors_csv) {
             for (const part of book.authors_csv.split(",")) {
-                const id = parseInt(part.trim(), 10);
-                if (!Number.isNaN(id) && !ids.includes(id)) ids.push(id);
+                const token = part.trim();
+                // parseInt is too forgiving here: "12abc" would become author 12
+                // and "3.7" author 3, attributing the book to the wrong person
+                // without a word. Require the whole token to be a plain id.
+                if (!/^\d{1,9}$/.test(token)) {
+                    if (token) this._authorsCsvAnomalies++;
+                    continue;
+                }
+                const id = Number(token);
+                if (id !== 0 && !ids.includes(id)) ids.push(id);
             }
         }
         if (book.meta_data?.coauthor) {
             for (const id of book.meta_data.coauthor) if (!ids.includes(id)) ids.push(id);
+        }
+        // coauthor_book already feeds booksByAuthor, so scoping a search by an
+        // author returns books this list did not credit them for. One real pair
+        // in the shipped catalog was affected.
+        for (const id of this._coauthorsByBook.get(book.book_id) ?? []) {
+            if (!ids.includes(id)) ids.push(id);
         }
         const out: AuthorRecord[] = [];
         for (const id of ids) {
@@ -321,6 +496,11 @@ export class Catalog {
     /** Iterate all books — for filters that need to scan the whole catalog. */
     allBooks(): IterableIterator<BookRecord> {
         return this.books.values();
+    }
+
+    /** Iterate all authors — for indexes built over the whole catalog. */
+    allAuthors(): IterableIterator<AuthorRecord> {
+        return this.authors.values();
     }
 }
 
@@ -383,24 +563,41 @@ export class CatalogScope {
                 diagnostics.push({ source: "category_ids", contributed: set.size });
                 intersect(set);
             }
+            if (scope.madhhab && scope.madhhab.length) {
+                const set = new Set<number>();
+                for (const school of scope.madhhab) {
+                    for (const b of this.catalog.booksInCategory(MADHHAB_CATEGORY[school])) set.add(b);
+                }
+                diagnostics.push({ source: `madhhab[${scope.madhhab.join(",")}]`, contributed: set.size });
+                intersect(set);
+            }
             if (scope.period_from !== undefined || scope.period_to !== undefined) {
                 const from = scope.period_from ?? 1;
                 const to = scope.period_to ?? 9999;
+                // A book's composition year and its author's death year are
+                // different facts, and answering "what was written in this
+                // century" with the union of both quietly includes books
+                // composed outside it. Default stays the union for
+                // compatibility; callers who care can say which they mean.
+                const basis = scope.period_basis ?? "either";
                 const set = new Set<number>();
-                for (const b of this.catalog.allBooks()) {
-                    if (b.book_date !== null && b.book_date >= from && b.book_date <= to) {
-                        set.add(b.book_id);
+                if (basis !== "died") {
+                    for (const b of this.catalog.allBooks()) {
+                        if (b.book_date !== null && b.book_date >= from && b.book_date <= to) {
+                            set.add(b.book_id);
+                        }
                     }
                 }
-                // Union with books authored by anyone whose death year is in range.
-                const authorIds: number[] = [];
-                for (const a of this.catalog["authors"].values() as IterableIterator<AuthorRecord>) {
-                    if (a.death_year !== null && a.death_year >= from && a.death_year <= to) {
-                        authorIds.push(a.author_id);
+                if (basis !== "composed") {
+                    const authorIds: number[] = [];
+                    for (const a of this.catalog["authors"].values() as IterableIterator<AuthorRecord>) {
+                        if (a.death_year !== null && a.death_year >= from && a.death_year <= to) {
+                            authorIds.push(a.author_id);
+                        }
                     }
+                    for (const b of this.catalog.booksByAuthors(authorIds)) set.add(b);
                 }
-                for (const b of this.catalog.booksByAuthors(authorIds)) set.add(b);
-                diagnostics.push({ source: `period[${from}..${to}]`, contributed: set.size });
+                diagnostics.push({ source: `period[${from}..${to}] by ${basis}`, contributed: set.size });
                 intersect(set);
             }
             if (scope.downloaded_only) {

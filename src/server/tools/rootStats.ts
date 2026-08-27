@@ -11,21 +11,23 @@
  * does (options.morphology = true); no Java changes. This tool deliberately
  * discards the snippet payload and keeps only the aggregation.
  *
- * HONEST CAPS — surfaced in the output so callers don't over-read the numbers:
+ * HONESTY — surfaced in the output so callers don't over-read the numbers:
  *   • `total_hits` is EXACT (Lucene `searcher.count`), i.e. the true number of
  *     pages whose morphological forms include the root.
- *   • The DISTRIBUTION (by_book/category/century/author, and `total_counted`)
- *     is built from at most COVERAGE_CAP (5,000) top-scoring hits on the Java
- *     side. When `coverage_capped` is true the breakdown is a top-5,000 SAMPLE,
- *     not the full population — treat the relative shares as indicative only.
+ *   • The DISTRIBUTION is normally exact too: the Java side counts every
+ *     matching page by book, reading a per-document book number rather than
+ *     the pages themselves. `coverage_basis` says which happened —
+ *     "all_results" for the full count, "window" when the pass was abandoned
+ *     and the numbers describe a sample instead (then `coverage_capped` is
+ *     true and the shares are indicative only).
  *   • Morphology accuracy on classical Arabic is ~0.80, so counts are indicative
  *     of reach, not exact lexical tallies (surfaced in `accuracy_note`).
  *
- * Coverage-streaming trick: the Java side records coverage for every doc in the
- * fetched window, where fetch = min(offset + max_results, 5000). max_results is
- * clamped to 100, so to make the window reach the full 5,000-hit cap we page to
- * a high offset (COVERAGE_CAP - 100) and ignore the returned page rows — only
- * the `coverage` object is used. See SearchPages.java / Coverage.java.
+ * Only the distribution is wanted here, never the page rows, so the request
+ * asks for the smallest page of results the helper will return. When the full
+ * count is unavailable the old trick is still needed — coverage then follows
+ * the fetched window, so the request is repeated with the window opened to the
+ * cap. See SearchPages.java / Coverage.java.
  */
 
 import { z } from "zod";
@@ -35,7 +37,10 @@ import { COVERAGE_CAP, UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../const
 import { emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import { ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { rootStatsLabels } from "../i18n/tools/rootStats.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 export const rootStatsInputShape = {
     root: z
@@ -60,12 +65,15 @@ interface RawCoverage {
     by_book_key: Record<string, number>;
     total_seen: number;
     at_cap: boolean;
+    /** "all_results" when every match was counted, "window" when sampled. */
+    basis?: "all_results" | "window";
 }
 interface RawEnvelope {
     query: string;
     normalized_tokens: string[];
     total_hits: number;
     coverage: RawCoverage;
+    dropped_tokens?: string[];
 }
 
 interface CountItem {
@@ -97,16 +105,21 @@ export interface RootStatsOutput {
      */
     coverage_capped: boolean;
     coverage_cap: number;
-    scope_count: number;
+    /** "all_results" when every matching page was counted; "window" when sampled. */
+    coverage_basis: "all_results" | "window";
+    /** Books the scope resolved to. Absent on an unscoped call — never -1. */
+    scope_count?: number;
     accuracy_note: string;
     by_category: CountItem[];
     by_century: CountItem[];
     by_book: BookCountItem[];
     by_author: CountItem[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
-
-const ACCURACY_NOTE =
-    "المطابقة صرفية عبر محلّل الخليل (يشمل المشتقات)، ودقته على العربية التراثية نحو ٠٫٨٠؛ فاعدد الأعداد مؤشِّرًا على انتشار الجذر لا إحصاءً لفظيًّا دقيقًا. وإجمالي الصفحات (total_hits) دقيق، أمّا التوزيع فيُبنى من أعلى ٥٠٠٠ نتيجة (COVERAGE_CAP) وقد يكون عيّنة عند تجاوز هذا الحدّ (coverage_capped).";
 
 export async function runRootStats(
     helper: Helper,
@@ -127,17 +140,36 @@ export async function runRootStats(
         scopeCount = resolved.book_ids.length;
     }
 
-    // Page to a high offset so the Java coverage window (fetch = min(offset +
-    // max_results, COVERAGE_CAP)) spans the full cap. We ignore the returned
-    // page rows and read only the coverage rollup. max_results is clamped to
-    // 100 on the Java side, so offset = COVERAGE_CAP - 100 lands fetch at the cap.
-    const raw = await helper.request<RawEnvelope>("search_pages", {
+    // Ask for one row, not five thousand: the distribution comes from the
+    // coverage rollup, which now counts every matching page regardless of how
+    // many are returned. Highlighting a page that is thrown away unread is the
+    // most expensive thing this tool could do.
+    let raw = await helper.request<RawEnvelope>("search_pages", {
         query: args.root,
         scope_book_keys: scopeBookKeys,
-        max_results: 100,
-        offset: Math.max(0, COVERAGE_CAP - 100),
+        max_results: 1,
+        offset: 0,
         options: { morphology: true },
     });
+    if (raw.coverage.basis !== "all_results") {
+        // The full pass did not happen, so coverage describes the fetched
+        // window — which one row would make useless. Open the window to the cap
+        // and take the sample, saying so in the output.
+        raw = await helper.request<RawEnvelope>("search_pages", {
+            query: args.root,
+            scope_book_keys: scopeBookKeys,
+            max_results: 100,
+            offset: Math.max(0, COVERAGE_CAP - 100),
+            options: { morphology: true },
+        });
+    }
+    const fullCoverage = raw.coverage.basis === "all_results";
+
+    // `accuracy_note` is a sentence a reader reads, not a value a caller
+    // branches on — `coverage_basis` is what says which case this is. So the
+    // note comes from the slice and follows the language in force, like every
+    // other line of prose this tool emits.
+    const L = pick(rootStatsLabels);
 
     const enriched = enrichDistribution(raw.coverage, catalog);
     const out: RootStatsOutput = {
@@ -148,55 +180,61 @@ export async function runRootStats(
         books_matched: enriched.booksMatched,
         coverage_capped: raw.coverage.at_cap,
         coverage_cap: COVERAGE_CAP,
-        scope_count: scopeCount,
-        accuracy_note: ACCURACY_NOTE,
+        coverage_basis: fullCoverage ? "all_results" : "window",
+        // The renderer already guards on >= 0; the payload leaked the raw -1
+        // sentinel, where it reads as a real count of minus one book.
+        ...(scopeCount >= 0 ? { scope_count: scopeCount } : {}),
+        accuracy_note: fullCoverage ? L.accuracyNoteFull : L.accuracyNoteSample,
         by_category: enriched.byCategory,
         by_century: enriched.byCentury,
         by_book: enriched.byBook,
         by_author: enriched.byAuthor,
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `انتشار الجذر «${data.root}» في المكتبة المنزَّلة`)];
+        const lines = [header(1, L.heading(data.root))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
         lines.push(
-            `**${arabize(data.total_hits)}** صفحة موافقة (بحث صرفي)، احتُسب منها في التوزيع ${arabize(data.total_counted)} من ${arabize(data.books_matched)} كتابًا.`,
+            L.summary(num(data.total_hits), num(data.total_counted), num(data.books_matched)),
         );
-        if (data.scope_count >= 0) lines.push(`النطاق: ${arabize(data.scope_count)} كتاب.`);
+        if (data.scope_count !== undefined) lines.push(L.scope(num(data.scope_count)));
         if (data.coverage_capped) {
-            lines.push(
-                `> تنبيه: التوزيع عيّنة من أعلى ${arabize(data.coverage_cap)} نتيجة (تجاوز الإجمالي الحدّ)، فالأعداد أدناه حدٌّ أدنى ونِسَبها تقريبية.`,
-            );
+            lines.push(L.cappedNote(num(data.coverage_cap)));
         }
         lines.push("");
 
         if (data.by_category.length) {
-            lines.push(header(2, "حسب التصنيف"));
-            for (const c of data.by_category) lines.push(`- ${c.name}: ${arabize(c.count)}`);
+            lines.push(header(2, L.byCategory));
+            for (const c of data.by_category) lines.push(`- ${c.name}: ${num(c.count)}`);
             lines.push("");
         }
         if (data.by_century.length) {
-            lines.push(header(2, "حسب القرن الهجري"));
+            lines.push(header(2, L.byCentury));
             for (const c of data.by_century) {
                 lines.push(
                     c.name === UNDATED_CENTURY_LABEL
-                        ? `- ${c.name}: ${arabize(c.count)}`
-                        : `- القرن ${arabize(c.name)}: ${arabize(c.count)}`,
+                        ? `- ${L.undatedCentury}: ${num(c.count)}`
+                        : L.centuryLine(num(c.name), num(c.count)),
                 );
             }
             lines.push("");
         }
         if (data.by_book.length) {
-            lines.push(header(2, "أكثر الكتب"));
+            lines.push(header(2, L.topBooks));
             for (const b of data.by_book) {
                 const who = b.author_name ? ` — ${b.author_name}` : "";
-                const when = b.book_date ? ` (${arabize(b.book_date)}هـ)` : "";
-                lines.push(`- ${b.book_name}${who}${when}: ${arabize(b.count)} — book_id=${b.book_id}`);
+                const when = b.book_date ? L.bookDate(num(b.book_date)) : "";
+                lines.push(`- ${b.book_name}${who}${when}: ${num(b.count)} — book_id=${b.book_id}`);
             }
             lines.push("");
         }
         if (data.by_author.length) {
-            lines.push(header(2, "أكثر المؤلفين"));
-            for (const a of data.by_author) lines.push(`- ${a.name}: ${arabize(a.count)}`);
+            lines.push(header(2, L.topAuthors));
+            for (const a of data.by_author) lines.push(`- ${a.name}: ${num(a.count)}`);
             lines.push("");
         }
 

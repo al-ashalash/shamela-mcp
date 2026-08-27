@@ -19,3 +19,10 @@ tests/
 tsconfig.json
 vitest.config.ts
 *.mcpb
+
+# Backups of the helper jar. `helper/` is gitignored, so what sits there is
+# whatever the last local build left behind — and a superseded jar rode into
+# the 2.0.0 package this way, forty kilobytes of dead code shipped to every
+# user. The build never reads them; only the packer ever saw them.
+helper/*.bak*
+helper/*.old

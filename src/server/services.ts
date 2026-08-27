@@ -26,6 +26,14 @@ export interface ServiceHit {
 export class ServiceStore {
     private SQL: SqlJsStatic | null = null;
     private readonly databases = new Map<ServiceName, Database>();
+    /**
+     * Service handles are held for the process lifetime with no eviction, so a
+     * download that rewrites e.g. tafseer.db would otherwise be invisible for
+     * the rest of the session. Generation-stamped like the page store: stale
+     * handles are dropped on next use, not closed in a batch.
+     */
+    private generation = 0;
+    private readonly handleGeneration = new Map<ServiceName, number>();
 
     constructor(
         private readonly databaseRoot: string,
@@ -47,15 +55,30 @@ export class ServiceStore {
         return path.join(this.databaseRoot, "service", `${name}.db`);
     }
 
+    /** Drop cached service handles; the next read re-opens from disk. */
+    invalidate(): void {
+        this.generation++;
+    }
+
     private async getDb(name: ServiceName): Promise<Database | null> {
         const cached = this.databases.get(name);
-        if (cached) return cached;
+        if (cached) {
+            if ((this.handleGeneration.get(name) ?? 0) === this.generation) return cached;
+            this.databases.delete(name);
+            this.handleGeneration.delete(name);
+            try {
+                cached.close();
+            } catch {
+                /* ignore */
+            }
+        }
         const p = this.servicePath(name);
         if (!fs.existsSync(p)) return null;
         const SQL = await this.ensureInit();
         try {
             const db = new SQL.Database(new Uint8Array(fs.readFileSync(p)));
             this.databases.set(name, db);
+            this.handleGeneration.set(name, this.generation);
             return db;
         } catch {
             return null;
@@ -80,6 +103,32 @@ export class ServiceStore {
         } finally {
             stmt.free();
         }
+    }
+
+    /**
+     * True when the service table holds no rows at all.
+     *
+     * A key that resolves to nothing has two very different causes — this key
+     * is not in the index, or the index has nothing in it — and the error for
+     * the first is a wrong diagnosis of the second. Cached per service: an
+     * index does not go from populated to empty mid-session.
+     */
+    private emptyCache = new Map<ServiceName, boolean>();
+    async isEmpty(name: ServiceName): Promise<boolean> {
+        const cached = this.emptyCache.get(name);
+        if (cached !== undefined) return cached;
+        const db = await this.getDb(name);
+        let empty = true;
+        if (db) {
+            const stmt = db.prepare("SELECT 1 FROM service LIMIT 1");
+            try {
+                empty = !stmt.step();
+            } finally {
+                stmt.free();
+            }
+        }
+        this.emptyCache.set(name, empty);
+        return empty;
     }
 
     /** Return books participating in this service (downloaded books that contribute key→page pairs). */

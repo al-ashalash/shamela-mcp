@@ -10,8 +10,16 @@ import {
     ScopeInputShape,
     type ScopeInputType,
 } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { depthLimited, depthNote } from "../i18n/tools/paging.js";
+import { catalogueAdvice, noResultsLabels } from "../i18n/tools/noResults.js";
+import { searchBooksLabels } from "../i18n/tools/searchBooks.js";
+import { transliterationLabels } from "../i18n/tools/transliteration.js";
 import { UNDATED_BOOK_DATE, UNDATED_CENTURY_LABEL } from "../constants.js";
+import { RomanIndex } from "../romanIndex.js";
+import { isLatinQuery } from "../romanize.js";
+import { droppedNote } from "../i18n/tools/droppedWords.js";
 
 // scope.book_ids isn't useful when searching the catalog; expose the rest.
 const SearchBooksScopeShape = {
@@ -23,7 +31,7 @@ const SearchBooksScopeShape = {
 };
 
 export const searchBooksInputShape = {
-    query: z.string().min(1).describe("Arabic search phrase matched against the book name + author + bibliography concatenation."),
+    query: z.string().min(1).describe("Arabic search phrase matched against the book name + author + bibliography concatenation. A phrase in Latin letters ('Sahih Muslim', 'al-Mughni') is matched against the Arabic names by spelling instead, and the answer says so."),
     scope: z.object(SearchBooksScopeShape).strict().optional().describe("Optional: restrict to specific authors, categories, periods, or downloaded-only."),
     options: z.object(OptionsInputShape).strict().optional().describe("morphology / wildcards / preserve_*."),
     ...PaginationInput,
@@ -37,6 +45,7 @@ interface RawEnvelope {
     total_hits: number; returned: number; has_more: boolean; next_offset?: number;
     coverage: { by_book_key: Record<string, number>; total_seen: number };
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 
 export interface SearchBookHit {
@@ -53,8 +62,21 @@ export interface SearchBooksOutput {
     total_hits: number; returned: number; offset: number;
     has_more: boolean; next_offset?: number;
     query: string; normalized_tokens: string[];
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
+    /**
+     * The index had nothing for a query written in Latin letters, so these
+     * were reached by matching that spelling against the catalogue's Arabic
+     * names. Candidates to confirm, not index hits.
+     */
+    transliterated?: boolean;
     coverage: { by_category: Record<string, number>; by_century: Record<string, number> };
     results: SearchBookHit[];
+    /**
+     * Words of the query the engine could not take. It accepts five per search
+     * and the rest are dropped, so the results are WIDER than what was asked.
+     */
+    dropped_tokens?: string[];
 }
 
 export async function runSearchBooks(
@@ -63,6 +85,7 @@ export async function runSearchBooks(
     args: z.infer<typeof searchBooksInput>,
 ): Promise<RenderedResponse<SearchBooksOutput>> {
     let scopeBookKeys: string[] | null = null;
+    let scopeIds: Set<number> | null = null;
     if (args.scope) {
         const scopeInput: ScopeInputType = {
             ...(args.scope as ScopeInputType),
@@ -71,6 +94,7 @@ export async function runSearchBooks(
         const resolved = new CatalogScope(catalog).resolveBookIds(scopeInput);
         if (resolved.book_ids.length === 0) throw emptyScope(resolved.diagnostics);
         scopeBookKeys = resolved.book_ids.map(String);
+        scopeIds = new Set(resolved.book_ids);
     }
     // Bug #2 workaround: SearchBooks.java applies scope only as a post-fetch
     // filter on `results`, so the helper's `total_hits` / `has_more` /
@@ -100,9 +124,29 @@ export async function runSearchBooks(
         raw.has_more = end < all.length;
         raw.next_offset = raw.has_more ? end : undefined;
     }
+    // Only once the Arabic index has answered with nothing, and only for a
+    // query with no Arabic in it. A spelling guess must never stand in front
+    // of a real hit — it takes the empty answer, not the good one.
+    const transliterated = raw.total_hits === 0 && isLatinQuery(args.query);
+    let romanKeys: Record<string, number> | null = null;
+    if (transliterated) {
+        let hits = RomanIndex.for(catalog).books(args.query).hits;
+        if (scopeIds) hits = hits.filter((h) => scopeIds!.has(h.book_id));
+        const window = hits.slice(args.offset, args.offset + args.limit);
+        raw.results = window.map((h) => ({ book_id: h.book_id, snippet: "" }));
+        raw.total_hits = hits.length;
+        raw.returned = window.length;
+        raw.offset = args.offset;
+        raw.has_more = args.offset + window.length < hits.length;
+        raw.next_offset = raw.has_more ? args.offset + window.length : undefined;
+        // Coverage describes every match, not the page of it on screen — the
+        // same contract the engine's own coverage carries.
+        romanKeys = {};
+        for (const h of hits) romanKeys[String(h.book_id)] = 1;
+    }
     const byCat: Record<string, number> = {};
     const byCentury: Record<string, number> = {};
-    const items = Object.entries(raw.coverage.by_book_key).sort((a, b) => b[1] - a[1]);
+    const items = Object.entries(romanKeys ?? raw.coverage.by_book_key).sort((a, b) => b[1] - a[1]);
     for (const [k, c] of items) {
         const id = parseInt(k, 10);
         const rec = !Number.isNaN(id) ? catalog.bookRecord(id) : undefined;
@@ -124,7 +168,7 @@ export async function runSearchBooks(
             author_name: rec ? catalog.mainAuthorName(rec) : null,
             category: rec ? catalog.categoryPath(rec.book_category)[0] ?? null : null,
             book_date: rec?.book_date ?? null,
-            downloaded: rec ? rec.major_ondisk > 0 : false,
+            downloaded: rec ? catalog.isDownloaded(rec.book_id) : false,
             snippet: h.snippet,
         };
     });
@@ -133,21 +177,37 @@ export async function runSearchBooks(
         has_more: raw.has_more,
         ...(raw.next_offset !== undefined ? { next_offset: raw.next_offset } : {}),
         query: raw.query, normalized_tokens: raw.normalized_tokens,
+        // No download line here, unlike the page searches: this index holds
+        // every book Shamela knows of, so an empty answer really is about how
+        // the name is spelled.
+        ...(raw.total_hits === 0 ? { suggestions: catalogueAdvice("books") } : {}),
+        ...(transliterated ? { transliterated: true } : {}),
         coverage: { by_category: byCat, by_century: byCentury },
         results,
     };
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
     return renderResponse(out, args.response_format, (data) => {
-        const lines = [header(1, `نتائج البحث في فهرس الكتب: «${data.query}»`)];
-        lines.push(`**${arabize(data.total_hits)}** كتاب موافق، عرض ${arabize(data.returned)}.`);
+        const L = pick(searchBooksLabels);
+        const lines = [header(1, L.heading(data.query))];
+        const trimmedQuery = droppedNote(data);
+        if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
+        lines.push(L.summary(num(data.total_hits), num(data.returned)));
+        if (data.transliterated) lines.push("", `> *${pick(transliterationLabels).note}*`);
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).headingCatalogue);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
+        }
         lines.push("");
         for (const r of data.results) {
-            lines.push(`## ${r.book_name} (id=${r.book_id})${r.downloaded ? " — منزَّل" : ""}`);
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
-            if (r.category) lines.push(`التصنيف: ${r.category}`);
+            lines.push(`## ${r.book_name} (id=${r.book_id})${r.downloaded ? L.downloadedSuffix : ""}`);
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
+            if (r.category) lines.push(`${L.category}: ${r.category}`);
             if (r.snippet) lines.push("", `> ${r.snippet}`);
             lines.push("");
         }
-        if (data.has_more) lines.push(`*للمزيد، استخدم \`offset=${data.next_offset}\`.*`);
+        if (data.has_more) lines.push(L.more(String(data.next_offset)));
+        else if (depthLimited(data)) lines.push(depthNote(data));
         return lines.join("\n");
     });
 }

@@ -71,9 +71,46 @@ export interface PageServices {
     raw?: unknown;
 }
 
+/**
+ * Resolve the on-disk path of a per-book SQLite file, or null when the book is
+ * not on disk.
+ *
+ * Shamela buckets books by `id % 1000`, but the folder NAME differs between
+ * installs: current Shamela 4 builds zero-pad it to three digits
+ * (`book/009/9.db`) while older layouts don't (`book/9/9.db`). The two
+ * spellings only differ when the bucket is < 100 — which is exactly why only
+ * books with `id % 1000 < 100` were misreported as «منزَّل لكن بلا صفحات
+ * مقروءة»: Lucene (written by Shamela itself) had the text, while we probed the
+ * unpadded path, found no file, and silently treated the book as empty. Probe
+ * the padded spelling first (current layout), then the unpadded one (legacy).
+ *
+ * Exported because whether a book is downloaded is now decided by the file's
+ * existence, so the catalog resolves paths too — and one spelling rule shared
+ * between them is the point.
+ */
+export function resolveBookPath(databaseRoot: string, bookId: number): string | null {
+    const bucket = bookId % 1000;
+    const spellings =
+        bucket < 100 ? [String(bucket).padStart(3, "0"), String(bucket)] : [String(bucket)];
+    for (const dir of spellings) {
+        const p = path.join(databaseRoot, "book", dir, `${bookId}.db`);
+        if (fs.existsSync(p)) return p;
+    }
+    return null;
+}
+
 export class PageStore {
     private SQL: SqlJsStatic | null = null;
     private readonly databases = new Map<number, Database>();
+    /**
+     * Bumped by invalidate(). Cached handles hold a byte-image of the file, so a
+     * book Shamela re-downloaded mid-session would keep serving the old text
+     * until LRU eviction. Handles from an older generation are dropped on next
+     * use rather than closed en masse — closing 50 handles at once frees wasm
+     * memory a request already inside ensureInit/readFileSync may wake up on.
+     */
+    private generation = 0;
+    private readonly handleGeneration = new Map<number, number>();
 
     constructor(
         private readonly databaseRoot: string,
@@ -91,20 +128,52 @@ export class PageStore {
         return this.SQL;
     }
 
-    private bookPath(bookId: number): string {
-        const bucket = bookId % 1000;
-        return path.join(this.databaseRoot, "book", String(bucket), `${bookId}.db`);
+    /**
+     * Resolve the on-disk path of a per-book SQLite file, or null when the
+     * book is not downloaded.
+     *
+     * Shamela buckets books by `id % 1000`, but the folder NAME differs
+     * between installs: current Shamela 4 builds zero-pad it to three digits
+     * (`book/009/9.db`) while older layouts don't (`book/9/9.db`). The two
+     * spellings only differ when the bucket is < 100 — which is exactly why
+     * only books with `id % 1000 < 100` were misreported as «منزَّل لكن بلا
+     * صفحات مقروءة»: Lucene (written by Shamela itself) had the text, while
+     * we probed the unpadded path, found no file, and silently treated the
+     * book as empty. Probe the padded spelling first (current layout), then
+     * the unpadded one (legacy).
+     */
+    private bookPath(bookId: number): string | null {
+        return resolveBookPath(this.databaseRoot, bookId);
+    }
+
+    /**
+     * Drop cached book handles so the next read re-opens from disk. Called when
+     * the catalog is reloaded, i.e. when Shamela has changed the library under
+     * us.
+     */
+    invalidate(): void {
+        this.generation++;
     }
 
     private async getDb(bookId: number): Promise<Database | null> {
         const cached = this.databases.get(bookId);
         if (cached) {
+            if ((this.handleGeneration.get(bookId) ?? 0) === this.generation) {
+                this.databases.delete(bookId);
+                this.databases.set(bookId, cached);
+                return cached;
+            }
+            // Stale generation: drop it and fall through to a fresh read.
             this.databases.delete(bookId);
-            this.databases.set(bookId, cached);
-            return cached;
+            this.handleGeneration.delete(bookId);
+            try {
+                cached.close();
+            } catch {
+                /* ignore */
+            }
         }
         const p = this.bookPath(bookId);
-        if (!fs.existsSync(p)) return null;
+        if (p === null) return null;
         const SQL = await this.ensureInit();
         let db: Database;
         try {
@@ -113,11 +182,13 @@ export class PageStore {
             return null;
         }
         this.databases.set(bookId, db);
+        this.handleGeneration.set(bookId, this.generation);
         if (this.databases.size > PER_BOOK_CACHE_LIMIT) {
             const oldestKey = this.databases.keys().next().value;
             if (oldestKey !== undefined) {
                 const oldest = this.databases.get(oldestKey);
                 this.databases.delete(oldestKey);
+                this.handleGeneration.delete(oldestKey);
                 try {
                     oldest?.close();
                 } catch {
@@ -130,7 +201,7 @@ export class PageStore {
 
     /** True if the per-book DB exists on disk (book is downloaded). */
     async hasBook(bookId: number): Promise<boolean> {
-        return fs.existsSync(this.bookPath(bookId));
+        return this.bookPath(bookId) !== null;
     }
 
     /**
@@ -162,6 +233,31 @@ export class PageStore {
             out.set(pageIds[i]!, row ? formatPrintedPage(row) : null);
         });
         return out;
+    }
+
+    /**
+     * Page ids whose PRINTED number is `printed` — the reverse of printedPage.
+     *
+     * Exists for one error, which is the commonest error there is in a citation
+     * carried by hand: «ج ٢ ص ١٤٧» is the printed page, `page_id` is Shamela's
+     * own running count, and the two are different numbers for the same paper.
+     * Handed one where the other was meant, a reader gets a page that exists,
+     * reads nothing like the quote, and concludes the quote is fabricated.
+     * Returned in id order; a printed number repeats across parts, so a book in
+     * volumes legitimately answers with more than one.
+     */
+    async pageIdsForPrintedPage(bookId: number, printed: number): Promise<number[]> {
+        const db = await this.getDb(bookId);
+        if (!db) return [];
+        const stmt = db.prepare("SELECT id FROM page WHERE page = ? ORDER BY id");
+        try {
+            stmt.bind([printed]);
+            const out: number[] = [];
+            while (stmt.step()) out.push(Number(stmt.get()[0]));
+            return out;
+        } finally {
+            stmt.free();
+        }
     }
 
     async getPageRow(bookId: number, pageId: number): Promise<PageRow | null> {
@@ -253,6 +349,36 @@ export class PageStore {
     }
 
     /**
+     * Every row of the title tree, without the text.
+     *
+     * The text of a title is not in this file — it lives in Shamela's search
+     * index — so building a verse index needs the structure from here and the
+     * words from the helper. Returned flat and in id order, which is the order
+     * the book was written in, and which the verse index relies on.
+     */
+    async allTitleRows(
+        bookId: number,
+    ): Promise<Array<{ title_id: number; page_id: number; parent_id: number }>> {
+        const db = await this.getDb(bookId);
+        if (!db) return [];
+        const stmt = db.prepare("SELECT id, page, parent FROM title ORDER BY id");
+        const out: Array<{ title_id: number; page_id: number; parent_id: number }> = [];
+        try {
+            while (stmt.step()) {
+                const r = stmt.get();
+                out.push({
+                    title_id: r[0] as number,
+                    page_id: (r[1] as number) ?? 0,
+                    parent_id: (r[2] as number) ?? 0,
+                });
+            }
+        } finally {
+            stmt.free();
+        }
+        return out;
+    }
+
+    /**
      * Walk the title tree from root to the title that owns `pageId`. Returns
      * the chain of (title_id, parent_id, page_id) entries, root → leaf.
      */
@@ -264,19 +390,48 @@ export class PageStore {
             "SELECT id, page, parent FROM title WHERE page <= ? ORDER BY id DESC LIMIT 1",
         );
         let leafTitleId: number | null = null;
+        let leafTitlePage: number | null = null;
         try {
             findStmt.bind([pageId]);
             if (findStmt.step()) {
-                leafTitleId = findStmt.get()[0] as number;
+                const r = findStmt.get();
+                leafTitleId = r[0] as number;
+                leafTitlePage = r[1] as number;
             }
         } finally {
             findStmt.free();
         }
         if (leafTitleId === null) return [];
 
+        // "The last title at or before this page" assumes chapters run
+        // continuously — and across a volume boundary they do not: a volume's
+        // front matter has no title of its own, so the walk landed on the LAST
+        // chapter of the PREVIOUS volume. Book 147658 page 574 (part "2")
+        // reported containing_titles that all live in part "1", one response
+        // contradicting itself. When the requested page and the title that
+        // would own it sit in different parts, the honest chain is empty.
+        if (leafTitlePage !== null && leafTitlePage !== pageId) {
+            const partOf = async (id: number): Promise<string | null> =>
+                (await this.getPageRow(bookId, id))?.part ?? null;
+            const [pagePart, titlePart] = [await partOf(pageId), await partOf(leafTitlePage)];
+            if (pagePart !== null && titlePart !== null && pagePart !== titlePart) return [];
+        }
+
         const chain: TocEntry[] = [];
         let cursor: number | null = leafTitleId;
         const lookup = db.prepare("SELECT id, page, parent FROM title WHERE id = ?");
+        // The same one-row probe collectToc uses. Hardcoding false here made
+        // the SAME title_id answer has_children differently depending on which
+        // mode of get_toc asked.
+        const childStmt = db.prepare("SELECT 1 FROM title WHERE parent = ? LIMIT 1");
+        const hasChildren = (id: number): boolean => {
+            try {
+                childStmt.bind([id]);
+                return childStmt.step();
+            } finally {
+                childStmt.reset();
+            }
+        };
         try {
             while (cursor !== null && cursor !== 0) {
                 lookup.bind([cursor]);
@@ -293,12 +448,13 @@ export class PageStore {
                     title_id: id,
                     page_id: pg,
                     parent_id: parent,
-                    has_children: false, // doesn't matter for chain
+                    has_children: hasChildren(id),
                 });
                 cursor = parent;
             }
         } finally {
             lookup.free();
+            childStmt.free();
         }
         chain.reverse(); // root → leaf
         return chain;

@@ -33,10 +33,16 @@ import { badArg, emptyScope } from "../errors.js";
 import type { Helper } from "../helper.js";
 import type { PageStore } from "../pages.js";
 import { PaginationInput, ResponseFormatInput, ScopeInputShape, type ScopeInputType } from "../schemas.js";
-import { arabize, header, renderResponse, type RenderedResponse } from "../format.js";
+import { header, renderResponse, type RenderedResponse } from "../format.js";
+import { num, pick } from "../i18n/labels.js";
+import { noResultsLabels, pageSearchAdvice } from "../i18n/tools/noResults.js";
+import { searchExactLabels } from "../i18n/tools/searchExact.js";
 
 // --- Tunable exactness normalizer (pure, local — does NOT touch arabic.ts) ---
 
+// i18n:arabic-data — everything from here to ANY_ARABIC_INDIC_RE is the
+// alphabet this tool operates ON, not wording it shows. Translating any of
+// it would stop the normalisation matching, in every language.
 // Tashkeel, tatweel, dagger-alef, Quranic annotation marks. Mirrors arabic.ts's
 // DIACRITICS_RE so "stripped" behaviour is identical when preserve_diacritics is off.
 const DIACRITICS_RE = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
@@ -45,8 +51,22 @@ const DIACRITICS_RE = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
 const TATWEEL_RE = /ـ/g;
 const HTML_TAG_RE = /<[^>]*>/g;
 
+// Punctuation, Arabic and Latin alike, folded ALWAYS — like tatweel, and for
+// the same reason: it is the edition's furniture, not the author's wording.
+// The exactness this tool enforces is the three axes its flags name
+// (diacritics, hamza, digits); a comma was never one of them, yet an Arabic
+// comma glued to a word used to break the match, because U+060C sits inside
+// the Arabic block and survived every fold. One deliberate exception: the
+// Arabic-Indic numeric separators U+066B/U+066C stay, so «٣٫٥» is not fused
+// into «٣٥». (A Latin period between digits, «3.5», IS folded — after the
+// whitespace collapse both sides fold identically, so matching stays
+// consistent; the cost is «3.5» equalling «35», accepted and noted here.)
+// i18n:arabic-data — the marks themselves.
+const PUNCT_RE = /[،؛؞؟٭۔.,:;!?"'()[\]{}«»„“”‘’…–—-]/g;
+
 // Western 0-9, Arabic-Indic ٠-٩ (U+0660..), Extended Arabic-Indic ۰-۹ (U+06F0..).
 const WESTERN_DIGIT_RE = /[0-9]/g;
+// i18n:arabic-data — the digit systems themselves, mapped to ASCII.
 const ARABIC_INDIC_MAP: Record<string, string> = {
     "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
     "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
@@ -66,7 +86,9 @@ export interface PreserveFlags {
  * not ask to preserve. Both the query and the raw page text go through this
  * SAME function with the SAME flags, so matching is internally consistent.
  *
- * - Always: NFC, strip inline HTML tags, strip tatweel, collapse whitespace.
+ * - Always: NFC, strip inline HTML tags, strip tatweel AND punctuation
+ *   (Arabic and Latin — an editor's comma is not part of the wording),
+ *   collapse whitespace.
  * - preserve_diacritics=false → strip all tashkeel/dagger-alef/Quranic marks.
  * - preserve_hamza=false      → fold آأإٱ→ا, ى→ي, ؤ→و, ئ→ي, ة→ه, drop bare ء.
  * - preserve_digits=false     → unify Arabic-Indic/Extended digits to Western.
@@ -76,12 +98,16 @@ export function normalizeExact(input: string, flags: PreserveFlags): string {
     let s = input.normalize("NFC");
     s = s.replace(HTML_TAG_RE, " ");
     s = s.replace(TATWEEL_RE, ""); // tatweel is always decorative
+    s = s.replace(PUNCT_RE, " "); // punctuation is the editor's, not the author's
     if (!flags.preserve_diacritics) {
         s = s.replace(DIACRITICS_RE, "");
     }
     if (!flags.preserve_hamza) {
         s = s
-            .replace(/[آأإٱ]/g, "ا") // آأإٱ → ا
+            // i18n:arabic-data — the hamza and letter-folding table. This is the
+        // transformation the tool performs; translating it would change what
+        // the search matches, in every language.
+        .replace(/[آأإٱ]/g, "ا") // آأإٱ → ا
             .replace(/ى/g, "ي") // ى → ي
             .replace(/ة/g, "ه") // ة → ه
             .replace(/ؤ/g, "و") // ؤ → و
@@ -198,6 +224,7 @@ interface RawEnvelope {
     returned: number;
     has_more: boolean;
     results: RawHit[];
+    dropped_tokens?: string[];
 }
 interface BatchPage {
     page_id: number;
@@ -222,6 +249,17 @@ export interface ExactHit {
     page_id: number;
     printed_page: string | null;
     matched_in: string[];
+    /**
+     * False when the book's page file is not on disk (issue #47).
+     *
+     * This tool looks as though it could not need the flag: stage 2 re-reads
+     * each candidate page and drops it unless the text is there. But the text
+     * it reads comes from Lucene's STORED fields, not from the book's own file,
+     * so a book whose file has gone still verifies and still comes back — and
+     * came back unmarked, while the same hit from search_pages carried a
+     * warning. One library state, two answers.
+     */
+    readable: boolean;
     snippet: string;
 }
 
@@ -231,7 +269,18 @@ export interface SearchExactOutput {
     total_candidates_scanned: number;
     candidate_cap_hit: boolean;
     returned: number;
+    /** Present only when nothing matched: what to try next. */
+    suggestions?: string[];
     results: ExactHit[];
+    /**
+     * Words the CANDIDATE search could not take — the engine accepts five per
+     * query. Unlike the ordinary searches, this does NOT widen the results:
+     * stage 2 verifies the whole query letter for letter against the raw page
+     * text, dropped words included, so every hit carries all of them. What the
+     * drop can do is thin the candidate pool the verification reads from,
+     * which `candidate_cap_hit` already describes.
+     */
+    dropped_tokens?: string[];
 }
 
 const SEARCH_FIELDS: Array<"body" | "foot"> = ["body", "foot"];
@@ -278,7 +327,7 @@ export async function runSearchExact(
         scope_book_keys: scopeBookKeys,
         max_results: candidateCap,
         offset: 0,
-        options: { search_in: SEARCH_FIELDS },
+        options: { search_in: SEARCH_FIELDS, skip_coverage: true },
     });
     const candidates = raw.results;
     const candidateCapHit = raw.has_more || raw.total_hits > candidates.length;
@@ -302,6 +351,18 @@ export async function runSearchExact(
     // Stage 2: keep only pages whose RAW text contains the query at the requested
     // exactness. We verify against body + foot (the same fields stage 1 searched).
     const results: ExactHit[] = [];
+    // Asked once per book rather than once per hit: confirmOnDisk goes to the
+    // filesystem, and a window of a hundred hits from one missing book would
+    // otherwise stat it a hundred times.
+    const readableByBook = new Map<number, boolean>();
+    const isReadable = (bookId: number): boolean => {
+        let v = readableByBook.get(bookId);
+        if (v === undefined) {
+            v = catalog.isDownloaded(bookId) || catalog.confirmOnDisk(bookId);
+            readableByBook.set(bookId, v);
+        }
+        return v;
+    };
     for (const c of candidates) {
         if (results.length >= args.limit) break;
         const page = text.get(`${c.book_id}:${c.page_id}`);
@@ -330,6 +391,7 @@ export async function runSearchExact(
             page_id: c.page_id,
             printed_page: printed,
             matched_in: matchedFields,
+            readable: isReadable(c.book_id),
             snippet,
         });
     }
@@ -340,33 +402,61 @@ export async function runSearchExact(
         total_candidates_scanned: candidates.length,
         candidate_cap_hit: candidateCapHit,
         returned: results.length,
+        // Two different emptinesses, and the reader needs to be told which one.
+        // No candidate at all means the wording is not in the library; candidates
+        // that all failed verification means it is there, but not in the form the
+        // caller insisted on preserving.
+        ...(results.length === 0
+            ? {
+                  suggestions: pageSearchAdvice({
+                      scopeCount: scopeBookKeys?.length ?? -1,
+                      tokenCount: tokenizeArabic(args.query).length,
+                      toolSpecific:
+                          candidates.length === 0
+                              ? pick(noResultsLabels).exactNoCandidates
+                              : pick(noResultsLabels).exactTooStrict,
+                  }),
+              }
+            : {}),
         results,
     };
 
+    // The engine reports what it could not take; the answer says so.
+    if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
+
     return renderResponse(out, args.response_format, (data) => {
+        const L = pick(searchExactLabels);
         const on: string[] = [];
-        if (data.preserve.preserve_diacritics) on.push("التشكيل");
-        if (data.preserve.preserve_hamza) on.push("الهمزات");
-        if (data.preserve.preserve_digits) on.push("نظام الأرقام");
+        if (data.preserve.preserve_diacritics) on.push(L.diacritics);
+        if (data.preserve.preserve_hamza) on.push(L.hamza);
+        if (data.preserve.preserve_digits) on.push(L.digits);
         const lines = [
-            header(1, `بحث مطابق تمامًا (مع مراعاة ${on.join(" و")}): «${data.query}»`),
+            header(1, L.heading(L.joinFeatures(on), data.query)),
         ];
-        lines.push(
-            `**${arabize(data.returned)}** صفحة مطابقة بالضبط (من ${arabize(data.total_candidates_scanned)} صفحة مرشَّحة فُحصت).`,
-        );
+        // NOT the shared dropped-words sentence: that one says the results are
+        // wider than asked, which is true of every search except this one —
+        // here stage 2 enforces the full text, so the hits are exact and only
+        // the candidate pool was narrowed.
+        if (data.dropped_tokens?.length) lines.push("", `> *${L.candidatesTrimmed(data.dropped_tokens)}*`);
+        lines.push(L.summary(num(data.returned), num(data.total_candidates_scanned)));
         if (data.candidate_cap_hit) {
-            lines.push(
-                "*ملاحظة: عدد الصفحات المرشَّحة تجاوز سقف الفحص؛ ضيِّق النطاق (scope) لتغطية أشمل. (النتائج الظاهرة مؤكَّدة، لكن قد تفوت مطابقاتٌ خارج النافذة.)*",
-            );
+            lines.push(L.capNote);
+        }
+        if (data.suggestions?.length) {
+            lines.push("", pick(noResultsLabels).heading);
+            for (const s of data.suggestions) lines.push(`- ${s}`);
         }
         lines.push("");
         for (const r of data.results) {
             lines.push(
-                `## ${r.book_name}${r.printed_page ? ` (ص ${arabize(r.printed_page)})` : ""} — page_id=${r.page_id}`,
+                `## ${r.book_name}${r.printed_page ? L.printedPage(num(r.printed_page)) : ""} — page_id=${String(r.page_id)}`,
             );
-            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? ` — ${arabize(r.book_date)}هـ` : ""}`);
+            // Under the heading, never in it, and the blank line is load-bearing
+            // — see searchPages for both reasons.
+            if (!r.readable) lines.push(`**${L.unreadableHit}**`, "");
+            if (r.author_name) lines.push(`*${r.author_name}*${r.book_date ? L.bookDate(num(r.book_date)) : ""}`);
             if (r.snippet) {
-                const label = r.matched_in.length === 1 && r.matched_in[0] === "foot" ? "_حاشية_: " : "";
+                const label = r.matched_in.length === 1 && r.matched_in[0] === "foot" ? L.footLabel : "";
                 lines.push("", `> ${label}${r.snippet}`);
             }
             lines.push("");

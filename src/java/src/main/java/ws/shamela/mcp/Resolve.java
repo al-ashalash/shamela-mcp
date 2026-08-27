@@ -33,10 +33,12 @@ public final class Resolve {
             String type,
             int limit
     ) throws IOException {
-        List<String> tokens = Normalize.normalizeQuery(rawQuery);
+        Normalize.QueryTokens parsed = Normalize.normalizeQueryDetailed(rawQuery, Normalize.Variant.PAGE);
+        List<String> tokens = parsed.tokens();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("query", rawQuery == null ? "" : rawQuery);
         out.put("normalized_tokens", tokens);
+        out.put("dropped_tokens", parsed.dropped());
         out.put("books", List.of());
         out.put("authors", List.of());
         if (tokens.isEmpty()) return out;
