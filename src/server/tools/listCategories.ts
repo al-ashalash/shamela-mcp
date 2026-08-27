@@ -15,7 +15,7 @@ export const listCategoriesInputShape = {
         .boolean()
         .default(false)
         .describe(
-            "If true, list only categories where the user has at least one book downloaded locally. Useful to see where this install's library is concentrated across the 41 categories.",
+            "If true, list only categories where the user has at least one book downloaded locally. Useful to see where this install's library is concentrated across the 40 categories.",
         ),
     ...ResponseFormatInput,
 };

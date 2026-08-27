@@ -20,6 +20,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import { Catalog, CatalogScope } from "../../src/server/catalog.js";
 import { PageStore } from "../../src/server/pages.js";
+import { listCategoriesInput, runListCategories } from "../../src/server/tools/listCategories.js";
 import {
     EXPECTED_SCHEMA,
     SYN,
@@ -203,5 +204,50 @@ describe("page reading against real SQLite", () => {
         const toc = await pages.getToc(SYN.PADDED);
         expect(toc.length).toBeGreaterThan(0);
         expect(toc.map((t) => t.page_id)).toContain(80);
+    });
+});
+
+describe("the row in `category` that is not a category", () => {
+    // master.db ships category_id 42, named '#', its category_order the string
+    // '#' as well, holding no books. It came back as a nameless 41st entry of
+    // shamela_list_categories, and scoping a search to it can only ever return
+    // nothing.
+    const listed = () => catalog.listCategories();
+
+    it("is not one of the categories the catalogue lists", () => {
+        expect(listed().map((c) => c.category_name)).not.toContain("#");
+        expect(listed().map((c) => c.category_id)).not.toContain(SYN_CATEGORY.PHANTOM);
+        expect(listed().length).toBe(4);
+    });
+
+    it("leaves health and list_categories unable to disagree", () => {
+        // health prints categoryCount() as «التصنيفات: N» with no qualifier.
+        // If it read the raw table it would say 5 where the tool said 4.
+        expect(catalog.categoryCount()).toBe(listed().length);
+    });
+
+    it("is still resolvable by id, because hiding is not forgetting", () => {
+        // Enumeration drops it; lookup must not, or a book ever filed under it
+        // would lose its category name.
+        expect(catalog.category(SYN_CATEGORY.PHANTOM)?.category_name).toBe("#");
+    });
+
+    it("is absent from list_categories with the counts shown", () => {
+        const args = listCategoriesInput.parse({ include_counts: true, response_format: "json" });
+        const out = runListCategories(catalog, args).structuredContent;
+        expect(out.total).toBe(4);
+        expect(out.categories.map((c) => c.category_name)).not.toContain("#");
+    });
+
+    it("is absent from list_categories with the counts SUPPRESSED", () => {
+        // The trap. With include_counts=false every book_count is null, and
+        // null > 0 is false for every row — so a filter written against the
+        // DISPLAYED field would return zero categories here. This assertion is
+        // the one that catches that mistake.
+        const args = listCategoriesInput.parse({ include_counts: false, response_format: "json" });
+        const out = runListCategories(catalog, args).structuredContent;
+        expect(out.total).toBe(4);
+        expect(out.categories.every((c) => c.book_count === null)).toBe(true);
+        expect(out.categories.map((c) => c.category_name)).not.toContain("#");
     });
 });

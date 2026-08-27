@@ -22,7 +22,7 @@ function makeCatalog(downloaded: number[] = [9942]): Catalog {
     return {
         bookCount: () => 8593,
         authorCount: () => 3188,
-        categoryCount: () => 41,
+        categoryCount: () => 40,
         downloadedBookIds: () => new Set(set),
         flaggedBookCount: () => set.size,
         flaggedFileMissingIds: () => [],

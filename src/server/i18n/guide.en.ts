@@ -81,7 +81,7 @@ You do not need to memorise tool names. Write your request in plain language, as
 
 ### 5. Catalogues and metadata
 
-- **\`shamela_list_categories\`** — every category in the library (41 of them), with how many books each holds and how many of those you have downloaded.
+- **\`shamela_list_categories\`** — every category in the library (40 of them), with how many books each holds and how many of those you have downloaded.
   Example: "Show me the library's categories and how many downloaded books I have in each."
 - **\`shamela_list_downloaded_books\`** — the books actually on this machine, filterable by category and content status.
   Example: "Which books do I have downloaded in the creed category?"
@@ -118,7 +118,7 @@ You do not need to memorise tool names. Write your request in plain language, as
 
     tips: `## Tips for the researcher
 
-**Narrow the scope by category.** The library has 41 categories, and works of tafsir alone are spread across three of them (tafsir; Qur'anic sciences and the principles of tafsir; and tajwid and the readings). Ask for the search to be confined to the right category — "search only the Hanbali fiqh books" — and the results get cleaner and faster.
+**Narrow the scope by category.** The library has 40 categories, and works of tafsir alone are spread across three of them (tafsir; Qur'anic sciences and the principles of tafsir; and tajwid and the readings). Ask for the search to be confined to the right category — "search only the Hanbali fiqh books" — and the results get cleaner and faster.
 
 **Pick the right kind of search.**
 - A word and what derives from it: ask for a "morphological search", and searching for صبر finds صابر, يصبر and اصطبار.

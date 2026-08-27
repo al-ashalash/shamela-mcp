@@ -23,7 +23,7 @@ export const en: Messages = {
 - Search covers only the books downloaded on the user's machine; no results may mean the book is not downloaded rather than that nothing matches.
 - For an exact consecutive phrase, or two words near each other, use shamela_search_phrase rather than shamela_search_pages.
 - Do not flood the user with long text: get_page splits the body (body_part / body_total_parts / body_has_more), and get_pages_range and get_book_section stop at a size budget and return next_start_page_id; when a text runs long, present it in parts or ask the user how they want it (see the _display field).
-- The library is heavily categorised (41 categories; tafsir alone is spread across categories 3, 4 and 5), so narrow searching and browsing with the right category_id.
+- The library is heavily categorised (40 categories; tafsir alone is spread across categories 3, 4 and 5), so narrow searching and browsing with the right category_id.
 - For tafsir: get_tafseer_of_aya uses Shamela's curated index alone, which covers few books; start with shamela_list_tafsirs_for_aya, which adds an index built from the books' own chapter headings and so reaches most of the user's downloaded tafsirs, then shamela_get_tafseer_texts to fetch the texts in one call, attributed.
 - Never rule a hadith sound or weak on your own authority; report only a ruling that came back in a tool result (such as an editor's takhrij in a footnote), attributed to whoever made it.
 - Before searching a question: make sure of how it is phrased and what it is called by the specialists, separate what is known from what is asked, and ask the user for clarification when the question is ambiguous.

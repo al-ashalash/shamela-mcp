@@ -45,7 +45,7 @@ describe("shamela_health when the extension never started (#42)", () => {
         const catalog = {
             bookCount: () => 8593,
             authorCount: () => 3188,
-            categoryCount: () => 41,
+            categoryCount: () => 40,
             downloadedBookIds: () => new Set([1, 2, 3]),
         } as never;
         const r = await runHealth(catalog, null, null, null, args, {

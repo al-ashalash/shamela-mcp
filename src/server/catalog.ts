@@ -191,7 +191,10 @@ export class Catalog {
                 this.categories.set(id, {
                     category_id: id,
                     category_name: (r[1] as string) ?? "",
-                    category_order: (r[2] as number) ?? 0,
+                    // The `#` row's order is the string `#`. `as number` is a
+                    // cast, not a conversion, so without this the declared type
+                    // is a lie and the sort comparator returns NaN for that row.
+                    category_order: typeof r[2] === "number" ? r[2] : 0,
                 });
             }
         } finally {
@@ -322,8 +325,25 @@ export class Catalog {
         return this.categories.get(categoryId);
     }
 
+    /**
+     * The categories a caller can actually browse or scope to.
+     *
+     * master.db's `category` table carries one row that is not a category:
+     * Shamela's own sentinel, `category_id 42`, named `#` — and its
+     * `category_order` is the string `#` as well, so the comparator below
+     * returns NaN for it and the sort silently gives up on that row. It holds
+     * no books, so scoping a search to it could only ever return nothing.
+     *
+     * The filter reads the catalogue's own book index, never the DISPLAYED
+     * book_count — that field is null for every row when include_counts=false,
+     * and a filter written against it would return an empty list. Filtering
+     * here rather than in the tool is also what keeps `categoryCount()` and
+     * `shamela_list_categories` from contradicting each other.
+     */
     listCategories(): CategoryRecord[] {
-        const arr = Array.from(this.categories.values());
+        const arr = Array.from(this.categories.values()).filter(
+            (c) => (this._booksByCategory.get(c.category_id)?.size ?? 0) > 0,
+        );
         arr.sort((a, b) => a.category_order - b.category_order);
         return arr;
     }
@@ -489,8 +509,14 @@ export class Catalog {
         return this.authors.size;
     }
 
+    /**
+     * Categories a caller can browse — deliberately the same set
+     * `listCategories()` returns, so health's "Categories: N" can never
+     * contradict `shamela_list_categories`'s `total`. It is not the row count
+     * of master.db's `category` table, which includes a non-category.
+     */
     categoryCount(): number {
-        return this.categories.size;
+        return this.listCategories().length;
     }
 
     /** Iterate all books — for filters that need to scan the whole catalog. */

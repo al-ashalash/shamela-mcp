@@ -102,7 +102,7 @@ export const SYN = {
 } as const;
 
 export const SYN_AUTHOR = { DATED: 700001, UNDATED: 700002, COAUTHOR: 700003 } as const;
-export const SYN_CATEGORY = { GENERAL: 1, HANAFI: 14, SHAFII: 16, HANBALI: 17 } as const;
+export const SYN_CATEGORY = { GENERAL: 1, HANAFI: 14, SHAFII: 16, HANBALI: 17, PHANTOM: 42 } as const;
 
 export interface SyntheticLibrary {
     /** The `database/` folder, as the extension expects to be handed one. */
@@ -166,6 +166,17 @@ export async function createSyntheticLibrary(): Promise<SyntheticLibrary> {
     for (const c of categories) {
         master.run("INSERT INTO category (category_id, category_name, category_order) VALUES (?, ?, ?)", c);
     }
+    // Not a category. Shamela's real master.db ships category_id 42 named '#',
+    // whose category_order is the string '#' too — SQLite's INTEGER affinity
+    // stores non-numeric text as text — and which holds no books. It is here
+    // so the code that has to hide it is exercised in CI, on a machine with no
+    // Shamela install. Deliberately not SYNTH_MARK-ed: the name is Shamela's
+    // own, one punctuation character, and nothing quotable.
+    master.run("INSERT INTO category (category_id, category_name, category_order) VALUES (?, ?, ?)", [
+        SYN_CATEGORY.PHANTOM,
+        "#",
+        "#",
+    ]);
 
     const authors: Array<[number, string, number, string]> = [
         [SYN_AUTHOR.DATED, `${SYNTH_MARK}مؤلف مؤرَّخ`, 700, "٧٠٠هـ"],
