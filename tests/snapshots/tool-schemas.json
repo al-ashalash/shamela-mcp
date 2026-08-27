@@ -1346,6 +1346,19 @@
           "minimum": 1,
           "type": "integer"
         },
+        "limit": {
+          "default": 50,
+          "description": "Rows to return (1–200, default 50). `totals` always counts the whole shelf, not just this page.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Rows to skip, for paging through the full list.",
+          "minimum": 0,
+          "type": "integer"
+        },
         "response_format": {
           "default": "markdown",
           "description": "Output format for the human-readable text. 'markdown' (default) is best for direct display; 'json' returns the same data as a single JSON code block. The structured data is returned in `structuredContent` regardless of this setting.",
@@ -1376,16 +1389,31 @@
         "complete": {
           "type": "boolean"
         },
+        "has_more": {
+          "type": "boolean"
+        },
         "index_pending_book_ids": {},
+        "index_pending_count": {
+          "type": "number"
+        },
         "indexed_covers": {},
         "indexed_no_entry_for_this_aya": {},
         "not_indexed_coverage_unknown": {},
         "note": {},
+        "offset": {
+          "type": "number"
+        },
+        "returned": {
+          "type": "number"
+        },
         "returned_count": {
           "type": "number"
         },
         "surah": {},
         "surah_name": {},
+        "total": {
+          "type": "number"
+        },
         "total_count": {
           "type": "number"
         },

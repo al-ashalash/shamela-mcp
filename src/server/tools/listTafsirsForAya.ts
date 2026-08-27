@@ -51,6 +51,15 @@ export const listTafsirsForAyaInputShape = {
     aya_id: z.number().int().min(1).max(6236).optional().describe("Aya id 1..6236."),
     surah: z.number().int().min(1).max(114).optional().describe("Surah number, paired with `aya`."),
     aya: z.number().int().min(1).optional().describe("Aya within surah."),
+    // This tool reports one row per book on every downloaded tafsir shelf, and
+    // that is the point — an empty row is evidence. But it shipped with no way
+    // to page, so on a full library it returned 738 rows unconditionally and
+    // overran the response budget every time. The larger the reader's library,
+    // the more certainly the tool failed. `totals` still counts every book, so
+    // paging costs nothing that matters: the coverage claim is carried by the
+    // counts, and `books` is the readable slice of it.
+    limit: z.number().int().min(1).max(200).default(50).describe("Rows to return (1–200, default 50). `totals` always counts the whole shelf, not just this page."),
+    offset: z.number().int().min(0).default(0).describe("Rows to skip, for paging through the full list."),
     ...ResponseFormatInput,
 };
 export const listTafsirsForAyaInput = z.object(listTafsirsForAyaInputShape).strict();
@@ -101,8 +110,21 @@ export interface ListTafsirsForAyaOutput {
     /** One count per state. Summing them into a single number would hide
      *  the difference between a located verse and a book we could not place. */
     totals: Record<string, number>;
-    /** Books left unindexed because this call's build budget ran out. */
+    /** How many books were left unindexed because this call's build budget ran out. */
+    index_pending_count: number;
+    /**
+     * A sample of those books, capped. The full list ran to 587 ids on a real
+     * library and was the single largest thing in the payload — a raw id array
+     * nobody could act on, crowding out the rows that carry meaning. The count
+     * above is the answer to "how many"; these are enough to recognise which.
+     */
     index_pending_book_ids: number[];
+    /** Rows matching this aya across the shelf, before `limit`/`offset`. */
+    total: number;
+    /** Rows in this response. */
+    returned: number;
+    offset: number;
+    has_more: boolean;
     /** Honest coverage caveat: a book neither index places may well comment on the verse. */
     note: string;
     books: TafsirCoverageRow[];
@@ -249,18 +271,28 @@ export async function runListTafsirsForAya(
         totals[key] = rows.filter((r) => r.status === key).length;
     }
 
+    // `totals` is computed over every row above, and stays that way: paging
+    // must not shrink the coverage claim, only the slice being read.
+    const page = rows.slice(args.offset, args.offset + args.limit);
+    const PENDING_SAMPLE = 50;
+
     const out: ListTafsirsForAyaOutput = {
         aya_id: resolvedId,
         surah: sa.surah,
         surah_name: sa.surah_name,
         aya: sa.aya,
         totals,
-        index_pending_book_ids: pendingIds,
+        index_pending_count: pendingIds.length,
+        index_pending_book_ids: pendingIds.slice(0, PENDING_SAMPLE),
+        total: rows.length,
+        returned: page.length,
+        offset: args.offset,
+        has_more: args.offset + page.length < rows.length,
         // A caveat written for a reader, not a value a caller branches on, so
         // it follows the reader's language even though it rides in
         // structuredContent alongside the ids and the counts.
         note: pick(listTafsirsForAyaLabels).note,
-        books: rows,
+        books: page,
     };
     return renderResponse(out, args.response_format, (data) => {
         const L = pick(listTafsirsForAyaLabels);

@@ -7,6 +7,22 @@ export const VERSION = "1.3.0";
 /** Maximum response size in characters before truncation. mcp-builder default. */
 export const CHARACTER_LIMIT = 25_000;
 
+/**
+ * Ceiling on the structured channel, which travels beside the text one and was
+ * never measured until 1.3.0 shipped a 248,000-character payload behind a note
+ * announcing it had been cut to 24,800.
+ *
+ * Deliberately far above CHARACTER_LIMIT. A real page of search hits weighs
+ * 23,000–35,000 characters compact, so budgeting this channel at the text limit
+ * would drop rows out of ordinary searches to buy back room — changing what a
+ * search returns, which is the one thing a size guard must never do. What keeps
+ * a response small is the tool's own `limit`; this only stops a runaway.
+ *
+ * If a tool reaches this ceiling in normal use, its `limit` default is wrong or
+ * it has no `limit` at all. Fix the tool. Do not raise this.
+ */
+export const STRUCTURED_LIMIT = 100_000;
+
 /** Default `limit` for paginated tools. */
 export const DEFAULT_LIMIT = 20;
 

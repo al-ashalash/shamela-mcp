@@ -14,7 +14,7 @@
  *   3. Return `{ content, structuredContent: truncatedPayload }`.
  */
 
-import { CHARACTER_LIMIT } from "./constants.js";
+import { CHARACTER_LIMIT, STRUCTURED_LIMIT } from "./constants.js";
 
 export interface RenderedResponse<T> {
     content: Array<{ type: "text"; text: string }>;
@@ -57,6 +57,10 @@ function deriveCounts(payload: Record<string, unknown>): ResultCounts | null {
               ? payload.total
               : null;
     if (total === null) return null;
+    // `returned` still wins when a tool states it: some tools report a count
+    // for a slice they do not carry in `results`. Keeping it honest after a
+    // trim is fitToBudget's job, and it does it by rewriting the field it can
+    // prove was describing the array it shortened.
     const returned =
         typeof payload.returned === "number"
             ? payload.returned
@@ -69,38 +73,159 @@ function deriveCounts(payload: Record<string, unknown>): ResultCounts | null {
     return { total_count: total, returned_count: returned, complete: !hasMore && offset === 0 };
 }
 
+/**
+ * Measure a payload the way structuredContent actually travels: compact.
+ *
+ * Measuring the indented form instead looks safer and is not. Indentation adds
+ * no information and roughly doubles the count, so budgeting against it drops
+ * rows from ordinary result pages to buy back whitespace — a fifty-row search
+ * came back with thirty-five. The text channel is kept in range by choosing its
+ * spelling below, not by making every payload pay for the widest one.
+ */
+const measure = (payload: unknown): number => JSON.stringify(payload)?.length ?? 0;
+
+interface Fitted<T> {
+    payload: T;
+    /** field name → how many elements were dropped from it. */
+    dropped: Record<string, number>;
+    droppedTotal: number;
+}
+
+/**
+ * Shrink a payload to a byte budget by dropping whole array elements.
+ *
+ * The old truncation sliced the rendered string at a character offset. That cut
+ * mid-word in markdown, which is survivable, and mid-string in JSON, which is
+ * not: a caller who asked for `response_format:"json"` got something that would
+ * not parse. Dropping whole elements instead means every response is still
+ * well-formed in the format it was asked for.
+ *
+ * Elements come off the tail of whichever array is currently largest, 30% at a
+ * time, so a payload with two big lists (rows AND a list of ids) sheds from both
+ * rather than emptying the first while the second holds the budget hostage. One
+ * element is always kept, so the shape of a row stays legible to the caller.
+ *
+ * This is a backstop and should almost never fire. A tool that hits it routinely
+ * is a tool whose `limit` default is wrong, or that has no `limit` at all — the
+ * fix belongs there, not here.
+ */
+function fitToBudget<T extends object>(payload: T, budget: number): Fitted<T> {
+    const dropped: Record<string, number> = {};
+    if (measure(payload) <= budget) return { payload, dropped, droppedTotal: 0 };
+
+    const source = payload as Record<string, unknown>;
+    const clone: Record<string, unknown> = { ...source };
+    /** Shortest a text field is allowed to get before we stop shrinking it. */
+    const STRING_FLOOR = 200;
+    let droppedTotal = 0;
+
+    // Bounded: each pass removes ~30% of the largest shrinkable field, so the
+    // budget is reached in log time. The guard only stops a pathological
+    // payload whose size lives somewhere no trim can reach.
+    for (let pass = 0; pass < 200 && measure(clone) > budget; pass++) {
+        let key: string | null = null;
+        let largest = -1;
+        for (const [k, v] of Object.entries(clone)) {
+            const shrinkable =
+                (Array.isArray(v) && v.length > 1) || (typeof v === "string" && v.length > STRING_FLOOR);
+            if (!shrinkable) continue;
+            const size = measure(v);
+            if (size > largest) {
+                largest = size;
+                key = k;
+            }
+        }
+        if (key === null) break; // nothing left that trimming can shrink
+
+        const value = clone[key];
+        if (Array.isArray(value)) {
+            const keep = Math.max(1, Math.floor(value.length * 0.7));
+            dropped[key] = (dropped[key] ?? 0) + (value.length - keep);
+            droppedTotal += value.length - keep;
+            clone[key] = value.slice(0, keep);
+        } else {
+            // A single long string — a page body, say. Cutting it here keeps
+            // the document well-formed, which slicing the rendered JSON did
+            // not: that produced a value ending mid-character and a document
+            // that would not parse.
+            const text = value as string;
+            const keep = Math.max(STRING_FLOOR, Math.floor(text.length * 0.7));
+            dropped[key] = (dropped[key] ?? 0) + (text.length - keep);
+            droppedTotal += text.length - keep;
+            clone[key] = text.slice(0, keep) + " […]";
+        }
+    }
+
+    // Keep any count field that was describing an array we shortened. Only a
+    // field that matched the array's length before the trim can be proven to
+    // have been about it, so only that one is rewritten — a count that meant
+    // something else is left alone.
+    for (const [key, v] of Object.entries(clone)) {
+        if (!Array.isArray(v) || dropped[key] === undefined) continue;
+        const before = (source[key] as unknown[]).length;
+        for (const countField of ["returned", "returned_count"]) {
+            if (clone[countField] === before) clone[countField] = v.length;
+        }
+    }
+
+    return { payload: clone as T, dropped, droppedTotal };
+}
+
 export function renderResponse<T extends object>(
     payload_: T,
     format: "markdown" | "json",
     renderMarkdown: (data: T) => string,
 ): RenderedResponse<T> {
-    const counts = deriveCounts(payload_ as Record<string, unknown>);
-    const payload = (counts ? { ...payload_, ...counts } : payload_) as T;
-    const text = format === "json" ? JSON.stringify(payload, null, 2) : renderMarkdown(payload);
-    const truncated = enforceCharLimit(text);
-    if (truncated.text === text) {
+    // Fit BEFORE rendering, so both channels describe the same thing. The
+    // previous order rendered the full payload, cut the text, and shipped the
+    // structured copy whole — a response that announced it had been truncated
+    // to 24,800 characters while carrying 248,000 in the channel nobody
+    // measured. Clients that count both rejected the result outright.
+    const fitted = fitToBudget(payload_, STRUCTURED_LIMIT);
+    const counts = deriveCounts(fitted.payload as Record<string, unknown>);
+    const withCounts = (counts ? { ...fitted.payload, ...counts } : fitted.payload) as T;
+
+    const payload =
+        fitted.droppedTotal > 0
+            ? ({
+                  ...withCounts,
+                  truncated: true,
+                  truncation_message: droppedMessage(fitted.dropped),
+              } as T)
+            : withCounts;
+
+    // Indented while it fits, compact when it does not. Both are the same
+    // document and both parse; the indented one is only easier to read. The
+    // compact form is bounded by the budget above, so the JSON text channel
+    // cannot overrun — and never needs the character cut that used to leave it
+    // ending mid-string and unparseable.
+    let text: string;
+    if (format === "json") {
+        const pretty = JSON.stringify(payload, null, 2);
+        text = pretty.length <= CHARACTER_LIMIT ? pretty : JSON.stringify(payload);
+    } else {
+        text = renderMarkdown(payload);
+    }
+
+    // Markdown can still overrun on a payload with no array to shed — one very
+    // long page body, say. Prose survives a character cut; JSON does not, and
+    // by construction it cannot need one, because the payload was fitted to the
+    // pretty-printed size above.
+    if (format !== "json" && text.length > CHARACTER_LIMIT) {
+        const head = text.slice(0, CHARACTER_LIMIT - 200);
+        const message = `\n\n[Response truncated from ${text.length} to ${head.length} characters. Use 'limit' or 'offset' parameters to page through more results, or add a tighter scope to narrow the result set.]`;
         return {
-            content: [{ type: "text", text }],
-            structuredContent: payload,
+            content: [{ type: "text", text: head + message }],
+            structuredContent: { ...payload, truncated: true, truncation_message: message.trim() } as T,
         };
     }
-    // Add truncation flags onto the structured content too so callers can detect.
-    const stamped = {
-        ...payload,
-        truncated: true,
-        truncation_message: truncated.message,
-    };
-    return {
-        content: [{ type: "text", text: truncated.text }],
-        structuredContent: stamped as T,
-    };
+
+    return { content: [{ type: "text", text }], structuredContent: payload };
 }
 
-function enforceCharLimit(text: string): { text: string; message?: string } {
-    if (text.length <= CHARACTER_LIMIT) return { text };
-    const head = text.slice(0, CHARACTER_LIMIT - 200);
-    const message = `\n\n[Response truncated from ${text.length} to ${head.length} characters. Use 'limit' or 'offset' parameters to page through more results, or add a tighter scope to narrow the result set.]`;
-    return { text: head + message, message };
+function droppedMessage(dropped: Record<string, number>): string {
+    const parts = Object.entries(dropped).map(([field, n]) => `${n} from \`${field}\``);
+    return `[Response too large: dropped ${parts.join(", ")}. Counts and totals still describe the whole result set. Use 'limit'/'offset' to page, or a tighter scope.]`;
 }
 
 // --- Markdown helpers -------------------------------------------------------

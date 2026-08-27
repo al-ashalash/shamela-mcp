@@ -271,6 +271,14 @@ export const OUTPUT_SCHEMAS = {
     },
     shamela_list_tafsirs_for_aya: {
         index_pending_book_ids: z.unknown().optional(),
+        index_pending_count: z.number().optional(),
+        // Paging, added because this tool returns one row per book on every
+        // tafsir shelf and had no way to return fewer. `totals` still counts
+        // the whole shelf; these describe the slice in `books`.
+        total: z.number().optional(),
+        returned: z.number().optional(),
+        offset: z.number().optional(),
+        has_more: z.boolean().optional(),
         aya_id: z.unknown().optional(),
         surah: z.unknown().optional(),
         surah_name: z.unknown().optional(),

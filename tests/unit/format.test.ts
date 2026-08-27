@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { CHARACTER_LIMIT } from "../../src/server/constants.js";
+import { CHARACTER_LIMIT, STRUCTURED_LIMIT } from "../../src/server/constants.js";
 import {
     arabize,
     header,
@@ -56,13 +56,32 @@ describe("renderResponse", () => {
         expect(typeof sc.truncation_message).toBe("string");
     });
 
-    it("truncates oversized JSON output too", () => {
-        const big = "x".repeat(CHARACTER_LIMIT * 2);
+    it("keeps oversized JSON output inside the limit, and parseable", () => {
+        // This case used to assert that JSON was truncated the same way
+        // markdown is. It was — by slicing the rendered document at a character
+        // offset, which left it ending mid-string and unparseable. The contract
+        // now is the opposite: a JSON response is never cut mid-token. It is
+        // shrunk structurally if it exceeds STRUCTURED_LIMIT, and rendered
+        // compact rather than indented when indentation would overrun.
+        const big = "x".repeat(STRUCTURED_LIMIT * 2);
         const payload = { results: big };
         const r = renderResponse(payload, "json", () => "");
         expect(r.content[0]!.text.length).toBeLessThan(JSON.stringify(payload, null, 2).length);
+        expect(() => JSON.parse(r.content[0]!.text)).not.toThrow();
         const sc = r.structuredContent as Record<string, unknown>;
         expect(sc.truncated).toBe(true);
+    });
+
+    it("renders JSON compact rather than overrunning the text channel", () => {
+        // Well under STRUCTURED_LIMIT, so nothing is dropped — but the indented
+        // spelling would exceed the text budget, so the compact one is used.
+        const rows = Array.from({ length: 900 }, (_, i) => ({ id: i, name: `اسم ${i}` }));
+        const r = renderResponse({ rows }, "json", () => "");
+        const sc = r.structuredContent as Record<string, unknown>;
+        expect(sc.truncated).toBeUndefined();
+        expect((sc.rows as unknown[]).length).toBe(900);
+        expect(() => JSON.parse(r.content[0]!.text)).not.toThrow();
+        expect(r.content[0]!.text).not.toContain("\n  ");
     });
 });
 
