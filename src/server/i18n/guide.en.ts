@@ -41,7 +41,7 @@ You do not need to memorise tool names. Write your request in plain language, as
   Example: "Show me the chapters whose headings mention fasting."
 - **\`shamela_search_books\`** — search the book catalogue by title, author or bibliographic text; it works even before you have downloaded anything.
   Example: "Does Shamela's catalogue have books on legal maxims?"
-- **\`shamela_search_authors\`** — search the author catalogue by name or biography; when nothing comes back, try the kunya, the nisba or the byname (Ibn Qudama / al-Muwaffaq).
+- **\`shamela_search_authors\`** — search the author catalogue by name or biography; when nothing comes back, try the kunya, the nisba or the byname — joined to the name, not alone: «Ibn Qudama al-Maqdisi» leads with the man, «al-Maqdisi» by itself matches 69 authors.
   Example: "Find Ibn Qudama's biography and when he died."
 
 ### 2. Qur'an and tafsir
@@ -89,7 +89,7 @@ You do not need to memorise tool names. Write your request in plain language, as
   Example: "Give me the details of Majmu' al-Fatawa: its author, its category, and whether I have it."
 - **\`shamela_get_author\`** — an author's details and the list of their books, with the download status of each.
   Example: "Who was Ibn Qudama, and which of his books are in my library?"
-- **\`shamela_resolve\`** — pin down which book or author is meant in Shamela's catalogues from an Arabic name, even a partial one.
+- **\`shamela_resolve\`** — pin down which book or author is meant in Shamela's catalogues from an Arabic name, even one missing some of its words — matching is by whole words, so «قدامة» finds the author while «قدام» finds nothing.
   Example: "I mean al-Sharh al-Mumti' — which book is that exactly in the library?"
 - **\`shamela_get_citation\`** — build a ready citation in three styles: Shamela's default, a short form, or an expanded one.
   Example: "Give me the formatted citation for this page in Shamela's style."

@@ -12,9 +12,11 @@
  *   1. Ask the helper's normalized AND-search (`search_pages`) for candidate
  *      pages where all query words co-occur — fast and wide (the analyzer folds
  *      everything, so this over-fetches on purpose).
- *   2. Fetch each candidate's FULL raw text (`get_pages_batch` returns the
- *      diacritized/hamza-preserving text straight from SQLite — the same source
- *      get_page reads) and, in Node, verify the page actually contains the query
+ *   2. Fetch each candidate's FULL stored text (`get_pages_batch` returns the
+ *      diacritized/hamza-preserving text from the page index's STORED fields —
+ *      the same source get_page reads; the per-book SQLite holds no text at
+ *      all, only page(id, part, page, number, services)) and, in Node, verify
+ *      that the page actually contains the query
  *      at the requested exactness level, using a TUNABLE normalizer that folds
  *      only what the caller did NOT ask to preserve. Keep only pages that pass,
  *      with a snippet drawn from the raw text around the match.

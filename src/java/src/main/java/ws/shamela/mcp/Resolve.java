@@ -18,10 +18,13 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 
 /**
- * resolve — combined autocomplete against s_book/ and s_author/ indexes.
- * Per spec §1.5/§1.6 the s_book/s_author indexes are pre-built n-gram indexes
- * shipped with every Shamela install. They use field "single" for s_book and
- * "author" for s_author (per the Importer code in engine.py).
+ * resolve — whole-word name lookup against the s_book/ and s_author/ indexes.
+ * Per spec §1.6 these are NAME-search indexes, not n-gram indexes: there is no
+ * n-gram tokenizer on disk, so the TermQuery below matches complete indexed
+ * words only and a shortened word finds nothing. Shamela's own UI reaches
+ * substring behaviour by wrapping each word in *...* (spec §4.5); this command
+ * deliberately does not. Fields per spec §1.6: "single" for s_book and
+ * "author" for s_author.
  */
 public final class Resolve {
 

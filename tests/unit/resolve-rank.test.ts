@@ -1,7 +1,7 @@
 /**
  * Rank 1 of a scored list has to be the best match.
  *
- * The engine's n-gram scores are constant within a query — every one of 20
+ * The engine's scores are constant within a query — every one of 20
  * hits for «صحيح البخاري» measured exactly 6.3099747 — so resolve's order
  * collapsed to ascending book_id. At the default limit of 5 the answer was
  * five shurūḥ and selections, and صحيح البخاري itself sat unseen at ranks 7

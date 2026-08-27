@@ -70,7 +70,7 @@ export interface ResolveAuthorHit {
 /**
  * How close a catalogue name is to being the thing the query named.
  *
- * The engine's n-gram scores are constant within a query — measured live,
+ * The engine's scores are constant within a query — measured live,
  * every one of 20 hits for «صحيح البخاري» carried exactly 6.3099747 — so
  * ordering collapsed to ascending id, and at the default limit of 5 the tool
  * returned five shurūḥ and selections while صحيح البخاري itself sat at ranks
