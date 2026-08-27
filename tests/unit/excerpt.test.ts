@@ -69,3 +69,31 @@ describe("excerptAround", () => {
         expect(excerptAround(PAGE, "لا وجود لهذا", 40)).toBeNull();
     });
 });
+
+describe("a phrase wrapped in the edition's punctuation", () => {
+    // The locator kept punctuation while the VERDICT folded it, so any hadith
+    // or nass presented the normal way — «…» "…" ((…)) — was judged present and
+    // then could not be pointed at, and verify_quote's snippet silently fell
+    // back to the head of the page. A correct verdict dressed in unrelated
+    // text is the one failure an anti-fabrication tool must not have.
+    const body = 'قال النبي ﷺ: "إنما الأعمال بالنيات" (٦) وهذا أصل في الباب.';
+
+    it("finds it when the first word is glued to an opening quote", () => {
+        expect(findPhraseOffset(body, "إنما الأعمال بالنيات")).toBeGreaterThan(0);
+    });
+
+    it("puts the phrase inside the window, not the head of the page", () => {
+        const e = excerptAround(body, "إنما الأعمال بالنيات", 40);
+        expect(e).not.toBeNull();
+        expect(e!.text).toContain("الأعمال بالنيات");
+    });
+
+    it("still refuses a phrase that is not there", () => {
+        expect(findPhraseOffset(body, "إنما الأعمال بالخواتيم")).toBeNull();
+    });
+
+    it("never returns the punctuation mark itself as the start", () => {
+        const at = findPhraseOffset(body, "إنما الأعمال بالنيات")!;
+        expect(body[at]).toBe("إ");
+    });
+});

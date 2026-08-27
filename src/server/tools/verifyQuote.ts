@@ -341,7 +341,7 @@ export interface VerifyQuoteOutput {
      * The number given was the printed page, not the page id: the quotation is
      * absent from page_id N and present on the page the edition prints as N.
      */
-    printed_page_confusion?: { given: number; page_ids: number[] };
+    printed_page_confusion?: { given: number; page_ids: number[]; candidates_not_checked?: number };
     locations: QuoteLocation[];
     /** How much was looked at, so a «not found» can be weighed (item 99). */
     searched: { books: number; downloaded_total: number; scoped: boolean };
@@ -508,6 +508,15 @@ export async function runVerifyQuote(
                 offset: 0,
                 options: { search_in: ["body", "foot"] },
             });
+            // The window passes through the same cap as the whole-quote pass,
+            // and a partial/not_found reached this way used to carry no warning
+            // that the examination was cut short — an unflagged denial.
+            if (
+                (part.has_more || part.total_hits > part.results.length) &&
+                !noteKeys.includes("candidates_capped")
+            ) {
+                noteKeys.push("candidates_capped");
+            }
             if (part.results.length) return part.results;
         }
         return [];
@@ -542,15 +551,42 @@ export async function runVerifyQuote(
             claim.printed_page = await pages.printedPage(args.book_id, args.page_id);
             locations = await judge(args.book_id, [args.page_id]);
             if (locations.length === 0) {
-                // The number may have been the printed one all along.
-                const byPrinted = (await pages.pageIdsForPrintedPage(args.book_id, args.page_id))
-                    .filter((id) => id !== args.page_id)
-                    .slice(0, 5);
+                // The number may have been the printed one all along. Twenty
+                // candidates, not five: 13.2% of (book, printed page) pairs in
+                // a real library have more than five page_ids sharing the
+                // number — one per volume — and the old cap of five checked
+                // only the earliest volumes, the wrong end for a citation that
+                // carries a volume number. What still will not fit is said.
+                const allByPrinted = (await pages.pageIdsForPrintedPage(args.book_id, args.page_id))
+                    .filter((id) => id !== args.page_id);
+                const byPrinted = allByPrinted.slice(0, 20);
                 const elsewhere = await judge(args.book_id, byPrinted);
                 if (elsewhere.length) {
-                    confusion = { given: args.page_id, page_ids: elsewhere.map((l) => l.page_id) };
+                    confusion = {
+                        given: args.page_id,
+                        page_ids: elsewhere.map((l) => l.page_id),
+                        ...(allByPrinted.length > byPrinted.length
+                            ? { candidates_not_checked: allByPrinted.length - byPrinted.length }
+                            : {}),
+                    };
                     locations = elsewhere;
                     noteKeys.push("printed_page_confusion");
+                }
+                // item 2 — the page was wrong, but the book may still be right.
+                // The book-wide search sat twelve lines away and was unreachable
+                // once page_id was supplied, so «not_found» here denied
+                // quotations sitting in the very book cited.
+                if (locations.length === 0) {
+                    const hits = await candidatesFor([String(args.book_id)]);
+                    const found = await judge(
+                        args.book_id,
+                        hits.map((r) => r.page_id),
+                    );
+                    if (found.length) {
+                        checked = "claimed_book";
+                        locations = found;
+                        noteKeys.push("not_on_claimed_page");
+                    }
                 }
             }
         } else {
@@ -581,10 +617,20 @@ export async function runVerifyQuote(
             list.push(hit.page_id);
             byBook.set(hit.book_id, list);
         }
+        let booksJudged = 0;
         for (const [bookId, pageIds] of byBook) {
+            booksJudged++;
             locations.push(...(await judge(bookId, pageIds)));
             if (locations.length >= args.limit) break;
         }
+        // What the candidate search covered is the scope; what was READ is
+        // booksJudged. Reporting the scope as «books examined» claimed 770
+        // books were examined on a run that read pages from four. The scope
+        // stays visible in downloaded_total and scoped.
+        // Only when pages were actually read: a «not found» whose candidate
+        // search swept the whole library must still report that sweep, not the
+        // zero books it ended up opening.
+        if (booksJudged > 0) searchedBooks = booksJudged;
     }
 
     // Verbatim first: it is the finding that settles the question, and a reader

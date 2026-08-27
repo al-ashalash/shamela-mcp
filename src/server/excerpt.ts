@@ -26,9 +26,27 @@ export interface Excerpt {
     truncated_after: boolean;
 }
 
-/** Normalised, whitespace-free — the same key shape the verse slicer uses. */
+/**
+ * Punctuation the fold discards — the same set searchExact folds, for the same
+ * reason: the marks are the editor's, not the author's. Kept in lockstep with
+ * the VERDICT's normalisation (normalizeExact): the locator used to keep
+ * punctuation while the verdict folded it, so any quotation wrapped in
+ * «» "" (( )) — the normal presentation of a hadith or a nass in a printed
+ * edition — was judged present and then could not be pointed at, and the
+ * snippet silently fell back to the head of the page.
+ * i18n:arabic-data — the marks themselves.
+ */
+const PUNCT_RE = /[،؛؞؟٭۔.,:;!?"'()[\]{}«»„“”‘’…–—-]/g;
+
+/** Whitespace or punctuation — where a phrase may legitimately begin. */
+function isBoundary(c: string): boolean {
+    PUNCT_RE.lastIndex = 0;
+    return /\s/.test(c) || PUNCT_RE.test(c);
+}
+
+/** Normalised, punctuation- and whitespace-free — matching the verdict's fold. */
 function key(s: string): string {
-    return normalizeArabic(s).replace(/\s+/g, "");
+    return normalizeArabic(s.replace(PUNCT_RE, " ")).replace(/\s+/g, "");
 }
 
 /**
@@ -68,7 +86,16 @@ export function findPhraseOffset(body: string, phrase: string): number | null {
     const window = needle.length * 3 + 16;
     for (let i = 0; i < body.length; i++) {
         if (/\s/.test(body[i]!)) continue;
-        if (i > 0 && !/\s/.test(body[i - 1]!)) continue; // mid-word
+        // Mid-word positions are skipped — but a phrase may begin right after
+        // an opening quote or bracket, so punctuation counts as a boundary,
+        // and a position that IS punctuation is never a phrase start (the
+        // fold would discard it and the offset would point at the mark).
+        // A start position must survive the fold. Punctuation, tatweel and the
+        // honorific ligatures (ﷺ and friends) all normalise to nothing, so a
+        // window opening on one of them still "starts with" the needle — and
+        // the excerpt would open «ﷺ: "» instead of the wording itself.
+        if (key(body[i]!) === "") continue;
+        if (i > 0 && !isBoundary(body[i - 1]!)) continue; // mid-word
         if (key(body.slice(i, i + window)).startsWith(needle)) return i;
     }
     return null;
