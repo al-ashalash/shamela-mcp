@@ -8,7 +8,11 @@
  *
  * Requires JDK 21+ (javac + jar). Searches PATH, JAVA_HOME, then platform
  * defaults: Eclipse Adoptium / Microsoft / Oracle / Corretto on Windows,
- * `/usr/libexec/java_home -v 21` on macOS, `/usr/lib/jvm/*` on Linux.
+ * `/usr/libexec/java_home -v 21` then the Homebrew prefixes on macOS,
+ * `/usr/lib/jvm/*` on Linux.
+ *
+ * Every candidate is accepted only if `javac -version` SUCCEEDS, never because
+ * the file exists. macOS ships /usr/bin/javac as a stub that exists and fails.
  */
 
 import { spawnSync } from "node:child_process";
@@ -31,11 +35,24 @@ function which(cmd) {
     return r.stdout.split(/\r?\n/).find((l) => l.trim().length > 0) ?? null;
 }
 
+/** Does this javac actually compile, or is it a stub that only exists? */
+function javacWorks(binDir) {
+    const exe = binDir ? path.join(binDir, `javac${exeSuffix}`) : `javac${exeSuffix}`;
+    const r = spawnSync(exe, ["-version"], { encoding: "utf8", shell: false });
+    return r.status === 0;
+}
+
 function findJdkBin() {
-    if (which(`javac${exeSuffix}`)) return null; // already on PATH
+    // Being on PATH is not the same as being usable. macOS ships /usr/bin/javac
+    // as a stub that exists, resolves, and fails on invocation with "Unable to
+    // locate a Java Runtime" — so a plain existence check declared victory here
+    // and every search below was skipped. The build then died at the version
+    // check claiming javac was not found "even after PATH adjustment", on a
+    // machine with a working JDK sitting in Homebrew.
+    if (javacWorks(null)) return null; // already on PATH, and it runs
     if (process.env.JAVA_HOME) {
         const candidate = path.join(process.env.JAVA_HOME, "bin", `javac${exeSuffix}`);
-        if (fs.existsSync(candidate)) return path.dirname(candidate);
+        if (fs.existsSync(candidate) && javacWorks(path.dirname(candidate))) return path.dirname(candidate);
     }
     if (isMac) {
         const r = spawnSync("/usr/libexec/java_home", ["-v", "21"], { encoding: "utf8" });
@@ -43,6 +60,30 @@ function findJdkBin() {
             const home = r.stdout.trim();
             if (home && fs.existsSync(path.join(home, "bin", "javac"))) {
                 return path.join(home, "bin");
+            }
+        }
+        // java_home only reports JDKs registered under
+        // /Library/Java/JavaVirtualMachines. Homebrew's openjdk formulae are
+        // keg-only and deliberately not registered there — brew even prints the
+        // `sudo ln -sfn` needed to do it. So java_home fails, and the fallback
+        // list below is Linux-only, which left macOS with a perfectly good JDK
+        // and a build that insisted javac was not installed.
+        const brewCandidates = [
+            "/opt/homebrew/opt/openjdk@21/bin/javac", // Apple Silicon, pinned
+            "/opt/homebrew/opt/openjdk/bin/javac", // Apple Silicon, current
+            "/usr/local/opt/openjdk@21/bin/javac", // Intel, pinned
+            "/usr/local/opt/openjdk/bin/javac", // Intel, current
+        ];
+        for (const candidate of brewCandidates) {
+            if (fs.existsSync(candidate) && javacWorks(path.dirname(candidate))) return path.dirname(candidate);
+        }
+        // Last resort on macOS: read the registry directory ourselves, in case
+        // java_home is missing or refuses a version it can nonetheless see.
+        const jvms = "/Library/Java/JavaVirtualMachines";
+        if (fs.existsSync(jvms)) {
+            for (const entry of fs.readdirSync(jvms)) {
+                const candidate = path.join(jvms, entry, "Contents", "Home", "bin", "javac");
+                if (fs.existsSync(candidate)) return path.dirname(candidate);
             }
         }
     }
@@ -61,12 +102,14 @@ function findJdkBin() {
         if (!fs.existsSync(base)) continue;
         for (const entry of fs.readdirSync(base)) {
             const candidate = path.join(base, entry, "bin", `javac${exeSuffix}`);
-            if (fs.existsSync(candidate)) return path.dirname(candidate);
+            if (fs.existsSync(candidate) && javacWorks(path.dirname(candidate))) return path.dirname(candidate);
         }
     }
     throw new Error(
-        "javac not found. Install JDK 21+ (e.g. `winget install EclipseAdoptium.Temurin.21.JDK` " +
-            "on Windows, `brew install --cask temurin@21` on macOS) or set JAVA_HOME.",
+        "javac not found. Install JDK 21+ — `winget install EclipseAdoptium.Temurin.21.JDK` on " +
+            "Windows, `brew install openjdk@21` on macOS (the temurin@21 cask needs sudo and " +
+            "fails in a non-interactive shell), `apt install openjdk-21-jdk` on Linux — " +
+            "or set JAVA_HOME to a JDK root.",
     );
 }
 
