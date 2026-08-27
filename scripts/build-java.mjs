@@ -95,7 +95,13 @@ function findShamelaInstall() {
             "F:\\shamela4",
         ].filter(Boolean);
     } else if (isMac) {
+        // The macOS build does not use the Windows folder name. It installs to
+        // ~/Library/Application Support/Shamela — capital S, and no "4". Every
+        // candidate here was the Windows spelling, so discovery never found a
+        // real Mac install and the build died telling the developer to set
+        // SHAMELA_INSTALL_ROOT on the one platform where it could have guessed.
         candidates = [
+            path.join(home, "Library", "Application Support", "Shamela"),
             path.join(home, "Library", "Application Support", "shamela4"),
             "/Applications/shamela4",
             path.join(home, "shamela4"),

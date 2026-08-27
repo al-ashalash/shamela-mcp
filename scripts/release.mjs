@@ -7,7 +7,8 @@
  *   1. Working tree clean (no staged or unstaged changes).
  *   2. On `main` branch.
  *   3. Local main is up to date with `origin/main`.
- *   4. manifest.json.version === package.json.version (single source of truth).
+ *   4. All six version references agree with manifest.json (the single source
+ *      of truth), and all twelve landing-page languages carry every block.
  *   5. Tag `v<VERSION>` does NOT already exist locally or on origin.
  *   6. There are commits since the last `v*` tag (refuses to release if HEAD
  *      already === last released tag).
@@ -138,8 +139,18 @@ step("3/8  Up to date with origin/main");
     ok("synced with origin");
 }
 
-step("4/8  manifest.json and package.json versions match");
-ok(`both at ${VERSION}`);
+step("4/8  Every version reference and every landing language agree");
+{
+    // This step used to compare manifest.json against package.json and stop.
+    // Those two are the easy pair — they sit next to each other and get edited
+    // together. The version also lives in constants.ts, the README and the
+    // landing badge, and it is the far ones that rot: 1.3.0 shipped with 2.0.0
+    // still printed on the landing page, because CI ran this check and the
+    // release command did not.
+    run("node", [path.join(repoRoot, "scripts", "check-versions.mjs")]);
+    run("node", [path.join(repoRoot, "scripts", "check-landing-langs.mjs")]);
+    ok(`all references at ${VERSION}, all twelve languages complete`);
+}
 
 step(`5/8  Tag ${TAG} does not already exist`);
 {
