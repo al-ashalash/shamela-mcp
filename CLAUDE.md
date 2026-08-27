@@ -100,20 +100,31 @@ protected and the old "commit and push" step is now refused:
 1. Read the current version from `manifest.json` (single source of truth).
 2. Decide the bump per the rules below; compute the new version `X.Y.Z`.
 3. Update **both** `manifest.json` and `package.json` to `X.Y.Z`.
-4. Branch, commit `release: vX.Y.Z — <one-line summary>`, push the branch,
+4. **Write `docs/release-notes/vX.Y.Z.md`** — in Arabic, as prose for a reader.
+   First line is an H1 carrying the release title:
+   `# vX.Y.Z — <عنوان عربي موجز>`. `docs/release-notes/v1.3.0.md` is the model.
+5. Branch, commit `release: vX.Y.Z — <one-line summary>`, push the branch,
    open a PR, and merge it once CI is green.
-5. `git checkout main && git pull`, then `npm run release`.
+6. `git checkout main && git pull`, then `npm run release`.
 
-**Claude does not run step 5.** `npm run release` publishes to the world and is
+**Release notes are written, never generated.** The readers of this project
+read Arabic, and every release has been written in Arabic. `--generate-notes`
+produced an English list of PR titles for v1.3.0 — which also missed the four
+new tools entirely, because they arrived as commits rather than as pull
+requests, and announced the maintainer as a first-time contributor to his own
+repository. Pre-flight step 9 now refuses to publish without the file, and
+refuses a file with no Arabic in it.
+
+**Claude does not run the final step.** `npm run release` publishes to the world and is
 effectively irreversible — users download the artifact. Claude prepares
-everything up to it (merge, `npm run release:dry` until all eight checks pass,
+everything up to it (merge, `npm run release:dry` until all nine checks pass,
 `npm run pack` + `npm run verify:mcpb` so there is a bundle to test), then hands
 the command over. Do not reach for `git tag` / `gh release create` to work
 around this.
 
-`npm run release` runs eight pre-flight checks (clean tree, on main, in sync
+`npm run release` runs nine pre-flight checks (clean tree, on main, in sync
 with origin, version consistency, tag unused, commits since last tag, vitest
-green, gh authenticated) and refuses on any failure. After pre-flight: packs
+green, gh authenticated, Arabic release notes present) and refuses on any failure. After pre-flight: packs
 the `.mcpb`, creates an annotated tag, pushes it, and publishes a GitHub
 Release with the `.mcpb` attached and auto-generated notes from commits since
 the last release.
