@@ -644,7 +644,7 @@ export async function runVerifyQuote(
         ...(status === "not_found" || status === "partial" ? { suggestions: L.suggestions } : {}),
     };
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["locations"], advice: "limit" }, (data) => {
         const lines = [header(1, L.heading)];
         lines.push(`> ${data.quote}`, "");
         lines.push(L.verdict[data.status]);

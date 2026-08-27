@@ -299,7 +299,7 @@ export async function runResearchScope(
         caveats,
     };
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const lines = [header(1, L.heading(data.terms.map((t) => `«${t}»`).join(" · ")))];
         lines.push(L.searchedLine(num(data.searched.books), num(data.searched.downloaded_total), data.searched.scoped));
         lines.push("", `> *${data.reading_note}*`, "");

@@ -225,7 +225,7 @@ export async function runResolve(
     // The engine reports what it could not take; the answer says so.
     if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["books", "authors"], advice: "limit" }, (data) => {
         const L = pick(resolveLabels);
         const lines: string[] = [header(1, L.heading(data.query))];
         const trimmedQuery = droppedNote(data);

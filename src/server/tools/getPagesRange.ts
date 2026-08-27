@@ -114,7 +114,7 @@ export async function runGetPagesRange(
         _display: display,
         citation_auto_numbered: rec.printed !== 1,
         pages: pagesOut };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "next_page", ownsBudget: true }, (data) => {
         const L = pick(getPagesRangeLabels);
         const lines = [header(1, L.heading(data.book_name, String(data.start_page_id)))];
         if (data.author_name) lines.push(`*${data.author_name}*`);

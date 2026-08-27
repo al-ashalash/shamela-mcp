@@ -61,7 +61,7 @@ export function runGuide(args: z.infer<typeof guideInput>): RenderedResponse<Gui
         text: buildGuideSectionText(section),
         notes,
     };
-    return renderResponse(out, args.response_format, (data) =>
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) =>
         data.notes.length
             ? `${data.notes.map((n) => `> ${n}`).join("\n")}\n\n${data.text}`
             : data.text,

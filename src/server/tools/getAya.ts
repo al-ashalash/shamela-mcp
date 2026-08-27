@@ -63,7 +63,7 @@ export async function runGetAya(
         amiri: raw.amiri,
         majma: raw.majma,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const L = pick(getAyaLabels);
         const lines = [header(1, L.heading(data.surah_name, num(data.surah), num(data.aya)))];
         if (data.body) {

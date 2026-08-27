@@ -114,7 +114,7 @@ export async function runListDownloadedBooks(
         library_by_category: libraryByCategory,
         books,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["books"], counter: "returned", advice: "page" }, (data) => {
         const L = pick(listDownloadedBooksLabels);
         const category = data.filtered_category_id !== null
             ? String(catalog.category(data.filtered_category_id)?.category_name ?? data.filtered_category_id)

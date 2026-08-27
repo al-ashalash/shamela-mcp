@@ -46,7 +46,7 @@ export async function runGetPageServices(
         hadeeth: services?.hadeeth ?? [],
         esnad: services?.esnad ?? [],
         raw: services?.raw ?? null };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const L = pick(getPageServicesLabels);
         // Ids and counts alike stay in Western digits: the ids are typed back into
         // other tools, and the counts were never arabized here — num() would change

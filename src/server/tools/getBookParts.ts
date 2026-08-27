@@ -37,7 +37,7 @@ export async function runGetBookParts(
         is_multi_volume: parts.length > 0,
         total_pages: total,
         parts };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["parts"], advice: "narrow" }, (data) => {
         const L = pick(getBookPartsLabels);
         const lines = [header(1, L.heading(data.book_name))];
         lines.push(`- **${L.multiVolume}** ${data.is_multi_volume ? L.yes : L.no}`);

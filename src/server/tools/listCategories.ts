@@ -61,7 +61,7 @@ export function runListCategories(
         downloaded_total: downloaded.size,
         categories: rows,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["categories"], advice: "narrow" }, (data) => {
         const L = pick(listCategoriesLabels);
         const lines = [
             header(1, L.heading(num(data.total))),

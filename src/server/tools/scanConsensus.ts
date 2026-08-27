@@ -332,7 +332,7 @@ export async function runScanConsensus(
         ...(rows.every((r) => r.pages === 0) ? { suggestions: L.suggestions } : {}),
     };
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["formulas"], advice: "narrow" }, (data) => {
         const lines = [header(1, L.heading(data.question))];
         lines.push(L.subjectLine(num(data.subject_pages), num(data.searched.books), data.searched.scoped));
         lines.push("", `> *${data.reading_note}*`);

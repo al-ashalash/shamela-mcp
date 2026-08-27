@@ -215,7 +215,7 @@ export async function runGetBook(
         sub_books: rec.meta_data?.sub_books ?? [],
         notes,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const lines = [header(1, data.book_name)];
         lines.push(`- **${L.bookId}**: ${data.book_id}`);
         if (data.authors.length) {

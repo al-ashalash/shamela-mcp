@@ -59,7 +59,7 @@ export function runGetAuthor(
         book_count: bookIds.length,
         books,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["books"], advice: "narrow" }, (data) => {
         const L = pick(getAuthorLabels);
         const lines = [header(1, data.author_name)];
         lines.push(`- **${L.authorId}**: ${data.author_id}`);

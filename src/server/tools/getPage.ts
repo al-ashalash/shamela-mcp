@@ -205,7 +205,7 @@ export async function runGetPage(
             page: row?.page ?? null,
         }),
         citation_auto_numbered: rec.printed !== 1 };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "body_part", ownsBudget: true }, (data) => {
         const L = pick(getPageLabels);
         const lines: string[] = [];
         lines.push(header(1, `${data.book_name}${data.printed_page ? ` (${L.printedPage(num(data.printed_page))})` : ""}`));

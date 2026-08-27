@@ -62,7 +62,10 @@ describe("search results come back in Shamela's order", () => {
 
     it("orders pages by composition year, oldest first", async () => {
         const out = await pageSearch("الخيار المجلس", { limit: 30 });
-        expect(out.returned).toBe(30);
+        // The response budget may trim the page below 30; what is pinned here
+        // is the ORDER of whatever came back, and that the envelope counts it.
+        expect(out.returned).toBe(out.results.length);
+        expect(out.returned).toBeGreaterThanOrEqual(15);
         expect(nonDecreasing(out.results.map((r) => r.book_date))).toBe(true);
     }, 120_000);
 

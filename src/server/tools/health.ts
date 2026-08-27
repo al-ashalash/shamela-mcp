@@ -233,7 +233,7 @@ export async function runHealth(
         aya_index: ayaIndex?.stats() ?? null,
         notes,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const L = pick(healthLabels);
         const lines = [
             header(1, L.heading(data.status === "ok" ? L.ok : L.degraded)),
@@ -336,7 +336,7 @@ function notStarted(
         aya_index: null,
         notes: [],
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const L = pick(healthLabels);
         const lines = [header(1, L.notStartedHeading)];
         lines.push(L.notStartedLead(data.startup_error?.code ?? ""));

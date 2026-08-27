@@ -402,14 +402,18 @@ describe("paging must end — the five-thousand-row ceiling", () => {
         const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
             query: COMMON,
             limit: 100,
-            offset: CEILING - 50,
+            // Ten rows, not fifty: the response budget (format.ts) would trim a
+            // fifty-row page below the ceiling and re-point next_offset at the
+            // cut — correct paging, but it would hide what THIS test pins down,
+            // which is the ceiling itself.
+            offset: CEILING - 10,
             response_format: "json",
         }));
         const sc = out.structuredContent;
         expect(sc.total_hits).toBeGreaterThan(CEILING);
         // Exactly the rows between the offset and the ceiling, and no invitation
         // to ask for more.
-        expect(sc.returned).toBe(50);
+        expect(sc.returned).toBe(10);
         expect(sc.has_more).toBe(false);
         expect(sc.next_offset).toBeUndefined();
     }, 120_000);
@@ -421,7 +425,7 @@ describe("paging must end — the five-thousand-row ceiling", () => {
         const out = await runSearchPages(helper, catalog, pages, searchPagesInput.parse({
             query: COMMON,
             limit: 100,
-            offset: CEILING - 50,
+            offset: CEILING - 10, // under the wire budget — see the test above
         }));
         expect(out.structuredContent.has_more).toBe(false);
         expect(out.content[0]!.text).toContain("بلغ التصفّح أقصى عمقه");

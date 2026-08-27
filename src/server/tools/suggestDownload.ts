@@ -212,7 +212,7 @@ export function runSuggestDownload(
         notes,
     };
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["results"], counter: "returned", advice: "limit" }, (data) => {
         const lines = [header(1, data.query ? L.headingQuery(data.query) : L.headingAll)];
         lines.push(
             L.summary(

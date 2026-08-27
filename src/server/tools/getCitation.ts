@@ -140,7 +140,7 @@ export async function runGetCitation(
         components,
         notes,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const L = pick(getCitationLabels);
         const lines = [header(1, L.heading)];
         lines.push("```");

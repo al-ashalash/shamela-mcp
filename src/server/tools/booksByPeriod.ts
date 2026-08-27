@@ -225,7 +225,7 @@ export async function runBooksByPeriod(
         books: slice,
     };
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["books", "book_ids"], counter: "returned", advice: "page" }, (data) => {
         const L = pick(booksByPeriodLabels);
         const f = data.filter;
         const parts: string[] = [];

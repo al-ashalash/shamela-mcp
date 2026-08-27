@@ -99,7 +99,7 @@ export async function runGetTafseerOfAya(
         coverage_note: L.coverageNote,
         results,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["results"], counter: "returned", advice: "narrow" }, (data) => {
         const lines = [
             header(1, L.heading(data.surah_name, num(data.surah), num(data.aya))),
             L.summary(num(data.total), num(data.returned)),

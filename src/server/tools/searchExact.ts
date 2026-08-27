@@ -426,7 +426,7 @@ export async function runSearchExact(
     // The engine reports what it could not take; the answer says so.
     if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["results"], counter: "returned", advice: "limit" }, (data) => {
         const L = pick(searchExactLabels);
         const on: string[] = [];
         if (data.preserve.preserve_diacritics) on.push(L.diacritics);

@@ -271,6 +271,11 @@ export const OUTPUT_SCHEMAS = {
     },
     shamela_list_tafsirs_for_aya: {
         index_pending_book_ids: z.unknown().optional(),
+        total: z.number().optional(),
+        returned: z.number().optional(),
+        offset: z.number().optional(),
+        has_more: z.boolean().optional(),
+        next_offset: z.unknown().optional(),
         aya_id: z.unknown().optional(),
         surah: z.unknown().optional(),
         surah_name: z.unknown().optional(),

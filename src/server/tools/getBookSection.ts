@@ -117,7 +117,7 @@ export async function runGetBookSection(
         next_start_page_id: moreInSection ? lastId + 1 : null,
         _display: display,
         pages: pagesOut };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "next_page", ownsBudget: true }, (data) => {
         const lines = [
             header(1, `${data.book_name} — ${data.title_text || L.untitled}`),
             data.author_name ? `*${data.author_name}*` : "",

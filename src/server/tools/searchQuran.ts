@@ -240,7 +240,7 @@ export async function runSearchQuran(
     // The engine reports what it could not take; the answer says so.
     if (droppedTokens.length) out.dropped_tokens = droppedTokens;
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["results"], counter: "returned", advice: "page" }, (data) => {
         const L = pick(searchQuranLabels);
         const lines = [header(1, L.heading(data.query))];
         const trimmedQuery = droppedNote(data);

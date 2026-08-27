@@ -482,7 +482,7 @@ export async function runGetTafseerTexts(
         _display: display,
         note: L.coverageNote,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "sources", ownsBudget: true }, (data) => {
         const lines = [
             header(1, L.heading(data.surah_name, num(data.surah), num(data.aya))),
             L.summary(

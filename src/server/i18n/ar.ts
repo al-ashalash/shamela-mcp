@@ -97,6 +97,27 @@ export const ar = {
         status: { title: "حالة خادم الشاملة", description: "فحص ذاتي: النسخة والعدّادات وقابلية القراءة." },
     },
 
+    /**
+     * ما يُقال حين لا تسع الاستجابةُ حدَّ الحجم.
+     *
+     * وتفصيلُ الاختيار في `TruncationAdvice` في format.ts: لكل أداةٍ سبيلُها
+     * الذي تملكه فعلًا، لا جملةٌ واحدةٌ تحيل الجميعَ إلى limit وoffset.
+     */
+    truncation: {
+        trimmed: (kept: string, total: string, advice: string) =>
+            `[اقتُطعت الاستجابة لتقع في حدّ الحجم: أُعيد ${kept} من ${total}. ${advice}]`,
+        overLimit: (advice: string) =>
+            `[تجاوزت الاستجابة حدّ الحجم، ولا قائمةَ فيها يصحّ اقتطاعها. ${advice}]`,
+        advice: {
+            page: "للبقية أعد الطلب بـ offset مساويًا لـ next_offset في هذه الاستجابة، مع limit أصغر.",
+            limit: "لا تصفُّحَ بالإزاحة في هذه الأداة؛ صغِّر limit أو ضيِّق الطلب.",
+            body_part: "اطلب الجزء التالي من المتن بـ body_part.",
+            next_page: "تابع من next_start_page_id في هذه الاستجابة، أو اطلب صفحاتٍ أقلّ.",
+            sources: "مرِّر remaining_book_ids في book_ids لجلب البقية، أو صغِّر max_sources.",
+            narrow: "لا تصفُّح في هذه الأداة؛ فالسبيلُ تضييقُ الطلب نفسه — نطاقٌ أضيق، أو تصنيفٌ واحد، أو كتبٌ معيَّنة، أو خيارٌ يقلّ ما يُجلب.",
+        },
+    },
+
     errors: {
         bookNotFound: (bookId: number) => `الكتاب رقم ${bookId} غير موجود في الفهرس.`,
         bookNotDownloaded: (name: string) =>

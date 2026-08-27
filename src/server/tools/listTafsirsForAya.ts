@@ -7,7 +7,7 @@ import { ayaIdFromSurahAya, surahAyaFromId } from "../quran.js";
 import type { AyaIndexStore } from "../ayaIndex/store.js";
 import { locateAya } from "../ayaIndex/build.js";
 import type { Helper } from "../helper.js";
-import { ResponseFormatInput } from "../schemas.js";
+import { PaginationInput, ResponseFormatInput } from "../schemas.js";
 import type { ServiceStore } from "../services.js";
 import { header, renderResponse, type RenderedResponse } from "../format.js";
 import { num, pick } from "../i18n/labels.js";
@@ -51,6 +51,11 @@ export const listTafsirsForAyaInputShape = {
     aya_id: z.number().int().min(1).max(6236).optional().describe("Aya id 1..6236."),
     surah: z.number().int().min(1).max(114).optional().describe("Surah number, paired with `aya`."),
     aya: z.number().int().min(1).optional().describe("Aya within surah."),
+    // The coverage picture is `totals`, which counts every book whatever the
+    // page. Only the per-book ROWS page, so a caller who wants the summary
+    // never has to page at all — and a library of three hundred tafsirs no
+    // longer answers in a quarter of a million characters.
+    ...PaginationInput,
     ...ResponseFormatInput,
 };
 export const listTafsirsForAyaInput = z.object(listTafsirsForAyaInputShape).strict();
@@ -98,8 +103,16 @@ export interface ListTafsirsForAyaOutput {
     surah: number;
     surah_name: string;
     aya: number;
-    /** One count per state. Summing them into a single number would hide
-     *  the difference between a located verse and a book we could not place. */
+    /** Books on the tafsir shelves, whatever page of rows this is. */
+    total: number;
+    /** Rows in this response. */
+    returned: number;
+    offset: number;
+    has_more: boolean;
+    next_offset?: number;
+    /** One count per state, over ALL books — never only this page. Summing them
+     *  into a single number would hide the difference between a located verse
+     *  and a book we could not place. */
     totals: Record<string, number>;
     /** Books left unindexed because this call's build budget ran out. */
     index_pending_book_ids: number[];
@@ -249,20 +262,32 @@ export async function runListTafsirsForAya(
         totals[key] = rows.filter((r) => r.status === key).length;
     }
 
+    // Counted over every row, then sliced: `totals` above is the answer to
+    // «which of my tafsirs cover this verse», and it must not shrink with the
+    // page. The rows are already sorted by STATUS_ORDER, so paging walks the
+    // states in order rather than scattering them.
+    const page = rows.slice(args.offset, args.offset + args.limit);
+    const hasMore = args.offset + page.length < rows.length;
+
     const out: ListTafsirsForAyaOutput = {
         aya_id: resolvedId,
         surah: sa.surah,
         surah_name: sa.surah_name,
         aya: sa.aya,
+        total: rows.length,
+        returned: page.length,
+        offset: args.offset,
+        has_more: hasMore,
+        ...(hasMore ? { next_offset: args.offset + page.length } : {}),
         totals,
         index_pending_book_ids: pendingIds,
         // A caveat written for a reader, not a value a caller branches on, so
         // it follows the reader's language even though it rides in
         // structuredContent alongside the ids and the counts.
         note: pick(listTafsirsForAyaLabels).note,
-        books: rows,
+        books: page,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["books"], counter: "returned", advice: "page" }, (data) => {
         const L = pick(listTafsirsForAyaLabels);
         const located =
             (data.totals.indexed_covers ?? 0) +

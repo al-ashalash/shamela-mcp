@@ -90,7 +90,7 @@ export async function runGetToc(
         depth: mode === "subtree" ? args.depth : null,
         titles: mode === "subtree" ? titles : [],
         ancestor_chain: mode === "ancestor_chain" ? titles : [] };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["titles", "ancestor_chain"], advice: "narrow" }, (data) => {
         const L = pick(getTocLabels);
         const lines: string[] = [];
         lines.push(header(1, L.heading(data.book_name)));

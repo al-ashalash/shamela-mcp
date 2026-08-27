@@ -7,12 +7,17 @@ import {
     meta,
     renderResponse,
     stripMarkTags,
+    type ResponseBudget,
 } from "../../src/server/format.js";
+import { resetLangForTesting } from "../../src/server/i18n/index.js";
+
+/** A payload with nothing this module may cut — the commonest declaration. */
+const WHOLE = { list: null, advice: "narrow" } as const satisfies ResponseBudget<object>;
 
 describe("renderResponse", () => {
     it("returns markdown text when format is markdown", () => {
         const payload = { hello: "world" };
-        const r = renderResponse(payload, "markdown", () => "## Hello");
+        const r = renderResponse(payload, "markdown", WHOLE, () => "## Hello");
         expect(r.content[0]!.type).toBe("text");
         expect(r.content[0]!.text).toBe("## Hello");
         expect(r.structuredContent).toBe(payload);
@@ -21,7 +26,7 @@ describe("renderResponse", () => {
     it("returns pretty JSON when format is json (renderMarkdown not called)", () => {
         const payload = { a: 1, b: "two" };
         let called = false;
-        const r = renderResponse(payload, "json", () => {
+        const r = renderResponse(payload, "json", WHOLE, () => {
             called = true;
             return "should-not-be-used";
         });
@@ -32,37 +37,44 @@ describe("renderResponse", () => {
 
     it("preserves Arabic text in both formats", () => {
         const payload = { name: "الكلام لغة" };
-        const md = renderResponse(payload, "markdown", (d) => `النتيجة: ${d.name}`);
+        const md = renderResponse(payload, "markdown", WHOLE, (d) => `النتيجة: ${d.name}`);
         expect(md.content[0]!.text).toContain("الكلام لغة");
-        const json = renderResponse(payload, "json", () => "");
+        const json = renderResponse(payload, "json", WHOLE, () => "");
         expect(json.content[0]!.text).toContain("الكلام لغة");
     });
 
     it("does not stamp truncation flags when text is under the limit", () => {
         const payload = { x: "short" };
-        const r = renderResponse(payload, "markdown", () => "short");
+        const r = renderResponse(payload, "markdown", WHOLE, () => "short");
         expect(r.structuredContent).toBe(payload);
         expect((r.structuredContent as Record<string, unknown>).truncated).toBeUndefined();
     });
 
-    it("truncates oversized markdown output and stamps truncated:true", () => {
+    it("leaves an oversized no-list payload whole, flagged in both channels", () => {
+        // The old code sliced the TEXT and shipped structuredContent whole —
+        // the channel clients read was never capped at all. With no list to
+        // cut and no tool-owned budget, the honest move is: data untouched,
+        // truncated stamped, and the advice note in the text.
         const big = "a".repeat(CHARACTER_LIMIT + 5_000);
         const payload = { results: big };
-        const r = renderResponse(payload, "markdown", () => big);
-        expect(r.content[0]!.text.length).toBeLessThan(big.length);
-        expect(r.content[0]!.text).toContain("Response truncated");
+        const r = renderResponse(payload, "markdown", WHOLE, () => big);
         const sc = r.structuredContent as Record<string, unknown>;
         expect(sc.truncated).toBe(true);
         expect(typeof sc.truncation_message).toBe("string");
+        expect(sc.results).toBe(big);
+        expect(r.content[0]!.text).toContain(sc.truncation_message as string);
     });
 
-    it("truncates oversized JSON output too", () => {
+    it("keeps the JSON channel parseable however large the payload", () => {
+        // The regression that motivated this: the string cut produced invalid
+        // JSON — «Bad control character in string literal at position 24800».
         const big = "x".repeat(CHARACTER_LIMIT * 2);
         const payload = { results: big };
-        const r = renderResponse(payload, "json", () => "");
-        expect(r.content[0]!.text.length).toBeLessThan(JSON.stringify(payload, null, 2).length);
-        const sc = r.structuredContent as Record<string, unknown>;
-        expect(sc.truncated).toBe(true);
+        const r = renderResponse(payload, "json", WHOLE, () => "");
+        const parsed = JSON.parse(r.content[0]!.text) as Record<string, unknown>;
+        expect(parsed.results).toBe(big);
+        expect(typeof parsed.truncation_message).toBe("string");
+        expect((r.structuredContent as Record<string, unknown>).truncated).toBe(true);
     });
 });
 

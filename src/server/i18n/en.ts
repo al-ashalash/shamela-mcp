@@ -100,6 +100,21 @@ export const en: Messages = {
         status: { title: "Shamela server status", description: "Self-check: version, counters, and whether the library reads." },
     },
 
+    truncation: {
+        trimmed: (kept: string, total: string, advice: string) =>
+            `[Response trimmed to fit the size limit: ${kept} of ${total} returned. ${advice}]`,
+        overLimit: (advice: string) =>
+            `[Response exceeds the size limit and carries no list that could be cut. ${advice}]`,
+        advice: {
+            page: "For the rest, call again with `offset` set to this response's `next_offset`, and a smaller `limit`.",
+            limit: "This tool has no paging cursor: use a smaller `limit`, or narrow the request.",
+            body_part: "Fetch the next part of the body with `body_part`.",
+            next_page: "Continue from `next_start_page_id` in this response, or ask for fewer pages.",
+            sources: "Pass `remaining_book_ids` back as `book_ids` for the rest, or lower `max_sources`.",
+            narrow: "This tool does not page: make the request itself smaller — a tighter scope, one category, specific book ids, or an option that fetches less.",
+        },
+    },
+
     errors: {
         bookNotFound: (bookId: number) => `Book ${bookId} is not in the catalogue.`,
         bookNotDownloaded: (name: string) =>

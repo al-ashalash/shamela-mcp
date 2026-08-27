@@ -67,7 +67,7 @@ export async function runGetBooksForHadith(
         returned: results.length,
         results,
     };
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: ["results"], counter: "returned", advice: "narrow" }, (data) => {
         const L = pick(getBooksForHadithLabels);
         const lines = [
             // The key is this tool's own required input, so it is a number the

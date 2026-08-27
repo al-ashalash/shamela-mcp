@@ -10,7 +10,10 @@
 
 import { describe, it, expect } from "vitest";
 
-import { renderResponse } from "../../src/server/format.js";
+import { renderResponse, type ResponseBudget } from "../../src/server/format.js";
+
+/** These payloads carry counts but no list; nothing here is cut. */
+const WHOLE = { list: null, advice: "narrow" } as const satisfies ResponseBudget<object>;
 
 describe("canonical result counts", () => {
     // Tools grew two vocabularies for the same numbers — total_hits/returned in
@@ -21,7 +24,7 @@ describe("canonical result counts", () => {
         const r = renderResponse(
             { total_hits: 250, returned: 20, offset: 0, has_more: true, results: [] },
             "json",
-            () => "",
+            WHOLE, () => "",
         );
         const sc = r.structuredContent as Record<string, unknown>;
         expect(sc.total_count).toBe(250);
@@ -32,7 +35,7 @@ describe("canonical result counts", () => {
     });
 
     it("derives counts from the listing vocabulary", () => {
-        const r = renderResponse({ total: 7, returned: 7, offset: 0, has_more: false }, "json", () => "");
+        const r = renderResponse({ total: 7, returned: 7, offset: 0, has_more: false }, "json", WHOLE, () => "");
         const sc = r.structuredContent as Record<string, unknown>;
         expect(sc.total_count).toBe(7);
         expect(sc.complete).toBe(true);
@@ -41,12 +44,12 @@ describe("canonical result counts", () => {
     it("does not call a later page complete, even when it is the last one", () => {
         // Page two of two is still not the whole answer; a reader who sees only
         // this response has not seen page one.
-        const r = renderResponse({ total: 40, returned: 20, offset: 20, has_more: false }, "json", () => "");
+        const r = renderResponse({ total: 40, returned: 20, offset: 20, has_more: false }, "json", WHOLE, () => "");
         expect((r.structuredContent as Record<string, unknown>).complete).toBe(false);
     });
 
     it("leaves payloads that carry no counts alone", () => {
-        const r = renderResponse({ book_id: 9942, book_name: "كتاب" }, "json", () => "");
+        const r = renderResponse({ book_id: 9942, book_name: "كتاب" }, "json", WHOLE, () => "");
         const sc = r.structuredContent as Record<string, unknown>;
         expect(sc.total_count).toBeUndefined();
         expect(sc.book_id).toBe(9942);
@@ -54,7 +57,7 @@ describe("canonical result counts", () => {
 
     it("still flags truncation on top of the counts", () => {
         const long = "ء".repeat(200_000);
-        const r = renderResponse({ total: 1, returned: 1, offset: 0, has_more: false }, "markdown", () => long);
+        const r = renderResponse({ total: 1, returned: 1, offset: 0, has_more: false }, "markdown", WHOLE, () => long);
         const sc = r.structuredContent as Record<string, unknown>;
         expect(sc.truncated).toBe(true);
         expect(sc.total_count).toBe(1);

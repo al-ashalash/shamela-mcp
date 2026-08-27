@@ -194,7 +194,7 @@ export async function runRootStats(
     // The engine reports what it could not take; the answer says so.
     if (raw.dropped_tokens?.length) out.dropped_tokens = raw.dropped_tokens;
 
-    return renderResponse(out, args.response_format, (data) => {
+    return renderResponse(out, args.response_format, { list: null, advice: "narrow" }, (data) => {
         const lines = [header(1, L.heading(data.root))];
         const trimmedQuery = droppedNote(data);
         if (trimmedQuery) lines.push("", `> *${trimmedQuery}*`);
