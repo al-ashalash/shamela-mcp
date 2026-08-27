@@ -22,6 +22,29 @@ then platform defaults: Eclipse Adoptium / Microsoft / Oracle / Corretto on Wind
 `/usr/libexec/java_home -v 21` on macOS, `/usr/lib/jvm/*` on Linux. Set `JAVA_HOME`
 explicitly if your JDK is in a non-standard location.
 
+### On macOS
+
+Shamela installs to `~/Library/Application Support/Shamela` — capital S, no `4`,
+unlike the Windows `shamela4`. `build:java` finds it there without help.
+
+It ships a **JRE only** (`java`, no `javac`), so the helper still needs a real
+JDK to compile:
+
+```bash
+brew install openjdk@21          # the temurin@21 cask needs sudo; this does not
+export JAVA_HOME="/opt/homebrew/opt/openjdk@21"
+export PATH="$JAVA_HOME/bin:$PATH"
+cp ~/Library/Application\ Support/Shamela/app/lucene/2/AlKhalil-Analyzer-2.1.jar src/java/libs/
+cp ~/Library/Application\ Support/Shamela/app/lucene/2/shamela-misc-1.0.0.jar   src/java/libs/
+npm run build:java && npm run test
+```
+
+**Integration tests must not assume an incomplete library.** Never hardcode a
+book id to mean "not downloaded" (use `findNotDownloadedBookId` from
+`tests/fixtures/shared.ts`) and never cap pagination below `catalog.bookCount()`.
+Both mistakes pass on a partial install and fail on a full one — see
+[docs/review-1.3.0.md](docs/review-1.3.0.md).
+
 ## Release workflow
 
 Releases publish a `.mcpb` to GitHub Releases on this repo. The flow is

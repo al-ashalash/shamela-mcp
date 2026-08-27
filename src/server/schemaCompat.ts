@@ -2,8 +2,8 @@
  * Why the advertised schemas carry no dialect declaration.
  *
  * The SDK converts every tool's zod shapes to JSON Schema when it advertises
- * them, and stamps each one `$schema: draft-07` — sixty-four declarations
- * across the thirty-two tools. At least one Anthropic client validates
+ * them, and stamps each one `$schema: draft-07` — two declarations per tool,
+ * across every tool the server registers. At least one Anthropic client validates
  * structured results with a 2020-12-only validator and refuses the whole tool
  * the moment it sees that stamp. The 2.0.0 field test found every single tool
  * unreachable for exactly this reason, on the first call.
