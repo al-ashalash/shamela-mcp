@@ -14,13 +14,15 @@
  *      already === last released tag).
  *   7. Vitest suite passes (`npm run test`).
  *   8. `gh` CLI is on PATH and authenticated.
+ *   9. docs/release-notes/v<VERSION>.md exists, opens with an H1 title, and is
+ *      written in Arabic. Release notes are prose for a reader, not generated.
  *
  * Then:
  *   - `npm run pack` → produces shamela-mcp-<VERSION>.mcpb
  *   - `git tag -a v<VERSION> -m "release v<VERSION>"`
  *   - `git push origin v<VERSION>`
  *   - `gh release create v<VERSION> shamela-mcp-<VERSION>.mcpb \
- *        --title "v<VERSION>" --generate-notes`
+ *        --title "<H1 of docs/release-notes/v<VERSION>.md>" --notes-file <its body>`
  *
  * Flags:
  *   --dry-run    Run all pre-flight checks but skip pack/tag/publish.
@@ -99,7 +101,7 @@ console.log("=".repeat(60));
 
 // --- Pre-flight ------------------------------------------------------------
 
-step("1/8  Working tree must be clean");
+step("1/9  Working tree must be clean");
 {
     const r = git(["status", "--porcelain"]);
     if (r.stdout.trim()) {
@@ -112,7 +114,7 @@ step("1/8  Working tree must be clean");
     ok("clean");
 }
 
-step("2/8  On main branch");
+step("2/9  On main branch");
 {
     const r = git(["rev-parse", "--abbrev-ref", "HEAD"]);
     const branch = r.stdout.trim();
@@ -122,7 +124,7 @@ step("2/8  On main branch");
     ok(`branch=${branch}`);
 }
 
-step("3/8  Up to date with origin/main");
+step("3/9  Up to date with origin/main");
 {
     git(["fetch", "origin", "main"]);
     const ahead = git(["rev-list", "--count", "origin/main..HEAD"]).stdout.trim();
@@ -139,7 +141,7 @@ step("3/8  Up to date with origin/main");
     ok("synced with origin");
 }
 
-step("4/8  Every version reference and every landing language agree");
+step("4/9  Every version reference and every landing language agree");
 {
     // This step used to compare manifest.json against package.json and stop.
     // Those two are the easy pair — they sit next to each other and get edited
@@ -152,7 +154,7 @@ step("4/8  Every version reference and every landing language agree");
     ok(`all references at ${VERSION}, all twelve languages complete`);
 }
 
-step(`5/8  Tag ${TAG} does not already exist`);
+step(`5/9  Tag ${TAG} does not already exist`);
 {
     const local = git(["tag", "-l", TAG]).stdout.trim();
     if (local) {
@@ -178,7 +180,7 @@ step(`5/8  Tag ${TAG} does not already exist`);
     ok(`${TAG} is unused`);
 }
 
-step("6/8  HEAD has commits since the last release tag");
+step("6/9  HEAD has commits since the last release tag");
 {
     const allTags = git(["tag", "-l", "v*", "--sort=-v:refname"]).stdout.trim().split("\n").filter(Boolean);
     if (allTags.length === 0) {
@@ -219,7 +221,7 @@ step("6/8  HEAD has commits since the last release tag");
     }
 }
 
-step("7/8  Vitest suite passes");
+step("7/9  Vitest suite passes");
 if (SKIP_TESTS) {
     console.log("  ⚠ skipped via --skip-tests");
 } else {
@@ -227,7 +229,7 @@ if (SKIP_TESTS) {
     ok("all tests green");
 }
 
-step("8/8  gh CLI installed and authenticated");
+step("8/9  gh CLI installed and authenticated");
 {
     const ver = run("gh", ["--version"], { capture: true, allowFailure: true });
     if (ver.status !== 0) {
@@ -244,6 +246,56 @@ step("8/8  gh CLI installed and authenticated");
         fail("gh CLI is installed but not authenticated. Run `gh auth login`.");
     }
     ok(ver.stdout.split("\n")[0].trim());
+}
+
+// --- 9/9  Release notes ----------------------------------------------------
+//
+// v1.3.0 published with `--generate-notes`, which produced an English list of
+// pull-request titles. That is wrong twice over. The readers of this project are
+// Arabic-speaking, and every release before it was written in Arabic; and the
+// generated list described only the PRs, so it missed the four new tools
+// entirely — the release's whole substance — while announcing the maintainer as
+// a first-time contributor to his own repository.
+//
+// The notes are prose about a library, in the language of the people who use it.
+// They are written, not generated. This refuses to publish without them rather
+// than quietly falling back to something the maintainer would have to go and fix
+// on a page users are already reading.
+step("9/9  Release notes are written for this version");
+const notesPath = path.join(repoRoot, "docs", "release-notes", `${TAG}.md`);
+let releaseTitle = TAG;
+let notesBodyPath = "";
+{
+    if (!fs.existsSync(notesPath)) {
+        fail(
+            `No release notes at docs/release-notes/${TAG}.md.\n\n` +
+                `  Write them in Arabic, as prose for a reader — what changed for someone\n` +
+                `  using the library, not a list of commits. docs/release-notes/v1.3.0.md is\n` +
+                `  the model. Put the release title on the first line as an H1:\n\n` +
+                `      # ${TAG} — <عنوان عربي موجز>\n`,
+        );
+    }
+    const raw = fs.readFileSync(notesPath, "utf8");
+    const firstLine = raw.split(/\r?\n/)[0] ?? "";
+    if (!firstLine.startsWith("# ")) {
+        fail(
+            `docs/release-notes/${TAG}.md must open with an H1 giving the release title, ` +
+                `e.g. "# ${TAG} — <عنوان>". Found: ${JSON.stringify(firstLine.slice(0, 60))}`,
+        );
+    }
+    releaseTitle = firstLine.slice(2).trim();
+    if (!/[؀-ۿ]/.test(raw)) {
+        fail(
+            `docs/release-notes/${TAG}.md contains no Arabic. Releases are written in ` +
+                `Arabic — see docs/release-notes/v1.3.0.md.`,
+        );
+    }
+    // The body is everything after the title line; gh renders the title itself.
+    // Written outside the repo so a release can never leave a stray file behind
+    // in a tree the next run insists must be clean.
+    notesBodyPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "shamela-rel-")), "notes.md");
+    fs.writeFileSync(notesBodyPath, raw.split(/\r?\n/).slice(1).join("\n").trimStart(), "utf8");
+    ok(releaseTitle);
 }
 
 console.log("\n" + "=".repeat(60));
@@ -281,15 +333,7 @@ ok(`pushed`);
 step("Publishing GitHub Release");
 run(
     "gh",
-    [
-        "release",
-        "create",
-        TAG,
-        mcpbPath,
-        "--title",
-        TAG,
-        "--generate-notes",
-    ],
+    ["release", "create", TAG, mcpbPath, "--title", releaseTitle, "--notes-file", notesBodyPath],
     { capture: false },
 );
 
