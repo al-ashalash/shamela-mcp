@@ -20,18 +20,24 @@ import { describe, it, expect, beforeAll } from "vitest";
 
 import { runGetBook, getBookInput } from "../../src/server/tools/getBook.js";
 import { runGetCitation, getCitationInput } from "../../src/server/tools/getCitation.js";
-import { getBackend } from "../fixtures/shared.js";
+import { findNotDownloadedBookId, getBackend } from "../fixtures/shared.js";
 
 let backend: Awaited<ReturnType<typeof getBackend>>;
 
 beforeAll(async () => {
     backend = await getBackend();
+    NOT_DOWNLOADED = findNotDownloadedBookId(backend.catalog);
 }, 120_000);
 
 /** «أخصر المختصرات - ت العجمي - ط 1» — downloaded, readable. */
 const EDITION_ONE = 6084;
-/** «السلاسل المختارة من صحيح الإمام البخاري» — in the catalogue, not downloaded. */
-const NOT_DOWNLOADED = 80;
+/**
+ * A book in the catalogue with no file on disk — asked of the catalogue, not
+ * hardcoded. This was `const NOT_DOWNLOADED = 80`, true of the author's partial
+ * library and false of a complete one, where book 80 is present and readable.
+ * Both tests below then failed on correct output. Resolved in beforeAll.
+ */
+let NOT_DOWNLOADED: number | null = null;
 /** الروض المربع — downloaded, 1,607 pages. */
 const BIG = 147658;
 
@@ -79,6 +85,13 @@ describe("an edition number is not a publisher", () => {
 
 describe("a card does not claim to have read what it could not open", () => {
     it("says the front-matter was never consulted for a book not on disk", async () => {
+        if (NOT_DOWNLOADED === null) {
+            // Every catalogued book is on disk here, so the case cannot be
+            // staged. Assert that rather than pass silently: a null that came
+            // from a broken lookup would otherwise read as a green test.
+            expect(backend.catalog.downloadedBookIds().size).toBe(backend.catalog.bookCount());
+            return;
+        }
         const b = await book(NOT_DOWNLOADED);
         expect(b.content_status).toBe("not_downloaded");
         const notes = b.notes.join(" | ");
@@ -90,6 +103,10 @@ describe("a card does not claim to have read what it could not open", () => {
 
 describe("a citation says when it cannot be trusted", () => {
     it("warns that the book is not readable here", async () => {
+        if (NOT_DOWNLOADED === null) {
+            expect(backend.catalog.downloadedBookIds().size).toBe(backend.catalog.bookCount());
+            return;
+        }
         const c = await cite(NOT_DOWNLOADED, { page_id: 3 });
         expect(c.notes.join(" | ")).toMatch(/غير مقروء على هذا الجهاز|not readable on this machine/);
     }, 120_000);

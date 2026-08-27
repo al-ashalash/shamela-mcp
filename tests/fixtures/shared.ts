@@ -103,3 +103,24 @@ export async function getBackend(): Promise<Backend> {
  */
 export const FIXTURE_BOOK_ID = 9942;
 export const FIXTURE_BOOK_NAME = "الأصول من علم الأصول";
+
+// --- A book the library does not have ---------------------------------------
+
+/**
+ * Find a book that is in the catalogue but has no file on disk.
+ *
+ * Tests about "not downloaded" used to name a book id outright. That encodes
+ * the author's own library into the suite: book 80 is absent from a partial
+ * install and present in a complete one, so the same correct code passed on
+ * one machine and failed on another. A maintainer with the whole library saw
+ * red for a defect that did not exist.
+ *
+ * Ask the catalogue instead. Returns null when every catalogued book is on
+ * disk — a real state, not an error, and callers decide what it means for them.
+ */
+export function findNotDownloadedBookId(catalog: Catalog): number | null {
+    for (const b of catalog.allBooks()) {
+        if (!catalog.isDownloaded(b.book_id)) return b.book_id;
+    }
+    return null;
+}

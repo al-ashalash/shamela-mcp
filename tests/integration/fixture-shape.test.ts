@@ -23,11 +23,26 @@ import { FIXTURE_BOOK_ID, getPaths, getSqlWasm } from "../fixtures/shared.js";
 
 let database: string;
 
+/**
+ * Column defaults are dropped before comparing.
+ *
+ * Shamela builds differ here in ways that mean nothing to the fixture: this
+ * library declares `user_excluded INTEGER DEFAULT 0` where the fixture writes
+ * `user_excluded INTEGER`. A default governs what an INSERT stores, and nothing
+ * in this project inserts — every open is read-only. Comparing it turned a
+ * version difference between two correct libraries into a failing test.
+ *
+ * Table names, column names and column types are still compared exactly, so
+ * the drift this guard exists to catch still fails it.
+ */
+const stripDefaults = (sql: string): string =>
+    sql.replace(/\s+DEFAULT\s+(?:'[^']*'|"[^"]*"|[^\s,)]+)/gi, "");
+
 async function tablesOf(file: string): Promise<string[]> {
     const SQL = await initSqlJs({ wasmBinary: getSqlWasm().buffer as ArrayBuffer });
     const db = new SQL.Database(fs.readFileSync(file));
     const res = db.exec("SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL ORDER BY name");
-    const out = (res[0]?.values ?? []).map((r) => String(r[0]).replace(/\s+/g, " ").trim());
+    const out = (res[0]?.values ?? []).map((r) => stripDefaults(String(r[0]).replace(/\s+/g, " ")).trim());
     db.close();
     return out;
 }

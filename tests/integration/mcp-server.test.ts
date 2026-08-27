@@ -604,7 +604,13 @@ describe("MCP server end-to-end (InMemoryTransport)", () => {
             };
             let offset = 0;
             let found = false;
-            for (let page = 0; page < 20; page++) {
+            // Page to exhaustion. This was capped at 20 pages of 100, which is
+            // 2,000 books — enough for a partial library, and short of a full
+            // one, where the fixture sorts past the cap and was never reached.
+            // The bound below only stops a runaway: it cannot end the walk
+            // early, because it exceeds the whole catalogue.
+            const maxPages = backend.catalog.bookCount() + 1;
+            for (let page = 0; page < maxPages; page++) {
                 const r = (await client.callTool({
                     name: "shamela_list_downloaded_books",
                     arguments: { limit: 100, offset, response_format: "json" },
