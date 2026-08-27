@@ -52,18 +52,32 @@ sources.push({
     found: readme.match(/إصدار\s*\*\*([\d.]+)\*\*/)?.[1],
 });
 
-// The landing page carries it in a version badge and in the footer of every
-// language block; collect all of them so one stale translation cannot hide.
+// The landing page carries the number in exactly one place: a `.lat` badge.
+// Only the LABEL beside it is translated, not the digits.
+//
+// An earlier check here hunted for "Version 1.3.0" inside each language block
+// and counted the distinct results. The page has never had that shape, so it
+// matched nothing every time — and an empty set is not one value, so it
+// reported `MIXED: ` and failed, naming a disagreement among zero footers.
+// A guard that fails for a reason that is not true teaches people to ignore it.
+//
+// What replaces it is cheaper and stricter: every version-shaped string on the
+// page must be the manifest's. That is the check the badge fix actually needed
+// — 2.0.0 sat in that badge through a rename and only the badge line saw it.
+//
+// It fails closed: mention some OTHER product's X.Y.Z on this page (a JDK, a
+// Lucene build) and this trips. That is deliberate. Prefer wording it without
+// a version to teaching the guard exceptions it cannot verify.
 const landing = toWesternDigits(read("docs/index.html"));
 const badge = landing.match(/<div class="mv"><span class="lat">([\d.]+)<\/span>/)?.[1];
 sources.push({ where: "docs/index.html (version badge)", found: badge });
 
-const footerHits = [...landing.matchAll(/(?:الإصدار|v|version|versi|نسخهٔ|toleo|sürüm|версия|版本|ورژن|সংস্করণ|Versi)\s*([\d]+\.[\d]+\.[\d]+)/gi)]
-    .map((m) => m[1]);
-const footerDistinct = [...new Set(footerHits)];
+const strays = [...new Set([...landing.matchAll(/\b\d+\.\d+\.\d+\b/g)].map((m) => m[0]))].filter(
+    (v) => v !== manifestVersion,
+);
 sources.push({
-    where: `docs/index.html (${footerHits.length} localized footers)`,
-    found: footerDistinct.length === 1 ? footerDistinct[0] : `MIXED: ${footerDistinct.join(", ")}`,
+    where: "docs/index.html (no other version anywhere)",
+    found: strays.length === 0 ? manifestVersion : `STALE: ${strays.join(", ")}`,
 });
 
 let bad = 0;
