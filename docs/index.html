@@ -439,16 +439,17 @@
     .btn::after,.navlinks a::after{content:"" !important}
   }
   /* the remote server — a warm band lifted from the page's own chip colours, so
-     the announcement stands off the ground without importing a foreign hue */
+     the announcement stands off the ground without importing a foreign hue.
+     The strip on top is the deep coral, filled, so "new" carries at a glance */
   .promo{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;
-    background:var(--chip-bg);color:var(--muted);
-    text-decoration:none;font-size:13.5px;font-weight:500;padding:15px 18px 0;text-align:center}
-  .promo:hover{color:var(--ink)}
-  .promo .tag{display:inline-flex;align-items:center;gap:5px;color:var(--chip-tx);
-    font-weight:700;flex-shrink:0}
+    background:#A8462A;color:#FBE7DE;
+    text-decoration:none;font-size:13.5px;font-weight:500;padding:9px 18px;text-align:center}
+  .promo:hover{color:#fff}
+  .promo .tag{display:inline-flex;align-items:center;gap:5px;color:#fff;
+    font-weight:800;flex-shrink:0}
   .promo .tag svg{flex-shrink:0}
-  .promo .tag::after{content:"·";margin-inline-start:4px;color:var(--chip-bd)}
-  .promo .url{color:var(--chip-tx);text-decoration:underline;text-decoration-thickness:1px;
+  .promo .tag::after{content:"·";margin-inline-start:4px;color:rgba(255,255,255,.45)}
+  .promo .url{color:#fff;text-decoration:underline;text-decoration-thickness:1px;
     text-underline-offset:3px;white-space:nowrap}
   /* an announcement above the page's own title, so it stays the smaller of the two */
   #remote{background:var(--chip-bg);border:0;border-bottom:1px solid var(--chip-bd);padding:24px 0 46px}
