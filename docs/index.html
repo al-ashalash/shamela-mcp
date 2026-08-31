@@ -456,7 +456,12 @@
   #remote h2{font-size:clamp(23px,3.2vw,31px);margin-top:6px}
   #remote .lead{font-size:clamp(16px,2.1vw,18px);max-width:64ch;margin-top:8px}
   #remote .grid{margin-top:24px}
-  @media(max-width:560px){#remote{padding:18px 0 38px}}
+  /* on a phone the three cards would push the page's own title a screen away,
+     so the band keeps its promise, its address and its button, and lets the
+     three cards go - shamela.link carries the detail */
+  @media(max-width:560px){#remote{padding:18px 0 34px}
+    #remote .grid{display:none}
+    #remote .cta{margin-top:22px}}
   #remote .eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--chip-tx)}
   #remote .eyebrow svg{color:var(--chip-tx);flex-shrink:0}
   #remote .card{border-color:var(--chip-bd)}
